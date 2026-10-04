@@ -6,7 +6,7 @@ It is built to handle routine driving tasks while keeping the important state vi
 
 ## Status
 
-This project is under active development. SCR updates can change internal game behaviour and break compatibility, so use it at your own risk and expect occasional rough edges.
+This project is under active development. SCR updates can change internal game behaviour and break compatibility, so use it at your own risk and expect occasional rough edges. Working as of SCR version 2.4
 
 ## Features
 
