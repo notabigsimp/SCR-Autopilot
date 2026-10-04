@@ -738,7 +738,8 @@ local function projectedHalfSize(part, axis)
         + math.abs(axis:Dot(cf.UpVector)) * size.Y + math.abs(axis:Dot(cf.LookVector)) * size.Z)
 end
 local function bufferFace(sensor, candidates)
-    local axis = sensor.CFrame.LookVector
+    local sensorAxis = sensor.CFrame.LookVector
+    local axis = sensorAxis
     local selected, face, best = nil, nil, math.huge
     for _, part in ipairs(candidates) do
         -- Some terminals (e.g. Stepford UFC) use a visible, non-collidable
@@ -748,19 +749,66 @@ local function bufferFace(sensor, candidates)
             and part.Name:lower():find("buffer", 1, true) ~= nil
         if part:IsA("BasePart") and (part.CanCollide or visibleBuffer) then
             local delta = part.Position - sensor.Position
-            local along = delta:Dot(axis)
+            local signedAlong = delta:Dot(sensorAxis)
+            local along = math.abs(signedAlong)
             local lateral = math.abs(delta:Dot(sensor.CFrame.RightVector))
             -- Adjacent tracks are about 10 studs apart. A strict centreline
             -- corridor rejects their buffers, including closer neighbouring ones.
-            if along >= 0 and along <= 160 and lateral <= 4 and math.abs(delta.Y) <= 15 then
-                local nearFace = along - projectedHalfSize(part, axis)
+            if along <= 160 and lateral <= 4 and math.abs(delta.Y) <= 15 then
+                -- Terminal sensor orientation is inconsistent across stations:
+                -- Bay faces AWAY from its buffer, Victoria/UFC face toward it.
+                -- Infer the direction from assigned-track geometry, never train heading.
+                local candidateAxis = sensorAxis * (signedAlong >= 0 and 1 or -1)
+                local nearFace = along - projectedHalfSize(part, candidateAxis)
                 if nearFace >= 0 and nearFace < best then
-                    selected, face, best = part, sensor.Position + axis * nearFace, nearFace
+                    selected, face, best, axis = part, sensor.Position + candidateAxis * nearFace, nearFace, candidateAxis
                 end
             end
         end
     end
     return selected, face, axis
+end
+local function platformBufferFace(position, candidates)
+    local selected, face, axis, best = nil, nil, nil, math.huge
+    for _, part in ipairs(candidates) do
+        -- Without a sensor, require explicitly identified buffer geometry.
+        -- Do not infer a terminal from a lamp or generic collision part.
+        if part:IsA("BasePart") and part.Name:lower():find("buffer", 1, true)
+            and (part.CanCollide or (part:IsA("MeshPart") and part.Transparency < 1)) then
+            local meshAxis = part.CFrame.LookVector
+            local delta = part.Position - position
+            local signedAlong = delta:Dot(meshAxis)
+            local along = math.abs(signedAlong)
+            local lateral = math.abs(delta:Dot(part.CFrame.RightVector))
+            -- Whitney Green's reference is ~266 studs before its buffer.
+            -- Tight cross-track/height limits reject adjacent tracks and upper levels.
+            if along <= 400 and lateral <= 4 and math.abs(delta.Y) <= 5 and math.abs(meshAxis.Y) <= 0.05 then
+                local candidateAxis = meshAxis * (signedAlong >= 0 and 1 or -1)
+                local nearFace = along - projectedHalfSize(part, candidateAxis)
+                if nearFace >= 0 then
+                    local candidateFace = position + candidateAxis * nearFace
+                    if selected and ((candidateFace - face).Magnitude > 8 or candidateAxis:Dot(axis) < 0.98) then
+                        return nil, nil, nil, "Ambiguous platform buffer geometry"
+                    end
+                    if nearFace < best then selected, face, axis, best = part, candidateFace, candidateAxis, nearFace end
+                end
+            end
+        end
+    end
+    return selected, face, axis
+end
+local function bufferCandidates()
+    local candidates = {}
+    -- Bounded to explicitly named top-level buffer objects, never all world geometry.
+    for _, item in ipairs(workspace:GetChildren()) do
+        if item.Name:lower():find("buffer", 1, true) then
+            if item:IsA("BasePart") then table.insert(candidates, item) end
+            for _, part in ipairs(item:GetDescendants()) do
+                if part:IsA("BasePart") then table.insert(candidates, part) end
+            end
+        end
+    end
+    return candidates
 end
 local function trainNoseOverhang(mover, now)
     local index = mover.isInitialDirection and 1 or #mover.carriages
@@ -809,41 +857,58 @@ local function bufferDistance(front, direction, face, axis, overhang)
 end
 local function terminalBuffer(mover, model, now)
     local sensor = terminalSensor(model)
-    if not sensor then return nil end
-    local front, direction = mover:GetFrontBogie()
-    if not front or typeof(direction) ~= "Vector3" then return nil, "Train heading unavailable", sensor end
-    local axis = sensor.CFrame.LookVector
-    -- Ignore the terminal when departing/reversing away from the buffer.
-    if direction:Dot(axis) <= 0 then return nil end
+    local platform = not sensor and currentPlatform(model) or nil
+    local reference = platform and platform:FindFirstChild("Position")
+    if not sensor and (not reference or not reference:IsA("Vector3Value")) then return nil end
+    local key = sensor or platform
+    local position = sensor and sensor.Position or reference.Value
     local cache = state.bufferCache
-    if not cache or cache.sensor ~= sensor or cache.mover ~= mover or cache.initial ~= mover.isInitialDirection then
-        cache = { sensor = sensor, mover = mover, initial = mover.isInitialDirection, retryAt = 0 }
+    if not cache or cache.key ~= key or cache.mover ~= mover or cache.initial ~= mover.isInitialDirection
+        or cache.position ~= position then
+        cache = { key = key, position = position, mover = mover, initial = mover.isInitialDirection, retryAt = 0,
+            anchor = sensor or { Position = position, Name = tostring(model:GetAttribute("NextStop")) .. "/" .. platform.Name .. " (platform geometry)" } }
         state.bufferCache = cache
+    end
+    local anchor = cache.anchor
+    local front, direction = mover:GetFrontBogie()
+    if not front or typeof(direction) ~= "Vector3" then
+        if sensor then return nil, "Train heading unavailable", sensor end
+        return nil
     end
     if cache.part and not cache.part:IsDescendantOf(workspace) then cache.part = nil end
     if not cache.part and now >= cache.retryAt then
         cache.retryAt = now + 1
-        local candidates = {}
-        -- Scan top-level map models at most once a second while streaming in;
-        -- never scan every world descendant on Heartbeat.
-        for _, item in ipairs(workspace:GetChildren()) do
-            if item.Name:lower():find("buffer", 1, true) then
-                if item:IsA("BasePart") then table.insert(candidates, item) end
-                for _, part in ipairs(item:GetDescendants()) do
-                    if part:IsA("BasePart") then table.insert(candidates, part) end
-                end
-            end
+        local candidates = bufferCandidates()
+        if sensor then
+            cache.part, cache.face, cache.axis = bufferFace(sensor, candidates)
+        else
+            cache.part, cache.face, cache.axis, cache.error = platformBufferFace(position, candidates)
         end
-        cache.part, cache.face, cache.axis = bufferFace(sensor, candidates)
+        if cache.part then
+            cache.identified = true
+            cache.lastFace = cache.face
+        end
     end
-    if not cache.part then return nil, "Assigned buffer geometry not loaded", sensor end
+    if not cache.part then
+        if sensor then return nil, "Assigned buffer geometry not loaded", sensor end
+        if cache.identified then
+            return nil, cache.error or "Assigned buffer geometry not loaded",
+                { Position = cache.lastFace, Name = anchor.Name }
+        end
+        if cache.error then return nil, cache.error, anchor end
+        return nil -- ordinary through platforms are not terminals just because they lack a sensor
+    end
+    local safetyAnchor = sensor or { Position = cache.face, Name = anchor.Name }
+    -- Only after geometry has resolved the terminal's true direction can a
+    -- reversed/departing train be distinguished from an approaching train.
+    if direction:Dot(cache.axis) <= 0 then return nil end
     local overhang = trainNoseOverhang(mover, now)
-    if not overhang then return nil, "Train nose geometry not loaded", sensor end
+    if not overhang then return nil, "Train nose geometry not loaded", safetyAnchor end
     local studs, aligned = bufferDistance(front.position, direction, cache.face, cache.axis, overhang)
     if aligned == false and studs <= utility.MilesToStuds(0.03) then
-        return nil, "Buffer track alignment unconfirmed", sensor
+        return nil, "Buffer track alignment unconfirmed", safetyAnchor
     end
-    return { key = sensor, kind = "Buffer", name = sensor.Name, distance = utility.StudsToMiles(studs),
+    return { key = key, kind = "Buffer", name = anchor.Name, distance = utility.StudsToMiles(studs),
         overhang = overhang, face = cache.face }
 end
 
@@ -883,8 +948,15 @@ local function isUndershootMessage(text)
     local position = text:find("buffer", 1, true) or text:find("platform", 1, true)
         or text:find("stop marker", 1, true) or text:find("stopping marker", 1, true)
         or text:find("stopping point", 1, true) or text:find("signal", 1, true)
+    -- Normal platforms can reject an otherwise valid station-signal stop with
+    -- an instruction such as "Move forward until the train is fully alongside
+    -- the platform."  This is an undershoot acknowledgement only after our
+    -- door request; do not infer it merely from the remaining-distance value.
+    local forwardToPlatform = position and text:find("move forward", 1, true)
+        and text:find("alongside", 1, true)
     return (position and text:find("closer", 1, true)) ~= nil
         or (position and text:find("move further", 1, true)) ~= nil
+        or forwardToPlatform ~= nil
         or text:find("stopped short", 1, true) ~= nil
         or text:find("stopped too early", 1, true) ~= nil
 end
