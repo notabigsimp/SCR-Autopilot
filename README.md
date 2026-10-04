@@ -37,5 +37,5 @@ Once loaded, open the **Autopilot** tab to configure speeds and enable the contr
 
 ## Credits
 
-- [Rayfield](https://github.com/SiriusSoftwareLtd/Rayfield) for the interface library.
+- [Rayfield Gen2](https://github.com/SiriusSoftwareLtd/rayfield-gen2) for the interface library.
 - Stepford County Railway and Roblox belong to their respective owners.
