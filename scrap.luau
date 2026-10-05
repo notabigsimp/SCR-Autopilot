@@ -401,6 +401,338 @@ local function updateStationBoard()
     end
     if state.alive then setLiveText(boardDisplay, table.concat(lines, "\n")) end
 end
+-- FUN CAMERA CONTROLLER: injected services allow lifecycle/input tests without taking over the live camera.
+local FunCamera = {}
+function FunCamera.new(player, input, run, actions, world, isAlive, onChanged, nativeControls)
+    local self = { zoom = false, freecam = false, speed = 40, keys = {}, connections = {}, destroyed = false,
+        saved = nil, originalZoom = nil, looking = false, position = Vector3.zero, pitch = 0, yaw = 0,
+        mouseBehavior = input.MouseBehavior, mouseIcon = input.MouseIconEnabled,
+        zoomOffset = 0, zoomCamera = nil, zoomBase = nil, zoomApplied = nil,
+        lookTouch = nil, touchPosition = nil, native = nativeControls,
+        shortcut = { key = Enum.KeyCode.P }, shortcutLabel = "Shift + P", isRecordingShortcut = function() return false end }
+    function self:setShortcut(key)
+        if typeof(key) ~= "EnumItem" or key.EnumType ~= Enum.KeyCode or not key.Name:match("^[A-Z]$") then
+            return false
+        end
+        self.shortcut.key, self.shortcutLabel = key, "Shift + " .. key.Name
+        onChanged(self.freecam)
+        return true
+    end
+    local renderName, actionName = "SCRAutopilotFunCamera", "SCRAutopilotFreecamInput"
+    local zoomLimit = 100000 -- Roblox clamps CameraMaxZoomDistance to this engine maximum.
+    local zoomRenderName = "SCRAutopilotZoom"
+    local zoomResetName = "SCRAutopilotZoomReset"
+    local function clearScriptZoom()
+        if self.zoomCamera and self.zoomBase and self.zoomCamera.CFrame == self.zoomApplied then
+            self.zoomCamera.CFrame = self.zoomBase
+        end
+        self.zoomCamera, self.zoomBase, self.zoomApplied = nil, nil, nil
+        self.zoomOffset = 0
+    end
+    local function updateScriptZoom()
+        local camera = world.CurrentCamera
+        if not self.zoom or self.freecam or not isAlive() or not camera
+            or camera.CameraType ~= Enum.CameraType.Scriptable then
+            clearScriptZoom()
+            return
+        end
+        if self.zoomCamera ~= camera then clearScriptZoom(); self.zoomCamera = camera end
+        -- SCR rewrites scene/train cameras itself. Apply the offset after its update,
+        -- using the unmodified frame when a static scene has not written a new one.
+        if camera.CFrame ~= self.zoomApplied then self.zoomBase = camera.CFrame end
+        local base = self.zoomBase or camera.CFrame
+        local frame = base * CFrame.new(0, 0, self.zoomOffset)
+        self.zoomApplied = frame
+        camera.CFrame = frame
+    end
+    local function restoreCamera()
+        local saved = self.saved
+        if saved then
+            saved.camera.CameraType = saved.kind
+            saved.camera.CameraSubject = saved.subject
+            saved.camera.CFrame = saved.frame
+            saved.camera.Focus = saved.focus
+            self.saved = nil
+        end
+    end
+    local function captureCamera(camera)
+        self.saved = { camera = camera, kind = camera.CameraType, subject = camera.CameraSubject,
+            frame = camera.CFrame, focus = camera.Focus }
+        camera.CameraType = Enum.CameraType.Scriptable
+    end
+    local function mouseLook(enabled)
+        self.looking = enabled
+        input.MouseBehavior = enabled and Enum.MouseBehavior.LockCurrentPosition or self.mouseBehavior
+        if enabled then input.MouseIconEnabled = false else input.MouseIconEnabled = self.mouseIcon end
+    end
+    function self:setZoom(enabled)
+        if self.destroyed or self.zoom == enabled then return end
+        self.zoom = enabled
+        if enabled then
+            self.originalZoom = player.CameraMaxZoomDistance
+            player.CameraMaxZoomDistance = zoomLimit
+            run:BindToRenderStep(zoomResetName, Enum.RenderPriority.First.Value + 1, function()
+                -- Scene rotation reads last frame's camera. Remove our previous offset
+                -- before SCR runs so it cannot feed back into its own camera transform.
+                if self.zoomCamera and self.zoomBase and self.zoomCamera.CFrame == self.zoomApplied then
+                    self.zoomCamera.CFrame = self.zoomBase
+                end
+            end)
+            run:BindToRenderStep(zoomRenderName, Enum.RenderPriority.Last.Value - 1, updateScriptZoom)
+        elseif self.originalZoom then
+            run:UnbindFromRenderStep(zoomRenderName)
+            run:UnbindFromRenderStep(zoomResetName)
+            clearScriptZoom()
+            player.CameraMaxZoomDistance = self.originalZoom
+            self.originalZoom = nil
+        end
+    end
+    function self:setFreecam(enabled)
+        if self.destroyed or self.freecam == enabled then return end
+        local camera = world.CurrentCamera
+        if enabled and not camera then return end
+        self.freecam = enabled
+        table.clear(self.keys)
+        self.lookTouch, self.touchPosition = nil, nil
+        if enabled then
+            clearScriptZoom()
+            self.mouseBehavior, self.mouseIcon = input.MouseBehavior, input.MouseIconEnabled
+            self.position = camera.CFrame.Position
+            self.pitch, self.yaw = camera.CFrame:ToOrientation()
+            captureCamera(camera)
+            if self.native then self.native:enter() end
+            actions:BindActionAtPriority(actionName, function(_, phase, event)
+                if not self.freecam or input:GetFocusedTextBox() then return Enum.ContextActionResult.Pass end
+                -- Let Rayfield receive WASD too while its keybind is recording.
+                if self.isRecordingShortcut() then table.clear(self.keys); return Enum.ContextActionResult.Pass end
+                if event.UserInputType == Enum.UserInputType.MouseButton2 then
+                    mouseLook(phase == Enum.UserInputState.Begin or phase == Enum.UserInputState.Change)
+                else
+                    self.keys[event.KeyCode] = phase == Enum.UserInputState.Begin or phase == Enum.UserInputState.Change
+                end
+                return Enum.ContextActionResult.Sink
+            end, false, Enum.ContextActionPriority.High.Value + 1,
+                Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D,
+                Enum.UserInputType.MouseButton2)
+            run:BindToRenderStep(renderName, Enum.RenderPriority.Camera.Value + 1, function(dt)
+                if not self.freecam or not isAlive() then return end
+                local current = world.CurrentCamera
+                if not current then return end
+                if not self.saved or current ~= self.saved.camera then
+                    restoreCamera()
+                    captureCamera(current)
+                end
+                local focused = input:GetFocusedTextBox() ~= nil or self.isRecordingShortcut()
+                if focused then
+                    table.clear(self.keys); mouseLook(false)
+                    self.lookTouch, self.touchPosition = nil, nil
+                end
+                if self.looking and not focused then
+                    local delta = input:GetMouseDelta()
+                    self.yaw -= delta.X * 0.003
+                    self.pitch = math.clamp(self.pitch - delta.Y * 0.003, -math.pi / 2 + 0.01, math.pi / 2 - 0.01)
+                end
+                local function held(key) return self.keys[key] and 1 or 0 end
+                local direction = Vector3.new(held(Enum.KeyCode.D) - held(Enum.KeyCode.A),
+                    0, held(Enum.KeyCode.S) - held(Enum.KeyCode.W))
+                if self.native and not focused then
+                    local stick = self.native:moveVector()
+                    direction += Vector3.new(stick.X, 0, stick.Z)
+                end
+                if direction.Magnitude > 1 then direction = direction.Unit end
+                local rotation = CFrame.fromOrientation(self.pitch, self.yaw, 0)
+                local boost = not focused and (input:IsKeyDown(Enum.KeyCode.LeftShift) or input:IsKeyDown(Enum.KeyCode.RightShift))
+                local slow = not focused and (input:IsKeyDown(Enum.KeyCode.LeftControl) or input:IsKeyDown(Enum.KeyCode.RightControl))
+                if direction.Magnitude > 0 then
+                    self.position += rotation:VectorToWorldSpace(direction) * self.speed
+                        * (boost and 3 or slow and 0.25 or 1) * math.min(dt, 0.1)
+                end
+                current.CameraType = Enum.CameraType.Scriptable
+                current.CFrame = CFrame.new(self.position) * rotation
+                current.Focus = current.CFrame * CFrame.new(0, 0, -20)
+            end)
+        else
+            run:UnbindFromRenderStep(renderName)
+            actions:UnbindAction(actionName)
+            mouseLook(false)
+            restoreCamera()
+            if self.native then self.native:leave() end
+        end
+        onChanged(enabled)
+    end
+    table.insert(self.connections, player:GetPropertyChangedSignal("CameraMaxZoomDistance"):Connect(function()
+        if self.zoom and player.CameraMaxZoomDistance ~= zoomLimit then
+            self.originalZoom = player.CameraMaxZoomDistance
+            player.CameraMaxZoomDistance = zoomLimit
+        end
+    end))
+    table.insert(self.connections, input.InputBegan:Connect(function(event, processed)
+        if not isAlive() or input:GetFocusedTextBox() or self.isRecordingShortcut() then return end
+        if processed then return end
+        local shortcut = self.shortcut
+        local shift = input:IsKeyDown(Enum.KeyCode.LeftShift) or input:IsKeyDown(Enum.KeyCode.RightShift)
+        local ctrl = input:IsKeyDown(Enum.KeyCode.LeftControl) or input:IsKeyDown(Enum.KeyCode.RightControl)
+        local alt = input:IsKeyDown(Enum.KeyCode.LeftAlt) or input:IsKeyDown(Enum.KeyCode.RightAlt)
+        if event.KeyCode == shortcut.key and shift and not ctrl and not alt then
+            self:setFreecam(not self.freecam)
+        end
+    end))
+    table.insert(self.connections, input.TouchStarted:Connect(function(touch, processed)
+        if not self.freecam or processed or self.lookTouch or input:GetFocusedTextBox() then return end
+        if self.native and self.native:isJoystickTouch(touch, true) then return end
+        self.lookTouch = touch
+        self.touchPosition = Vector2.new(touch.Position.X, touch.Position.Y)
+    end))
+    table.insert(self.connections, input.TouchMoved:Connect(function(touch)
+        if not self.freecam or touch ~= self.lookTouch then return end
+        if input:GetFocusedTextBox() or (self.native and self.native:isJoystickTouch(touch, false)) then
+            self.lookTouch, self.touchPosition = nil, nil
+            return
+        end
+        local position = Vector2.new(touch.Position.X, touch.Position.Y)
+        local delta = position - self.touchPosition
+        self.touchPosition = position
+        self.yaw -= delta.X * 0.003
+        self.pitch = math.clamp(self.pitch - delta.Y * 0.003, -math.pi / 2 + 0.01, math.pi / 2 - 0.01)
+    end))
+    table.insert(self.connections, input.TouchEnded:Connect(function(touch)
+        if touch == self.lookTouch then self.lookTouch, self.touchPosition = nil, nil end
+    end))
+    table.insert(self.connections, input.InputChanged:Connect(function(event, processed)
+        if processed or not self.zoom or self.freecam or not isAlive() or input:GetFocusedTextBox()
+            or event.UserInputType ~= Enum.UserInputType.MouseWheel then return end
+        local camera = world.CurrentCamera
+        if not camera or camera.CameraType ~= Enum.CameraType.Scriptable then return end
+        if self.zoomCamera ~= camera then clearScriptZoom(); self.zoomCamera = camera end
+        local base = camera.CFrame == self.zoomApplied and self.zoomBase or camera.CFrame
+        local distance = (base.Position - camera.Focus.Position).Magnitude + self.zoomOffset
+        self.zoomOffset = math.clamp(self.zoomOffset - event.Position.Z * math.max(2, distance * 0.15), 0, zoomLimit)
+    end))
+    table.insert(self.connections, input.WindowFocusReleased:Connect(function()
+        table.clear(self.keys)
+        self.lookTouch, self.touchPosition = nil, nil
+        if self.freecam then mouseLook(false) end
+    end))
+    function self:destroy()
+        if self.destroyed then return end
+        self:setFreecam(false)
+        self:setZoom(false)
+        for _, connection in ipairs(self.connections) do connection:Disconnect() end
+        table.clear(self.connections)
+        self.destroyed = true
+    end
+    return self
+end
+function FunCamera.nativeJoystick(controls, thumbstickModule)
+    local adapter = { entered = false, saved = nil, thumbstick = nil, suppressMove = function() end }
+    function adapter:enter()
+        if self.entered then return end
+        local previous = controls:GetActiveController()
+        self.saved = { module = controls.activeControlModule, enabled = previous and previous.enabled,
+            move = controls.moveFunction, vehicle = controls.vehicleController,
+            guiEnabled = controls.touchGui and controls.touchGui.Enabled or false,
+            jumpEnabled = controls.touchJumpController and controls.touchJumpController.enabled or false }
+        -- Use Roblox's own TouchGui and thumbstick implementation, including its native layout.
+        if not controls.touchControlFrame then controls:CreateTouchGuiContainer() end
+        controls.moveFunction = self.suppressMove
+        controls.vehicleController = nil
+        controls:SwitchToController(thumbstickModule)
+        self.thumbstick = controls:GetActiveController()
+        self.thumbstick:Enable(true, controls.touchControlFrame)
+        if controls.touchJumpController then controls.touchJumpController:Enable(false) end
+        if controls.touchGui then controls.touchGui.Enabled = true end
+        self.entered = true
+    end
+    function adapter:moveVector()
+        if not self.entered then return Vector3.zero end
+        -- Game state changes may disable or switch the default controller while Freecam is active.
+        if controls:GetActiveController() ~= self.thumbstick then controls:SwitchToController(thumbstickModule) end
+        if not self.thumbstick.enabled then self.thumbstick:Enable(true, controls.touchControlFrame) end
+        if controls.touchGui then controls.touchGui.Enabled = true end
+        if controls.humanoid then controls.humanoid.Jump = false end
+        return controls:GetMoveVector()
+    end
+    function adapter:isJoystickTouch(touch, checkRegion)
+        if not self.thumbstick then return false end
+        if self.thumbstick.moveTouchObject == touch then return true end
+        local frame = self.thumbstick.thumbstickFrame
+        if not checkRegion or not frame or not frame.Visible then return false end
+        local point, origin, size = touch.Position, frame.AbsolutePosition, frame.AbsoluteSize
+        return point.X >= origin.X and point.Y >= origin.Y
+            and point.X <= origin.X + size.X and point.Y <= origin.Y + size.Y
+    end
+    function adapter:leave()
+        if not self.entered then return end
+        local saved = self.saved
+        self.thumbstick:Enable(false)
+        if controls.moveFunction == self.suppressMove then controls.moveFunction = saved.move end
+        if controls.vehicleController == nil then controls.vehicleController = saved.vehicle end
+        controls:SwitchToController(saved.module)
+        local previous = controls:GetActiveController()
+        if previous then previous:Enable(saved.enabled == true, controls.touchControlFrame) end
+        if controls.touchJumpController then controls.touchJumpController:Enable(saved.jumpEnabled, controls.touchControlFrame) end
+        if controls.touchGui then controls.touchGui.Enabled = saved.guiEnabled end
+        self.entered, self.saved, self.thumbstick = false, nil, nil
+    end
+    return adapter
+end
+-- END FUN CAMERA CONTROLLER
+misc:CreateDivider({ spacing = 20 })
+misc:CreateSection({ name = "Fun Zone" })
+local funInput = game:GetService("UserInputService")
+local nativeJoystick
+if funInput.TouchEnabled then
+    local ok, adapter = pcall(function()
+        local playerScripts = game:GetService("Players").LocalPlayer:WaitForChild("PlayerScripts", 5)
+        local playerModule = playerScripts and playerScripts:WaitForChild("PlayerModule", 5)
+        if not playerModule then return nil end
+        local controlModule = playerModule:FindFirstChild("ControlModule")
+        if not controlModule then return nil end
+        local loadNativeModule: any = require
+        local controls = loadNativeModule(controlModule)
+        local thumbstick = controlModule:FindFirstChild("DynamicThumbstick")
+        local fixedStick = controlModule:FindFirstChild("TouchThumbstick")
+        if fixedStick and controls.activeControlModule == loadNativeModule(fixedStick) then thumbstick = fixedStick end
+        return thumbstick and FunCamera.nativeJoystick(controls, loadNativeModule(thumbstick)) or nil
+    end)
+    if ok then nativeJoystick = adapter end
+end
+local funCamera, freecamToggle, shortcutKeybind
+local funStatus = misc:CreateText({ name = "Freecam controls", text = "Shift + P to toggle" })
+funCamera = FunCamera.new(game:GetService("Players").LocalPlayer,
+    funInput, game:GetService("RunService"), game:GetService("ContextActionService"),
+    workspace, function() return state.alive end, function(enabled)
+        if state.alive then
+            if freecamToggle then freecamToggle:Set(enabled, true) end
+            local hint = funInput.TouchEnabled and "Roblox joystick: move | Drag the screen: look"
+                or "WASD: move | Hold right mouse: look\nShift: faster | Ctrl: slower"
+            local binding = (funCamera and funCamera.shortcutLabel or "Shift + P") .. " to toggle"
+            setLiveText(funStatus, (enabled and "On" or "Off") .. " | " .. binding .. "\n" .. hint)
+        end
+    end, nativeJoystick)
+freecamToggle = misc:CreateToggle({ name = "Freecam", value = false, forgetState = true,
+    callback = function(value)
+        if value and funInput.TouchEnabled and not nativeJoystick then
+            freecamToggle:Set(false, true)
+            notify("Roblox's joystick is not available yet. Reload the script after the player controls have loaded.")
+            return
+        end
+        funCamera:setFreecam(value)
+    end })
+shortcutKeybind = misc:CreateKeybind({ name = "Freecam shortcut (Shift +)", value = Enum.KeyCode.P, forgetState = true,
+    description = "Click the key, then press A-Z. Shift is always required. Esc cancels.",
+    onChanged = function(key)
+        if not funCamera:setShortcut(key) then
+            shortcutKeybind:Set(funCamera.shortcut.key, true)
+            notify("Choose a letter from A-Z. Freecam always uses Shift + that letter.")
+        end
+    end })
+-- Rayfield keeps this marker through the recording key's event, then clears it deferred.
+-- This prevents that same press from immediately toggling Freecam.
+funCamera.isRecordingShortcut = function() return window._recordingKeybind ~= nil end
+funCamera:setShortcut(Enum.KeyCode.P)
+misc:CreateToggle({ name = "Unlock camera zoom", description = "Scroll to zoom out further, including SCR scene cameras.",
+    value = false, forgetState = true, callback = function(value) funCamera:setZoom(value) end })
 local function initialize()
     modules = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
     local train = modules and modules:FindFirstChild("Train")
@@ -1491,6 +1823,7 @@ state.destroy = function()
     -- Termination is independent of UI callbacks: teardown continues even if a widget is gone.
     state.alive = false; state.enabled = false; state.generation += 1
     state.mode = "Terminated"
+    funCamera:destroy()
     if state.confirmationPopup then state.confirmationPopup:Close(); state.confirmationPopup = nil end
     connection:Disconnect()
     if shutdownConnection then shutdownConnection:Disconnect(); shutdownConnection = nil end
