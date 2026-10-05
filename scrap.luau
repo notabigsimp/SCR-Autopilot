@@ -118,7 +118,7 @@ function StationBoard.nextStop(trains, username, stations)
     end
     return nil
 end
-function StationBoard.rows(cache, station, platform, lookup)
+function StationBoard.rows(cache, station, lookup)
     local rows = {}
     for id, entry in pairs(cache) do
         if type(entry) == "table" and not entry.cancelledTime and type(entry.stationsOnRoute) == "table" then
@@ -127,17 +127,16 @@ function StationBoard.rows(cache, station, platform, lookup)
                     local assigned = stop.platform
                     if entry.lastKnownStation == station and entry.lastKnownPlatform ~= nil then assigned = entry.lastKnownPlatform end
                     local p = StationBoard.platform(assigned)
-                    if platform == "All platforms" or platform == p then
-                        local model = lookup(id)
-                        local delay = StationBoard.number(entry.minutesLate)
-                        if delay == nil and model then delay = StationBoard.number(model:GetAttribute("MinutesLate")) end
-                        if delay then delay = math.max(0, delay) end
-                        local scheduled = StationBoard.number(stop.departTime)
-                        table.insert(rows, { id = tostring(id), platform = p,
-                            headcode = model and model:GetAttribute("HeadCode") or "Unknown",
-                            driver = model and model:GetAttribute("Driver") or "Unknown",
-                            delay = delay, expected = scheduled and scheduled + (delay or 0) * 60 or nil })
-                    end
+                    local model = lookup(id)
+                    local delay = StationBoard.number(entry.minutesLate)
+                    if delay == nil and model then delay = StationBoard.number(model:GetAttribute("MinutesLate")) end
+                    if delay then delay = math.max(0, delay) end
+                    local scheduled = StationBoard.number(stop.departTime)
+                    table.insert(rows, { id = tostring(id), platform = p,
+                        headcode = model and model:GetAttribute("HeadCode") or "Unknown",
+                        driver = model and model:GetAttribute("Driver") or "Unknown",
+                        destination = model and model:GetAttribute("Destination") or "Unknown",
+                        delay = delay, expected = scheduled and scheduled + (delay or 0) * 60 or nil })
                     break -- only the next calling point if a route revisits a station
                 end
             end
@@ -150,20 +149,76 @@ function StationBoard.rows(cache, station, platform, lookup)
     end)
     return rows
 end
-function StationBoard.eta(row, date)
+function StationBoard.activeTrains(trains, cache)
+    local rows = {}
+    if not trains then return rows end
+    for _, model in ipairs(trains:GetChildren()) do
+        local username = model:GetAttribute("Driver")
+        local entry = cache and cache[model.Name]
+        if type(username) == "string" and username ~= "" and not (type(entry) == "table" and entry.cancelledTime) then
+            local headcode = model:GetAttribute("HeadCode") or "Unknown"
+            table.insert(rows, { id = model.Name, headcode = headcode, driver = username,
+                destination = model:GetAttribute("Destination") or "Unknown",
+                label = tostring(headcode) .. " - " .. username })
+        end
+    end
+    table.sort(rows, function(a, b)
+        if a.label ~= b.label then return a.label < b.label end
+        return a.id < b.id
+    end)
+    local counts = {}
+    for _, row in ipairs(rows) do counts[row.label] = (counts[row.label] or 0) + 1 end
+    local indexes = {}
+    for _, row in ipairs(rows) do
+        local label = row.label
+        if counts[label] > 1 then
+            indexes[label] = (indexes[label] or 0) + 1
+            row.label = label .. " (" .. indexes[label] .. ")"
+        end
+    end
+    return rows
+end
+function StationBoard.trainStops(entry, model)
+    local rows = {}
+    if type(entry) ~= "table" or entry.cancelledTime or type(entry.stationsOnRoute) ~= "table" then return rows end
+    local delay = StationBoard.number(entry.minutesLate)
+    if delay == nil and model then delay = StationBoard.number(model:GetAttribute("MinutesLate")) end
+    if delay then delay = math.max(0, delay) end
+    -- The live board cache removes completed stops. Preserve route order, including revisits.
+    for i, stop in ipairs(entry.stationsOnRoute) do
+        local assigned = stop.platform
+        if i == 1 and entry.lastKnownStation == stop.stationName and entry.lastKnownPlatform ~= nil then
+            assigned = entry.lastKnownPlatform
+        end
+        local scheduled = StationBoard.number(stop.departTime)
+        table.insert(rows, { station = stop.stationName or "Unknown", platform = StationBoard.platform(assigned),
+            scheduled = scheduled, delay = delay, expected = scheduled and scheduled + (delay or 0) * 60 or nil })
+    end
+    return rows
+end
+function StationBoard.delayText(delay)
+    if delay == nil then return "Unknown" end
+    if delay == 0 then return "On time" end
+    return "+" .. string.format("%.2f", delay):gsub("0+$", ""):gsub("%.$", "") .. " min"
+end
+function StationBoard.clock(timestamp, date)
+    if not timestamp then return "Unavailable" end
+    local parts = date.GetDate(timestamp)
+    return string.format("%d:%02d", parts.hour, parts.min)
+end
+function StationBoard.eta(row, date, showDelayUnits)
     local color = "#A0A0A0"
     if row.delay ~= nil then
         color = row.delay > 5 and "#FF6666" or row.delay > 0 and "#FFAA44" or "#66DD88"
     end
     local text = "Unavailable"
     if row.expected then
-        local parts = date.GetDate(row.expected)
-        text = string.format("%d:%02d", parts.hour, parts.min)
+        text = StationBoard.clock(row.expected, date)
         if row.delay == nil then
             text ..= " (delay unknown)"
         elseif row.delay > 0 then
             local minutes = string.format("%.2f", row.delay):gsub("0+$", ""):gsub("%.$", "")
-            text ..= " (+" .. minutes .. ")"
+            text ..= " (+" .. minutes .. (showDelayUnits and " min" or "") .. ")"
         end
     else
         color = "#A0A0A0"
@@ -171,7 +226,7 @@ function StationBoard.eta(row, date)
     return '<font color="' .. color .. '">' .. text .. '</font>'
 end
 -- END MISC BOARD HELPERS
-local board = { station = nil, platform = "All platforms", dirty = true, elapsed = 2,
+local board = { station = nil, dirty = true, elapsed = 2,
     followNext = true, nextStop = nil, nextLabel = "Next Stop - Unavailable", refreshing = false,
     cache = nil, nextProbe = 0, date = nil, stations = game:GetService("ReplicatedStorage"):FindFirstChild("Stations") }
 local stationNames = {}
@@ -180,32 +235,9 @@ if board.stations then
 end
 table.sort(stationNames)
 table.insert(stationNames, 1, board.nextLabel)
-misc:CreateText({ name = "Station departures", text = "Select Next Stop to follow your train, or search for a station and select a platform. Updates every 2 seconds, even with Autopilot disabled.\nETA uses SCR's scheduled calling/departure time plus reported delay, not a separate arrival prediction.\nGreen: on time | Orange: delayed up to 5 min | Red: delayed over 5 min" })
-local platformPicker, stationPicker
-local function boardPlatforms()
-    local options = { "All platforms" }
-    local station = board.stations and board.station and board.stations:FindFirstChild(board.station)
-    local platforms = station and station:FindFirstChild("Platforms")
-    local names = {}
-    if platforms then
-        for _, p in ipairs(platforms:GetChildren()) do table.insert(names, StationBoard.platform(p.Name)) end
-    end
-    table.sort(names, function(a, b)
-        local an, bn = tonumber(a), tonumber(b)
-        if an and bn and an ~= bn then return an < bn end
-        return a < b
-    end)
-    for _, name in ipairs(names) do table.insert(options, name) end
-    table.insert(options, "Unknown")
-    return options
-end
-local function refreshBoardPlatforms()
-    board.platform = "All platforms"
-    if platformPicker then
-        platformPicker:Refresh(boardPlatforms())
-        platformPicker:Set("All platforms", true)
-    end
-end
+misc:CreateSection({ name = "Station search" })
+misc:CreateText({ name = "Find trains at a station", text = "Choose a station to see its upcoming trains on all platforms.\nNext Stop follows your train. Updates every 2 seconds." })
+local stationPicker
 local function syncNextStop()
     local nextStop = StationBoard.nextStop(workspace:FindFirstChild("ActiveTrains"),
         game:GetService("Players").LocalPlayer.Name, board.stations)
@@ -213,7 +245,6 @@ local function syncNextStop()
     board.nextStop = nextStop
     if board.followNext and board.station ~= nextStop then
         board.station = nextStop
-        refreshBoardPlatforms()
     end
     if label ~= board.nextLabel then
         board.nextLabel = label
@@ -235,13 +266,40 @@ stationPicker = misc:CreateDropdown({ name = "Station", options = stationNames, 
         board.followNext = value == board.nextLabel
         board.station = board.followNext and board.nextStop or (not board.followNext and value or nil)
         board.dirty = true
-        refreshBoardPlatforms()
     end })
-platformPicker = misc:CreateDropdown({ name = "Platform", options = boardPlatforms(), value = "All platforms",
-    forgetState = true, callback = function(value) board.platform = value; board.dirty = true end })
 misc:CreateButton({ name = "Refresh departures", callback = function() board.dirty = true end })
 local boardDisplay = misc:CreateText({ name = "Upcoming trains", text = "Reading live station board data..." })
 boardDisplay.body.RichText = true
+local trainBoard = { selected = nil, byLabel = {}, optionsKey = nil, refreshing = false }
+misc:CreateDivider({ spacing = 20 })
+misc:CreateSection({ name = "Train search" })
+misc:CreateText({ name = "Find stops for a train", text = "Choose a train to see its remaining stops, independently of Station search.\nTimes use scheduled departures plus delay. Updates every 2 seconds." })
+local trainPicker = misc:CreateDropdown({ name = "Train", options = {}, placeholder = "Select a train",
+    forgetState = true, callback = function(value)
+        if trainBoard.refreshing then return end
+        trainBoard.selected = trainBoard.byLabel[value]
+        board.dirty = true
+    end })
+local trainDisplay = misc:CreateText({ name = "Remaining stops", text = "Select a train to view its remaining stops." })
+trainDisplay.body.RichText = true
+local function resizeTrainPickerLabels(dropdown)
+    if not dropdown then return end
+    local list = dropdown:FindFirstChildWhichIsA("ScrollingFrame", true)
+    if not list then return end
+    -- Rayfield Gen2 gives option labels a fixed 170px width. Use the row's available width
+    -- so a full headcode + Roblox username fits, leaving room for the selection icon.
+    -- Only resize open-list options; the selected-value label belongs to the header.
+    for _, label in ipairs(list:GetDescendants()) do
+        if label:IsA("TextLabel") and label.Text:find(" - ", 1, true) then
+            local container = label.Parent
+            if container and container:IsA("Frame") then
+                container.Size = UDim2.new(1, -48, container.Size.Y.Scale, container.Size.Y.Offset)
+                label.Size = UDim2.new(1, 0, label.Size.Y.Scale, label.Size.Y.Offset)
+                label.TextWrapped = false
+            end
+        end
+    end
+end
 local function discoverBoardCache()
     if board.cache then return true end
     if os.clock() < board.nextProbe then return false end
@@ -272,6 +330,53 @@ local function discoverBoardCache()
     end
     return false
 end
+local function updateTrainBoard()
+    local hasCache = discoverBoardCache()
+    local trains = workspace:FindFirstChild("ActiveTrains")
+    local active = StationBoard.activeTrains(trains, board.cache)
+    local options, byLabel, selected = {}, {}, nil
+    for _, row in ipairs(active) do
+        table.insert(options, row.label)
+        byLabel[row.label] = row.id
+        if row.id == trainBoard.selected then selected = row end
+    end
+    trainBoard.byLabel = byLabel
+    -- Preserve selection by train ID when headcode/driver labels change.
+    local key = table.concat(options, "\n")
+    trainBoard.refreshing = true
+    if key ~= trainBoard.optionsKey then
+        trainPicker:Refresh(options)
+        trainBoard.optionsKey = key
+    end
+    trainPicker:Set(selected and selected.label or {}, true)
+    resizeTrainPickerLabels(trainDisplay.body.Parent.Parent:FindFirstChild("Train"))
+    trainBoard.refreshing = false
+    if not selected then trainBoard.selected = nil end
+    local lines = { string.format("%d active train(s) | Updated %s (local time)", #active, os.date("%H:%M:%S")) }
+    if not selected then
+        table.insert(lines, #active == 0 and "No active trains reported." or "Select a train to view its remaining stops.")
+    else
+        table.insert(lines, "Train: " .. StationBoard.escape(selected.headcode)
+            .. "\nDriver: " .. StationBoard.escape(selected.driver)
+            .. "\nDestination: " .. StationBoard.escape(selected.destination))
+        local entry = board.cache and board.cache[selected.id]
+        if not hasCache then
+            table.insert(lines, "Waiting for SCR's live schedule data. Retrying automatically.")
+        elseif type(entry) ~= "table" or type(entry.stationsOnRoute) ~= "table" then
+            table.insert(lines, "Schedule unavailable for this train. Retrying automatically.")
+        else
+            local stops = StationBoard.trainStops(entry, trains and trains:FindFirstChild(selected.id))
+            if #stops == 0 then table.insert(lines, "No remaining stops reported.") end
+            for i, stop in ipairs(stops) do
+                table.insert(lines, string.format("\n%d. %s | Platform: %s\nScheduled: %s | Expected: %s",
+                    i, StationBoard.escape(stop.station), StationBoard.escape(stop.platform),
+                    StationBoard.clock(stop.scheduled, board.date),
+                    StationBoard.eta(stop, board.date, true)))
+            end
+        end
+    end
+    if state.alive then setLiveText(trainDisplay, table.concat(lines, "\n")) end
+end
 local function updateStationBoard()
     syncNextStop()
     if not board.station then
@@ -283,16 +388,16 @@ local function updateStationBoard()
         return
     end
     local trains = workspace:FindFirstChild("ActiveTrains")
-    local rows = StationBoard.rows(board.cache, board.station, board.platform, function(id)
+    local rows = StationBoard.rows(board.cache, board.station, function(id)
         return trains and trains:FindFirstChild(tostring(id))
     end)
-    local lines = { StationBoard.escape(board.station) .. " | " .. StationBoard.escape(board.platform),
+    local lines = { StationBoard.escape(board.station),
         string.format("%d train(s) | Updated %s (local time)", #rows, os.date("%H:%M:%S")) }
     if #rows == 0 then table.insert(lines, "No upcoming trains reported for this selection.") end
     for _, row in ipairs(rows) do
-        table.insert(lines, string.format("\n%s | Driver: %s | Platform: %s\nETA: %s",
-            StationBoard.escape(row.headcode), StationBoard.escape(row.driver), StationBoard.escape(row.platform),
-            StationBoard.eta(row, board.date)))
+        table.insert(lines, string.format("\n%s | Platform: %s\nDriver: %s\nDestination: %s | ETA: %s",
+            StationBoard.escape(row.headcode), StationBoard.escape(row.platform), StationBoard.escape(row.driver),
+            StationBoard.escape(row.destination), StationBoard.eta(row, board.date)))
     end
     if state.alive then setLiveText(boardDisplay, table.concat(lines, "\n")) end
 end
@@ -1330,9 +1435,13 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         board.dirty = false; board.elapsed = 0
         state.miscThread = task.defer(function()
             local ok = pcall(updateStationBoard)
+            local trainOk = pcall(updateTrainBoard)
             state.miscThread = nil
             if state.alive and not ok then
                 setLiveText(boardDisplay, "Live departure data unavailable. Retrying automatically.")
+            end
+            if state.alive and not trainOk then
+                setLiveText(trainDisplay, "Live train schedules unavailable. Retrying automatically.")
             end
         end)
     end
