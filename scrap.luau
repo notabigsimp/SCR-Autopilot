@@ -34,12 +34,16 @@ local shutdown = Instance.new("BindableEvent")
 shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = true })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false })
 local tab = window:CreateTab({ name = "Autopilot" })
 local misc = window:CreateTab({ name = "Misc" })
 local diagnostics = window:CreateTab({ name = "Diagnostics" })
 local status = tab:CreateText({ name = "Operating status", text = "Disabled" })
-local telemetry = tab:CreateText({ name = "Driving data", text = "Waiting for a train." })
+local speedRow = tab:CreateGroup({ direction = "row" })
+local currentSpeedStat = speedRow:CreateStat({ name = "Current speed", value = 0, suffix = " mph", numberEasing = false })
+local desiredSpeedStat = speedRow:CreateStat({ name = "Desired speed", value = 0, suffix = " mph", numberEasing = false })
+local speedLimitStat = speedRow:CreateStat({ name = "Speed limit", value = 0, suffix = " mph", numberEasing = false })
+local telemetry = tab:CreateText({ name = "Signal and stop target", text = "Waiting for a train. Speed cards show 0 while data is unavailable." })
 -- Signal/deferred callbacks need their executor GUI capabilities refreshed.
 -- Dynamic data also bypasses Gen2's locale binding.
 local function setLiveText(control, text)
@@ -52,6 +56,7 @@ local function setDrivingData(text)
     setLiveText(telemetry, text)
 end
 local health = diagnostics:CreateText({ name = "Runtime health", text = "Waiting for updates." })
+local drivingDetails = diagnostics:CreateText({ name = "Braking and motion data", text = "Waiting for a train." })
 local console = diagnostics:CreateConsole({ name = "Results", height = 280, follow = true, maxLines = 250 })
 local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift" }
 local INITIAL_BRAKING = 5 -- mph/s fallback until moving full-brake calibration locks
@@ -1483,12 +1488,45 @@ local function nextSignalIsRed(mover)
     return stop
 end
 
+local function syncAutopilotAvailability(mover)
+    if not state.alive or not master then return end
+    setthreadidentity(8)
+    if mover then
+        if master:IsLocked() then master:Unlock() end
+    else
+        if state.enabled then disable("Disabled - vehicle not loaded") end
+        if not master:IsLocked() then master:Lock("Waiting for a loaded vehicle and its controller.") end
+    end
+end
+
+local function updateSpeedCards(mover)
+    setthreadidentity(8)
+    local missing = {}
+    local function update(control, value, name)
+        if type(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
+            value = 0
+            table.insert(missing, name)
+        end
+        local rounded = math.round(value * 10) / 10
+        if control.value ~= rounded then control:Set(rounded) end
+    end
+    update(currentSpeedStat, mover and mover.currentSpeed, "current speed")
+    update(desiredSpeedStat, mover and mover.targetSpeed, "desired speed")
+    update(speedLimitStat, mover and mover.speedLimit, "speed limit")
+    return #missing > 0 and ("Unavailable (shown as 0): " .. table.concat(missing, ", ")) or ""
+end
+
 local function updateDrivingData()
-    local mover, model = loadedMover()
+    local loaded, mover, model = pcall(loadedMover)
     if not state.alive then return end
+    if not loaded then mover = nil; model = nil end
+    syncAutopilotAvailability(mover)
+    local unavailable = updateSpeedCards(mover)
     if not mover then
         state.motionSample = nil; state.speedChange = nil
-        setDrivingData("Waiting for a train."); return
+        setDrivingData("Waiting for a train. Speed cards show 0 while data is unavailable.")
+        setLiveText(drivingDetails, "Waiting for a train.")
+        return
     end
     local now, speed = os.clock(), mover.currentSpeed
     local previous = state.motionSample
@@ -1509,12 +1547,13 @@ local function updateDrivingData()
     local target = state.stopTarget
     local prediction = approach and target and approach.signal == target.key and approach.offset == state.stopOffset
         and (approach.braking or approach.holding) and approach or nil
-    setDrivingData(string.format("Speed: %s mph | Desired: %s mph | Limit: %s mph\nSpeed change: %s mph/s | Longitudinal acceleration: %s g\nSignal: %s | Distance: %s mi | Station: %s mi\nStop target: %s | Remaining: %s mi | Nose overhang: %s studs\nBrake: %s%% | Brake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi | Model response: %.2fx | Target: %.6f mi",
-        number(mover.currentSpeed, "%.1f"), number(mover.targetSpeed, "%.1f"), number(mover.speedLimit, "%.1f"),
-        number(state.speedChange, "%+.2f"), number(state.speedChange and state.speedChange * 0.44704 / 9.80665, "%+.3f"),
+    setDrivingData(string.format("Signal: %s\nSignal distance: %s mi | Station distance: %s mi\nStop target: %s\nRemaining: %s mi%s",
         ok and (signal and (signal.Name .. " (" .. kind .. ")") or "None") or "Unavailable",
         ok and number(distance, "%.4f") or "N/A", number(stationMiles, "%.4f"),
         target and (target.kind .. " / " .. target.name) or "None", number(target and target.distance, "%.4f"),
+        unavailable ~= "" and ("\n" .. unavailable) or ""))
+    setLiveText(drivingDetails, string.format("Speed change: %s mph/s | Longitudinal acceleration: %s g\nNose overhang: %s studs | Brake: %s%%\nBrake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi\nModel response: %.2fx | Target: %.6f mi",
+        number(state.speedChange, "%+.2f"), number(state.speedChange and state.speedChange * 0.44704 / 9.80665, "%+.3f"),
         number(target and target.overhang, "%.1f"), number(mover.brake, "%.0f"),
         state.estimate, state.brakeCalibrated and "calibrated / locked" or string.format("fallback / %d samples", #state.brakeSamples),
         number(prediction and prediction.predictedDistance, "%.4f"), number(prediction and prediction.errorMiles, "%+.4f"), state.responseScale, state.stopOffset))
@@ -1732,17 +1771,21 @@ local function step()
     setStatus(reason)
 end
 
-master = tab:CreateToggle({ name = "Autopilot", value = false, forgetState = true, callback = function(enabled)
+master = tab:CreateToggle({ name = "Autopilot", value = false, forgetState = true,
+    description = "Enable automatic driving after your vehicle is ready.", callback = function(enabled)
     if not state.alive then return end
     if not enabled then disable(); return end
     local ok, mover = pcall(loadedMover)
     if not ok or not mover then
         disable("Disabled - vehicle not loaded")
+        syncAutopilotAvailability(nil)
         notify("Vehicle is not loaded or its controller is unavailable. Autopilot has been turned off.")
         return
     end
     resetTrain(mover); state.generation += 1; state.enabled = true; setStatus("Starting")
 end })
+master:Lock("Waiting for a loaded vehicle and its controller.")
+master:MoveToTop()
 tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
     callback = function(value) config.maxSpeed = value end })
 tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
