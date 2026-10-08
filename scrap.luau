@@ -36,6 +36,7 @@ shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false })
 local tab = window:CreateTab({ name = "Autopilot" })
+local webhookTab = window:CreateTab({ name = "Webhook" })
 local misc = window:CreateTab({ name = "Misc" })
 local diagnostics = window:CreateTab({ name = "Diagnostics" })
 local status = tab:CreateText({ name = "Operating status", text = "Disabled" })
@@ -864,6 +865,212 @@ local function powerChoices(mover)
         available = type(mover.batteryCharge) == "number" and mover.batteryCharge > 0 }
     if config.mainPower == "Diesel" then return { diesel, electric, battery } end
     return { electric, diesel, battery }
+end
+-- SHIFT WEBHOOK HELPERS: no account remotes, no saved webhook credentials.
+local ShiftWebhook = { enabled = false, url = "", current = nil, threads = {}, summarySeen = false }
+function ShiftWebhook.clean(value, limit)
+    local text = tostring(value or "Unknown"):gsub("[`\r\n]", " "):gsub("@", "＠")
+    local length = utf8.len(text)
+    if length and length > (limit or 80) then text = text:sub(1, utf8.offset(text, (limit or 80) + 1) - 1) end
+    return text
+end
+function ShiftWebhook.validUrl(value)
+    return type(value) == "string" and (value:match("^https://discord%.com/api/webhooks/%d+/[%w_%.%-]+$")
+        or value:match("^https://discord%.com/api/v%d+/webhooks/%d+/[%w_%.%-]+$")
+        or value:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%.%-]+$")) ~= nil
+end
+function ShiftWebhook.number(text)
+    return tonumber(tostring(text or ""):gsub(",", ""):match("[+-]?%d+%.?%d*"))
+end
+function ShiftWebhook.clock(timestamp, date)
+    if not timestamp or not date then return "—" end
+    local parts = date.GetDate(timestamp)
+    return string.format("%02d:%02d:%02d", parts.hour, parts.min, parts.sec)
+end
+function ShiftWebhook.delay(value)
+    if value == nil then return "—" end
+    return string.format("+%.2f", math.max(0, value)):gsub("0+$", ""):gsub("%.$", "") .. "m"
+end
+function ShiftWebhook.length(text)
+    return utf8.len(text) or #text
+end
+function ShiftWebhook.pad(text, width)
+    return text .. string.rep(" ", math.max(1, width - ShiftWebhook.length(text)))
+end
+function ShiftWebhook.payload(report)
+    local width = 19
+    for _, stop in ipairs(report.stops) do width = math.max(width, ShiftWebhook.length(ShiftWebhook.clean(stop.name, 40))) end
+    local header = "   " .. ShiftWebhook.pad("Station", width + 1) .. "ATA      Late"
+    local fields = {
+        { name = "🚆 " .. ShiftWebhook.clean(report.class), value = ShiftWebhook.clean(report.driver)
+            .. " · **" .. ShiftWebhook.clean(report.duration) .. "**", inline = true },
+        { name = "Points", value = report.points ~= nil and tostring(report.points) or "—", inline = true },
+        { name = "XP", value = report.xp ~= nil and tostring(report.xp) or "—", inline = true },
+    }
+    local chunks, lines = {}, { header }
+    for index, stop in ipairs(report.stops) do
+        local icon = (not stop.ata or stop.late == nil) and "⚪" or (stop.late > 0 and "🟠" or "🟢")
+        if stop.ata and index == #report.stops then icon = "🏁" end
+        local row = icon .. " " .. ShiftWebhook.pad(ShiftWebhook.clean(stop.name, 40), width + 1)
+            .. ShiftWebhook.pad(stop.ata or "—", 9) .. ShiftWebhook.delay(stop.late)
+        -- Leave space for fences; every station survives long-route pagination.
+        if ShiftWebhook.length(table.concat(lines, "\n") .. "\n" .. row) > 950 then
+            table.insert(chunks, "```text\n" .. table.concat(lines, "\n") .. "\n```")
+            lines = { header }
+        end
+        table.insert(lines, row)
+    end
+    if #report.stops == 0 then table.insert(lines, "   Station data unavailable") end
+    table.insert(chunks, "```text\n" .. table.concat(lines, "\n") .. "\n```")
+    local messages, embedFields, size = {}, fields, 350
+    local function flush()
+        table.insert(messages, { username = "SCR Autopilot", allowed_mentions = { parse = {} }, embeds = { {
+            title = ShiftWebhook.clean(report.route) .. " | Shift complete" .. (#messages > 0 and " (continued)" or ""),
+            color = 3447003, fields = embedFields,
+            footer = { text = "SCR Autopilot" .. (report.partial and " · Recorded from mid-shift" or "") },
+        } } })
+        embedFields, size = {}, 350
+    end
+    for index, chunk in ipairs(chunks) do
+        if #embedFields >= 25 or size + ShiftWebhook.length(chunk) > 5500 then flush() end
+        table.insert(embedFields, { name = index == 1 and "🛤️ Journey" or "🛤️ Journey (continued)", value = chunk, inline = false })
+        size += ShiftWebhook.length(chunk) + 30
+    end
+    flush()
+    return messages
+end
+-- END SHIFT WEBHOOK HELPERS
+ShiftWebhook.status = webhookTab:CreateText({ name = "Report status", text = "Disabled" })
+function ShiftWebhook.setStatus(text)
+    if state.alive then setLiveText(ShiftWebhook.status, text) end
+end
+function ShiftWebhook.send(payloads, url)
+    if not ShiftWebhook.validUrl(url) then ShiftWebhook.setStatus("Enter a valid Discord webhook link."); return end
+    local send = request or http_request or (http and http.request)
+    if type(send) ~= "function" then ShiftWebhook.setStatus("HTTP request API unavailable."); return end
+    local job = {}
+    ShiftWebhook.threads[job] = true
+    job.thread = task.defer(function()
+        local ok, reason = pcall(function()
+            for index, payload in ipairs(payloads) do
+                if not state.alive then return "cancelled" end
+                local delivered = false
+                for attempt = 1, 3 do
+                    local response = send({ Url = url .. "?wait=true", Method = "POST",
+                        Headers = { ["Content-Type"] = "application/json" },
+                        Body = game:GetService("HttpService"):JSONEncode(payload) })
+                    local code = type(response) == "table" and tonumber(response.StatusCode) or nil
+                    if code and code >= 200 and code < 300 then delivered = true; break end
+                    if code ~= 429 then return "HTTP " .. tostring(code or "unknown") end
+                    local decoded, body = pcall(function() return game:GetService("HttpService"):JSONDecode(response.Body) end)
+                    local delay = decoded and type(body) == "table" and tonumber(body.retry_after) or 2
+                    task.wait(math.clamp(delay or 2, 1, 30))
+                    if not state.alive then return "cancelled" end
+                end
+                if not delivered then return "Rate limited; try again later." end
+                if index < #payloads then task.wait(1) end
+            end
+            return "sent"
+        end)
+        ShiftWebhook.threads[job] = nil
+        -- Never expose raw HTTP errors: they may contain the webhook token.
+        if state.alive then ShiftWebhook.setStatus(ok and reason == "sent" and "Report sent."
+            or ("Report failed: " .. (ok and reason or "request error"))) end
+    end)
+end
+webhookTab:CreateInput({ name = "Discord webhook link", placeholder = "https://discord.com/api/webhooks/...",
+    value = "", forgetState = true, clearOnFocus = false, callback = function(value)
+        ShiftWebhook.url = tostring(value):match("^%s*(.-)%s*$") or ""
+        ShiftWebhook.setStatus(ShiftWebhook.validUrl(ShiftWebhook.url) and "Webhook ready." or "Enter a valid Discord webhook link.")
+    end })
+webhookTab:CreateToggle({ name = "Send shift reports", value = false, forgetState = true,
+    description = "Send one report after each completed shift.", callback = function(value)
+        ShiftWebhook.enabled = value
+        if value then ShiftWebhook.setStatus("Waiting for a shift.")
+        else ShiftWebhook.current = nil; ShiftWebhook.setStatus("Disabled") end
+    end })
+webhookTab:CreateButton({ name = "Test webhook", callback = function()
+    ShiftWebhook.send({ { username = "SCR Autopilot", content = "SCR Autopilot · Webhook connected.",
+        allowed_mentions = { parse = {} } } }, ShiftWebhook.url)
+end })
+function ShiftWebhook.readLeg()
+    if not driver then return nil end
+    -- Activate captures SCR's current leg directly. Read it without FetchLegData.
+    for _, value in pairs(getupvalues(driver.Activate)) do
+        if type(value) == "table" and type(value.schedule) == "table" and value.startTime then return value end
+    end
+    return nil
+end
+function ShiftWebhook.snapshot(leg, model)
+    local stops = {}
+    for _, stop in ipairs(leg.schedule) do
+        table.insert(stops, { name = stop.name or "Unknown" })
+        if stop.isTurnAround then break end
+    end
+    return { key = tostring(model) .. ":" .. tostring(leg.startTime) .. ":" .. tostring(leg.legDirection),
+        model = model, started = leg.startTime, route = leg.routeCode or model:GetAttribute("RouteCode"),
+        class = model:GetAttribute("TrainClass"), driver = model:GetAttribute("Driver"),
+        stops = stops, partial = (tonumber(leg.stopIndex) or 1) > 1, sent = false }
+end
+function ShiftWebhook.complete(summary)
+    local report = ShiftWebhook.current
+    if not report or report.sent then return end
+    local frame = path(summary, { "SummaryPage", "ScrollingFrame" })
+    local points = path(frame, { "TotalRow", "Points" })
+    local xp = path(frame, { "TotalRow", "Experience" })
+    local duration = path(frame, { "OtherDetails", "Time", "TimeTaken" })
+    report.points = points and ShiftWebhook.number(points.Text)
+    report.xp = xp and ShiftWebhook.number(xp.Text)
+    report.duration = duration and duration.Text or "Unknown"
+    report.sent = true -- mark before spawning; summary stays visible across ticks
+    if not ShiftWebhook.validUrl(ShiftWebhook.url) then
+        ShiftWebhook.setStatus("Report skipped: enter a valid webhook link."); return
+    end
+    ShiftWebhook.setStatus("Sending shift report...")
+    ShiftWebhook.send(ShiftWebhook.payload(report), ShiftWebhook.url)
+end
+function ShiftWebhook.update()
+    local summary = path(hud(), { "Summary" })
+    local visible = summary and summary.Visible == true
+    if visible then
+        if not ShiftWebhook.summarySeen and ShiftWebhook.enabled then ShiftWebhook.complete(summary) end
+        ShiftWebhook.summarySeen = true
+        return
+    end
+    ShiftWebhook.summarySeen = false
+    if not ShiftWebhook.enabled then return end
+    local mover, model = loadedMover()
+    if not mover then return end
+    local leg = ShiftWebhook.readLeg()
+    if not leg then ShiftWebhook.setStatus("Waiting for SCR schedule data."); return end
+    local key = tostring(model) .. ":" .. tostring(leg.startTime) .. ":" .. tostring(leg.legDirection)
+    local report = ShiftWebhook.current
+    if not report or report.key ~= key then
+        report = ShiftWebhook.snapshot(leg, model)
+        ShiftWebhook.current = report
+        ShiftWebhook.setStatus("Recording " .. ShiftWebhook.clean(report.route) .. ".")
+    end
+    if report.sent then return end
+    local index = tonumber(leg.stopIndex)
+    local stop = index and report.stops[index]
+    local loading = model:GetAttribute("IsLoading") == true
+    -- A loading edge confirms acceptance by SCR; stationary/near-platform alone does not.
+    if loading and report.lastLoading == false then
+        if not board.date then
+            local loadGameModule: any = require
+            board.date = loadGameModule(game:GetService("ReplicatedStorage").Modules.Date)
+        end
+        report.pendingArrival = { name = model:GetAttribute("NextStop"),
+            ata = ShiftWebhook.clock(board.date.GetTime(), board.date),
+            late = StationBoard.number(model:GetAttribute("MinutesLate")) }
+    end
+    local arrival = report.pendingArrival
+    if arrival and stop and stop.name == arrival.name then
+        if not stop.ata then stop.ata = arrival.ata; stop.late = arrival.late end
+        report.pendingArrival = nil
+    end
+    if not loading then report.pendingArrival = nil end
+    report.lastLoading = loading
 end
 
 local function preferredPower(mover)
@@ -1763,6 +1970,11 @@ end
 local function handleShiftSummary()
     local summary = path(hud(), { "Summary" })
     if not summary or not summary.Visible then return false end
+    -- Snapshot the report before Next Leg / Quit clears SCR's summary widgets.
+    if ShiftWebhook.enabled and not ShiftWebhook.summarySeen then
+        pcall(ShiftWebhook.complete, summary)
+        ShiftWebhook.summarySeen = true
+    end
     -- No speed/power/door commands while SCR displays its completed-leg summary.
     if config.shiftAction == "Do Nothing" then
         setStatus("Shift complete - waiting for manual action")
@@ -1952,6 +2164,8 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     if displayElapsed >= 0.25 and not state.displayThread then
         displayElapsed = 0
         state.displayThread = task.defer(function()
+            local reportOk = pcall(ShiftWebhook.update)
+            if not reportOk then ShiftWebhook.setStatus("Report data unavailable; retrying.") end
             local ok, err = pcall(updateDrivingData)
             state.displayThread = nil
             if state.alive and not ok then setDrivingData("Driving data unavailable: " .. tostring(err)) end
@@ -2002,6 +2216,11 @@ state.destroy = function()
     if state.stepThread then pcall(task.cancel, state.stepThread); state.stepThread = nil end
     if state.displayThread then pcall(task.cancel, state.displayThread); state.displayThread = nil end
     if state.miscThread then pcall(task.cancel, state.miscThread); state.miscThread = nil end
+    for job in pairs(ShiftWebhook.threads) do
+        if job.thread then pcall(task.cancel, job.thread) end
+    end
+    table.clear(ShiftWebhook.threads)
+    ShiftWebhook.current = nil; ShiftWebhook.url = ""
     board.cache = nil; board.date = nil
     releasePowerHold()
     for _, action in pairs(state.actions) do

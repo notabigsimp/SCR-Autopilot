@@ -16,6 +16,7 @@ This project is under active development. SCR updates can change internal game b
 - AWS acknowledgement and available power-source recovery
 - Door handling and passenger-loading detection at stations
 - Optional shift completion: continue to the next leg or return to the menu
+- Optional Discord shift reports with route, station arrival times, delays, Points, and XP
 - Live station departure board with station, platform, delay, headcode, and driver information
 - Built-in status, driving telemetry, diagnostic console, and unload control
 
@@ -28,6 +29,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/notabigsimp/SCR-Autop
 ```
 
 Once loaded, open the **Autopilot** tab to configure speeds and enable the controller. The **Misc** tab contains the departure board, and **Diagnostics** exposes runtime information and script controls.
+
+The **Webhook** tab sits immediately after Autopilot. Paste your Discord webhook link, enable **Send shift reports**, and use **Test webhook** to check delivery. Each completed shift sends the compact journey report, with Class/driver/duration beside Points and XP. The link is kept only for the current script session. Arrival times are recorded when SCR confirms passenger loading; enable reporting before the shift starts for full coverage. Earlier or unavailable arrivals show `—`. Delays use SCR's reported minutes late at that stop, and rewards come from the shift summary. Long journeys continue across additional fields or messages.
 
 ## Notes
 
