@@ -1648,6 +1648,10 @@ local function handleShiftSummary()
     local summary = path(hud(), { "Summary" })
     if not summary or not summary.Visible then return false end
     -- No speed/power/door commands while SCR displays its completed-leg summary.
+    if config.shiftAction == "Do Nothing" then
+        setStatus("Shift complete - waiting for manual action")
+        return true
+    end
     local name = config.shiftAction == "Quit To Menu" and "QuitToMenu" or "NextLeg"
     local control = path(summary, { "SummaryPage", "Controls", name })
     if not control or not control:IsA("GuiButton") or not control.Visible or not control.Interactable then
@@ -1659,6 +1663,7 @@ local function handleShiftSummary()
     if not callback then setStatus("Shift complete - waiting for game action listener"); return true end
     setStatus(name == "NextLeg" and "Shift complete - starting next leg" or "Shift complete - quitting to menu")
     startAction("shift", function()
+        if config.shiftAction == "Do Nothing" then return end
         if not summary.Parent or not summary.Visible or not control.Parent
             or not control.Visible or not control.Interactable then return end
         state.shiftTransition = os.clock()
@@ -1791,8 +1796,8 @@ tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, va
 tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
     description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
     callback = function(value) config.yellowSpeed = value end })
-tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu" }, value = config.shiftAction,
-    description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot.",
+tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
+    description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
 diagnostics:CreateButton({ name = "Copy result to clipboard", callback = function()
     local ok, copied = pcall(function() return console:Copy() end)
