@@ -58,7 +58,7 @@ end
 local health = diagnostics:CreateText({ name = "Runtime health", text = "Waiting for updates." })
 local drivingDetails = diagnostics:CreateText({ name = "Braking and motion data", text = "Waiting for a train." })
 local console = diagnostics:CreateConsole({ name = "Results", height = 280, follow = true, maxLines = 250 })
-local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift" }
+local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift", mainPower = "Electric" }
 local INITIAL_BRAKING = 5 -- mph/s fallback until moving full-brake calibration locks
 local DEFAULT_STOP_OFFSET = 0.01
 local MIN_STOP_OFFSET = 0.0003125 -- five halvings; never target the obstacle itself
@@ -856,45 +856,86 @@ local function acknowledgeAws()
         callback()
     end
 end
-local function restorePower(mover)
-    if mover.hasPower then return true end
-    if not readyAction("power", 4) then return false end
-    local actions = path(hud(), { "Cluster", "Actions" })
-    local choices = {
-        { name = "TogglePantograph", power = enums.PowerType.Electric, engine = enums.EngineState.OnElectric,
-            available = mover.isOverheadPowerAvailable == true },
-        { name = "ToggleBattery", power = enums.PowerType.Battery, engine = enums.EngineState.OnBattery,
-            available = type(mover.batteryCharge) == "number" and mover.batteryCharge > 0 },
-        { name = "ToggleEngine", power = enums.PowerType.Diesel, engine = enums.EngineState.OnDiesel, available = true },
-    }
+local function powerChoices(mover)
+    local electric = { name = "TogglePantograph", power = enums.PowerType.Electric, engine = enums.EngineState.OnElectric,
+        available = mover.isOverheadPowerAvailable == true }
+    local diesel = { name = "ToggleEngine", power = enums.PowerType.Diesel, engine = enums.EngineState.OnDiesel, available = true }
+    local battery = { name = "ToggleBattery", power = enums.PowerType.Battery, engine = enums.EngineState.OnBattery,
+        available = type(mover.batteryCharge) == "number" and mover.batteryCharge > 0 }
+    if config.mainPower == "Diesel" then return { diesel, electric, battery } end
+    return { electric, diesel, battery }
+end
+
+local function preferredPower(mover)
+    local choices = powerChoices(mover)
     for _, choice in ipairs(choices) do
         if choice.available and table.find(mover.powerTypes, choice.power) then
-            -- A selected diesel engine may still be starting. Do not toggle it off.
-            if mover.engineState == choice.engine then return false end
-            local target = actions and actions:FindFirstChild(choice.name)
-            if target and target.Interactable then
-                for _, connection in ipairs(getconnections(target.MouseButton1Down)) do
-                    if type(connection.Function) == "function" then
-                        for _, value in pairs(getupvalues(connection.Function)) do
-                            if type(value) == "table" and value.button == target and type(value.HoldStart) == "function" then
-                                releasePowerHold()
-                                state.powerHold = value
-                                value:HoldStart()
-                                local generation = state.generation
-                                state.powerReleaseThread = task.delay(1.2, function()
-                                    state.powerReleaseThread = nil
-                                    if state.generation == generation and state.powerHold == value then releasePowerHold() end
-                                end)
-                                log("Restoring power: " .. choice.name)
-                                return false
-                            end
-                        end
-                    end
+            return choice
+        end
+    end
+    return nil
+end
+
+local function selectPower(mover, choice, reason)
+    -- A selected diesel engine may still be starting. Do not toggle it off.
+    if mover.engineState == choice.engine then return true end
+    local actions = path(hud(), { "Cluster", "Actions" })
+    local target = actions and actions:FindFirstChild(choice.name)
+    if not target or not target.Interactable or state.powerHold then return false end
+    if not readyAction("power", 4) then return false end
+    for _, connection in ipairs(getconnections(target.MouseButton1Down)) do
+        if type(connection.Function) == "function" then
+            for _, value in pairs(getupvalues(connection.Function)) do
+                if type(value) == "table" and value.button == target and type(value.HoldStart) == "function" then
+                    releasePowerHold()
+                    state.powerHold = value
+                    value:HoldStart()
+                    local generation = state.generation
+                    state.powerReleaseThread = task.delay(1.2, function()
+                        state.powerReleaseThread = nil
+                        if state.generation == generation and state.powerHold == value then releasePowerHold() end
+                    end)
+                    log(reason .. ": " .. choice.name)
+                    return true
                 end
             end
         end
     end
-    error("No usable power source or power-control listener was found.")
+    return false
+end
+
+local function restorePower(mover)
+    if mover.hasPower then return true end
+    local choice = preferredPower(mover)
+    if not choice then error("No usable power source was found.") end
+    selectPower(mover, choice, "Restoring power")
+    return false
+end
+
+local function loadingPower(mover, cycle)
+    if not cycle.powerChecked then
+        cycle.powerChecked = true
+        -- Stop at the active source: loading may upgrade, but never downgrade.
+        for _, choice in ipairs(powerChoices(mover)) do
+            if mover.engineState == choice.engine then break end
+            if choice.available and table.find(mover.powerTypes, choice.power) then
+                cycle.powerChoice = choice
+                break
+            end
+        end
+    end
+    local choice = cycle.powerChoice
+    if not choice then return end
+    -- Retry briefly locked controls, but never request a now-unavailable source.
+    for _, current in ipairs(powerChoices(mover)) do
+        if current.power == choice.power then
+            if not current.available or not table.find(mover.powerTypes, current.power)
+                or selectPower(mover, current, "Loading power changeover") then
+                cycle.powerChoice = nil
+            end
+            break
+        end
+    end
 end
 
 local function signalData(mover)
@@ -1596,6 +1637,7 @@ local function autoDoors(mover, model)
             state.doorCycle = cycle
         end
         cycle.seenLoading = true
+        loadingPower(mover, cycle)
         if phase == enums.TrainLoadingPhase.AwaitingDoorLock
             or (phase == enums.TrainLoadingPhase.AwaitingLocalLock and model:GetAttribute("GuardHasBuzzed")) then
             if nextSignalIsRed(mover) then
@@ -1796,6 +1838,9 @@ tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, va
 tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
     description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
     callback = function(value) config.yellowSpeed = value end })
+tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
+    description = "Electric > Diesel > Battery or Diesel > Electric > Battery. Checks for a better source when passenger loading starts.",
+    callback = function(value) config.mainPower = value end })
 tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
