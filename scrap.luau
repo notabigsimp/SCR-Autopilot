@@ -1131,7 +1131,50 @@ local function signalApproach(mover, signal, distance, now, offset)
         control.speed = speed; control.sampleTime = now; control.modelLoss = 0
     end
     local remaining = distance - offset
-    if remaining <= 0 or control.holding then control.holding = true; return 0, true end
+    if remaining <= 0 then control.holding = true; return 0, true end
+    if control.holding then return 0, true end
+    if control.correctionBlocked then return 0, true end
+    if control.correcting then
+        -- Bound autonomous repositioning. A bad distance reading must not
+        -- turn a prediction undershoot into an indefinite 5 mph crawl.
+        if remaining < (control.correctionProgress or remaining) - 0.0002 then
+            control.correctionProgress = remaining; control.correctionProgressTime = now
+        end
+        if now - control.correctionStarted >= 15
+            or now - control.correctionProgressTime >= 3 then
+            control.correcting = false; control.correctionBlocked = true
+            control.zeroCommand = true; control.cap = 0
+            return 0, true
+        end
+    end
+    -- A zero request while moving is a braking command, not a permanent hold.
+    -- Confirm physical rest before either latching or making a bounded correction.
+    if control.zeroCommand and speed == 0 then
+        local front = mover:GetFrontBogie()
+        local resting = control.resting
+        if not front or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0 then
+            control.resting = nil
+            return 0, true
+        end
+        if not resting or (front.position - resting.position).Magnitude > 0.001 then
+            control.resting = { position = front.position, time = now }
+            return 0, true
+        end
+        if now - resting.time < 0.5 then return 0, true end
+        if remaining <= 0.002 or control.degraded then control.holding = true; return 0, true end
+        local attempts = control.correctionAttempts or 0
+        if remaining > 0.02 or attempts >= 3 then
+            control.correctionBlocked = true; control.cap = 0
+            return 0, true -- do not open doors or guess a distant stopping point
+        end
+        -- Correct prediction undershoot at the SAME offset. Only SCR's explicit
+        -- loading rejection may halve the clearance through the existing recovery.
+        control.correcting = true; control.zeroCommand = false; control.resting = nil
+        control.correctionAttempts = attempts + 1
+        control.correctionStarted = control.correctionStarted or now
+        control.correctionProgress = remaining; control.correctionProgressTime = now
+        control.nextPrediction = 0
+    elseif speed > 0 then control.resting = nil end
     if now >= control.nextPrediction then
         -- Repositioning covers only a few studs: reassess every driving tick,
         -- while retaining the conservative travel margin used for normal stops.
@@ -1139,14 +1182,35 @@ local function signalApproach(mover, signal, distance, now, offset)
         -- Stand-off margin plus travel until the next prediction, not just one tick.
         local margin = 0.0004 + speed * 0.2 / 3600
         local available = math.max(0, remaining - margin)
+        local function finite(value)
+            return type(value) == "number" and value == value and value >= 0 and value < math.huge
+        end
+        local function degradedCap()
+            control.degraded = true
+            -- A forecast failure is not an infinite stopping distance. Use a
+            -- deliberately conservative envelope; never creep with an invalid model.
+            local a = math.clamp(state.estimate * 0.5, 0.1, 2.5)
+            local stopping = speed * speed / (7200 * a) + speed * 1.5 / 3600
+            if stopping >= available or control.zeroCommand then
+                control.zeroCommand = true; control.cap = 0
+                return 0, true
+            end
+            control.cap = math.max(5, math.sqrt((a * 1.5)^2 + 7200 * a * available) - a * 1.5)
+            if control.braking then control.cap = math.min(control.cap, math.max(5, speed - 6)) end
+            return control.cap, false
+        end
         control.zeroMiles = predictStoppingMiles(mover, nil, control.scale * 0.95, incline, count)
-        if control.zeroMiles >= available then
-            control.holding = true; control.cap = 0
+        if not finite(control.zeroMiles) then return degradedCap() end
+        control.degraded = false
+        if control.zeroMiles >= available or (control.zeroCommand and
+            control.zeroMiles >= available - 0.0002) then
+            control.zeroCommand = true; control.cap = 0
             control.predictedDistance = distance - control.zeroMiles
             control.errorMiles = control.predictedDistance - offset
             return 0, true
         end
-        if offset < 0.01 and speed <= 6 then
+        control.zeroCommand = false
+        if control.correcting or (offset < 0.01 and speed <= 6) then
             -- SCR's positive target floor is 5 mph. At creep speed every gap
             -- forecast enters the same zero-speed phase, so skip the redundant
             -- bisection rather than multiplying CPU work at the faster cadence.
@@ -1158,24 +1222,34 @@ local function signalApproach(mover, signal, distance, now, offset)
         -- A base service curve chooses an efficient starting point, then a
         -- stopping-position search eases/strengthens its target-speed gap.
         local nominal = predictStoppingMiles(mover, 6, control.scale, incline, count)
+        if not finite(nominal) then return degradedCap() end
         if not control.braking and nominal < available then
-            control.cap = speed + 1 -- caller still applies cruise and signal caps
+            control.cap = math.huge -- no approach cap before braking; caller applies cruise/signal limits
         else
             control.braking = true
             local lo, hi = 0.5, 20
             for _ = 1, 6 do
                 local mid = (lo + hi) * 0.5
-                if predictStoppingMiles(mover, mid, control.scale, incline, count) > available then lo = mid else hi = mid end
+                local forecast = predictStoppingMiles(mover, mid, control.scale, incline, count)
+                if not finite(forecast) then return degradedCap() end
+                if forecast > available then lo = mid else hi = mid end
             end
-            control.gap = hi
+            -- Strengthen promptly for safety, but ease the brake demand gradually.
+            local predictionDt = math.clamp(now - (control.predictionTime or now - 0.2), 0.05, 0.25)
+            control.gap = math.max(hi, control.gap - 2 * predictionDt)
             control.cap = math.max(5, speed - control.gap)
         end
         local predicted = predictStoppingMiles(mover, control.gap, control.scale, incline, count)
+        if not finite(predicted) then return degradedCap() end
+        control.predictionTime = now
         control.predictedDistance = distance - predicted
         control.errorMiles = control.predictedDistance - offset
     end
     -- Keep the speed gap constant between predictions instead of letting a
     -- held absolute target progressively weaken braking as speed falls.
+    if control.zeroCommand then return 0, true end
+    if control.degraded then return control.cap, false end
+    if control.correcting then return 5, false end
     return control.braking and math.max(5, speed - control.gap) or control.cap, false
 end
 
@@ -1795,6 +1869,11 @@ local function step()
         reason = finalStop and (speed > 0 and ("Final braking to " .. target.kind:lower()) or ("Holding before " .. target.kind:lower()))
             or ("Adaptive approach - " .. target.kind:lower())
         if state.undershoot then reason = "Undershoot correction - " .. reason end
+        if state.approach and state.approach.correcting and not state.undershoot then reason = "Position correction - " .. reason end
+        if state.approach and state.approach.degraded then reason = reason .. " / degraded prediction" end
+        if state.approach and state.approach.correctionBlocked then
+            reason = "Position correction stopped - manual intervention required"
+        end
     elseif bufferError and terminal and stationMiles and stationMiles <= 0.15 then
         -- Fail closed near an assigned terminal when streamed geometry or
         -- final track alignment cannot be verified. No guessed buffer pivot.
