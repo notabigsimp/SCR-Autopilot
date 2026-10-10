@@ -119,10 +119,27 @@ function StationBoard.nextStop(trains, username, stations)
     for _, model in ipairs(trains:GetChildren()) do
         if model:GetAttribute("Driver") == username then
             local stop = model:GetAttribute("NextStop")
-            if type(stop) == "string" and stations:FindFirstChild(stop) then return stop end
+            if type(stop) == "string" and stations:FindFirstChild(stop) then return stop, model end
         end
     end
     return nil
+end
+function StationBoard.stationOptions(all, nextStop, remaining)
+    local valid, seen, options, byLabel, labelsByStation = {}, {}, {}, {}, {}
+    for _, name in ipairs(all) do valid[name] = true end
+    local count = 0
+    local function add(name, upcoming)
+        if not valid[name] or seen[name] then return end
+        seen[name] = true
+        if upcoming then count += 1 end
+        local label = upcoming and (count .. ". " .. name) or name
+        table.insert(options, label)
+        byLabel[label], labelsByStation[name] = name, label
+    end
+    add(nextStop, true)
+    for _, name in ipairs(remaining or {}) do add(name, true) end
+    for _, name in ipairs(all) do add(name, false) end
+    return options, byLabel, labelsByStation
 end
 function StationBoard.rows(cache, station, lookup)
     local rows = {}
@@ -240,37 +257,66 @@ if board.stations then
     for _, station in ipairs(board.stations:GetChildren()) do table.insert(stationNames, station.Name) end
 end
 table.sort(stationNames)
-table.insert(stationNames, 1, board.nextLabel)
 misc:CreateSection({ name = "Station search" })
-misc:CreateText({ name = "Find trains at a station", text = "Choose a station to see its upcoming trains on all platforms.\nNext Stop follows your train. Updates every 2 seconds." })
+misc:CreateText({ name = "Find trains at a station", text = "Remaining stops appear first in journey order. The default follows your next stop.\nChoose any station to see its upcoming trains. Updates every 2 seconds." })
 local stationPicker
 local function syncNextStop()
-    local nextStop = StationBoard.nextStop(workspace:FindFirstChild("ActiveTrains"),
+    local nextStop, model = StationBoard.nextStop(workspace:FindFirstChild("ActiveTrains"),
         game:GetService("Players").LocalPlayer.Name, board.stations)
-    local label = "Next Stop - " .. (nextStop or "Unavailable")
+    local remaining = {}
+    if model then
+        -- Read the existing leg; do not fetch or advance the game's schedule.
+        local ok, leg = pcall(function()
+            if not board.scheduleDriver then
+                board.scheduleDriver = require(game:GetService("ReplicatedStorage").Modules.Train.TrainDriver)
+            end
+            local mover = board.scheduleDriver.GetCurrentTrainMover()
+            if not mover or mover.skeletonModel.Parent ~= model then return nil end
+            for _, value in pairs(getupvalues(board.scheduleDriver.Activate)) do
+                if type(value) == "table" and type(value.schedule) == "table" and value.stopIndex then return value end
+            end
+        end)
+        if ok and leg then
+            for index = leg.stopIndex, #leg.schedule do
+                local name = leg.schedule[index].name
+                if type(name) == "string" then table.insert(remaining, name) end
+            end
+        else
+            local entry = board.cache and board.cache[model.Name]
+            if entry and not entry.cancelledTime then
+                for _, stop in ipairs(entry.stationsOnRoute or {}) do
+                    if type(stop.stationName) == "string" then table.insert(remaining, stop.stationName) end
+                end
+            end
+        end
+    end
+    local options, byLabel, labelsByStation = StationBoard.stationOptions(stationNames, nextStop, remaining)
+    local label = nextStop and labelsByStation[nextStop] or nil
+    local optionsKey = table.concat(options, "\0")
     board.nextStop = nextStop
     if board.followNext and board.station ~= nextStop then
         board.station = nextStop
     end
-    if label ~= board.nextLabel then
+    board.byLabel, board.labelsByStation = byLabel, labelsByStation
+    if optionsKey ~= board.optionsKey or label ~= board.nextLabel then
         board.nextLabel = label
-        stationNames[1] = label
-        -- Refresh may emit a callback when the previous virtual label disappears.
-        -- Preserve the virtual/manual selection instead of treating it as a user change.
+        board.options, board.optionsKey = options, optionsKey
+        -- Numbering can change after a stop. Keep the selected station identity.
         board.refreshing = true
         if stationPicker then
-            stationPicker:Refresh(stationNames)
-            stationPicker:Set(board.followNext and label or board.station, true)
+            stationPicker:Refresh(options)
+            stationPicker:Set((board.followNext and label or labelsByStation[board.station]) or {}, true)
         end
         board.refreshing = false
     end
 end
 syncNextStop()
-stationPicker = misc:CreateDropdown({ name = "Station", options = stationNames, value = board.nextLabel,
+stationPicker = misc:CreateDropdown({ name = "Station", options = board.options, value = board.nextLabel or {}, placeholder = "Choose a station",
     forgetState = true, callback = function(value)
         if board.refreshing then return end
-        board.followNext = value == board.nextLabel
-        board.station = board.followNext and board.nextStop or (not board.followNext and value or nil)
+        local station = board.byLabel[value]
+        board.followNext = station ~= nil and station == board.nextStop
+        board.station = station
         board.dirty = true
     end })
 misc:CreateButton({ name = "Refresh departures", callback = function() board.dirty = true end })
@@ -1021,21 +1067,24 @@ function SpadBypass.junctionRoutes(mover, id)
         if entry then break end
     end
     if not entry then return {}, "Junction approach changed" end
-    local result, seen = {}, {}
+    local result, exits = {}, {}
     for mask = 1, 2 ^ #ids - 1 do
         local allowed = {}
         for i, group in ipairs(ids) do if bit32.band(mask, 2 ^ (i - 1)) ~= 0 then table.insert(allowed, group) end end
         local settings = table.clone(mover.junctionSettings)
         settings[id] = allowed
         local from, current, excluded = entry.from, entry.current, table.clone(entry.excluded)
-        local used, complete = {}, false
+        local used, complete, exitNode = {}, false, nil
         for _ = 1, 512 do
             local nextNode, junctionId = selectNode(from, current.position, settings, current.junctionId, excluded)
             if not nextNode then
                 complete = next(used) ~= nil and junctionId ~= nil and junctionId ~= id
+                if complete then exitNode = current end
                 break
             end
-            if nextNode.junctionId and nextNode.junctionId ~= id then complete = next(used) ~= nil; break end
+            if nextNode.junctionId and nextNode.junctionId ~= id then
+                complete = next(used) ~= nil; exitNode = nextNode; break
+            end
             if not nextNode.junctionId and next(used) then
                 local closest = math.huge
                 for _, nodes in pairs(groups) do
@@ -1043,22 +1092,47 @@ function SpadBypass.junctionRoutes(mover, id)
                 end
                 -- Untagged nodes can connect two groups of the SAME junction.
                 -- Do not declare a route complete at the first untagged node.
-                if closest > searchDistance then complete = true; break end
+                if closest > searchDistance then complete = true; exitNode = nextNode; break end
             end
             if table.find(excluded, nextNode) then break end
             if nextNode.junctionId == id then used[nextNode.nodeGroupId] = true end
             table.insert(excluded, nextNode)
             from, current = current.position, nextNode
         end
-        if complete then
+        if complete and exitNode then
             local actual, labels = {}, {}
             for _, group in ipairs(ids) do if used[group] then table.insert(actual, group); table.insert(labels, tostring(group)) end end
             local key = table.concat(labels, ",")
-            if not seen[key] then
-                seen[key] = true
-                table.insert(result, { groups = actual, key = key, name = "Tracks " .. key })
+            -- All track combinations reaching the same outgoing node are one
+            -- exit choice. The internal group list is retained only for driving.
+            local position = exitNode.position
+            local exitKey = string.format("%.2f/%.2f/%.2f", position.X, position.Y, position.Z)
+            local known = exits[exitKey]
+            if not known then
+                local forward = entry.current.position - entry.from
+                local outgoing = position - entry.current.position
+                local flatForward = Vector3.new(forward.X, 0, forward.Z)
+                local flatOutgoing = Vector3.new(outgoing.X, 0, outgoing.Z)
+                local turn, side
+                if flatForward.Magnitude > 0.01 and flatOutgoing.Magnitude > 0.01 then
+                    turn = math.atan2(flatForward.Unit:Cross(flatOutgoing.Unit).Y, flatForward.Unit:Dot(flatOutgoing.Unit))
+                    side = flatForward.Unit:Cross(flatOutgoing).Y
+                end
+                known = { groups = actual, key = key, exitKey = exitKey, position = position, turn = turn, side = side }
+                exits[exitKey] = known
+                table.insert(result, known)
+            elseif #actual < #known.groups then
+                known.groups, known.key = actual, key
             end
         end
+    end
+    table.sort(result, function(a, b)
+        if (a.turn or 0) ~= (b.turn or 0) then return (a.turn or 0) > (b.turn or 0) end
+        return a.exitKey < b.exitKey
+    end)
+    for index, exit in ipairs(result) do
+        local direction = exit.side and (exit.side > 4 and "Left" or exit.side < -4 and "Right" or "Ahead")
+        exit.name = "Exit " .. index .. (direction and (" · " .. direction) or "")
     end
     return result, #result == 0 and "No complete route verified" or nil
 end
@@ -1073,7 +1147,9 @@ function SpadBypass.resumeJunction(hold, route)
     end
     local routes = SpadBypass.junctionRoutes(mover, hold.id)
     local verified
-    for _, candidate in ipairs(routes) do if candidate.key == route.key then verified = candidate; break end end
+    for _, candidate in ipairs(routes) do
+        if candidate.exitKey == route.exitKey and route.exitKey ~= nil then verified = candidate; break end
+    end
     if not verified then hold.routes = nil; hold.message = "Route changed. Choose again."; return false end
     SpadBypass.holdJunction()
     -- Only the saved native setter may release this pause, after revalidation.
@@ -1087,8 +1163,9 @@ function SpadBypass.showJunction(hold)
     if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad then return end
     setthreadidentity(8)
     if hold.popup and not hold.popup._closed then hold.popup:Close() end
-    local options, content = {}, "Stopped. Choose a route to resume from rest."
+    local options, content = {}, "Stopped. Choose an exit to resume from rest."
     if not hold.routes then
+        hold.page = 1
         local ok, routes, message = pcall(SpadBypass.junctionRoutes, hold.mover, hold.id)
         hold.routes = ok and routes or {}
         if ok then hold.message = message else hold.message = "Track data unavailable" end
@@ -1096,8 +1173,8 @@ function SpadBypass.showJunction(hold)
     local first = (hold.page - 1) * 2 + 1
     for index = first, math.min(first + 1, #hold.routes) do
         local route = hold.routes[index]
-        content ..= "\nRoute " .. index .. ": " .. route.name
-        table.insert(options, { text = "Route " .. index, callback = function()
+        content ..= "\n" .. route.name
+        table.insert(options, { text = route.name, callback = function()
             task.defer(function()
                 local ok, resumed = pcall(SpadBypass.resumeJunction, hold, route)
                 if not ok then hold.message = "Unable to verify route. Staying stopped." end
@@ -1106,7 +1183,7 @@ function SpadBypass.showJunction(hold)
         end })
     end
     if #hold.routes > 2 then
-        table.insert(options, { text = "More routes", callback = function()
+        table.insert(options, { text = "More exits", callback = function()
             hold.page = hold.page % math.ceil(#hold.routes / 2) + 1
             task.defer(SpadBypass.showJunction, hold)
         end })
@@ -2370,7 +2447,7 @@ local function step()
         resetTrain(mover)
     end
     if SpadBypass.junction and SpadBypass.junction.mover == mover then
-        setStatus("Junction paused - choose a route to resume")
+        setStatus("Junction paused - choose an exit to resume")
         return
     end
     acknowledgeAws()
@@ -2506,8 +2583,7 @@ bypassSpadToggle = tab:CreateToggle({ name = "Bypass SPAD ⚠️", value = false
     end })
 tab:CreateButton({ name = "Recall choose route popup", callback = function()
     local hold = SpadBypass.junction
-    if not hold then notify("No junction is waiting for a route choice."); return end
-    if hold.popup and not hold.popup._closed then hold.popup:Close() end
+    if not hold then notify("No junction is waiting for an exit choice."); return end
     SpadBypass.showJunction(hold)
 end })
 diagnostics:CreateButton({ name = "Copy result to clipboard", callback = function()
