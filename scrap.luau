@@ -863,6 +863,7 @@ function SpadBypass.updateManualControls(dt)
     -- when ApplyEmergencyBrake was intercepted. Restore only the manual SPAD
     -- input path; do not change the shared emergency/release state or fight AP.
     if not state.alive or not config.bypassSpad or state.enabled or not SpadBypass.isSpad(mover) then return end
+    if mover.isPaused or SpadBypass.junction then return end
     local model = mover.skeletonModel.Parent
     local emergency = emergencyState()
     if model:GetAttribute("IsLoading") or emergency.currentState ~= enums.EmergencyState.SignalAtDanger then return end
@@ -901,6 +902,11 @@ function SpadBypass.detach(reapply)
     SpadBypass.clearManualInput()
     local mover, original = SpadBypass.mover, SpadBypass.original
     if not mover then return end
+    SpadBypass.closeJunction()
+    if SpadBypass.junctionOverride and rawget(mover, "SetJunctionSetting") == SpadBypass.junctionOverride then
+        rawset(mover, "SetJunctionSetting", SpadBypass.junctionPrevious)
+    end
+    SpadBypass.junctionOriginal, SpadBypass.junctionOverride, SpadBypass.junctionPrevious = nil, nil, nil
     if rawget(mover, "ApplyEmergencyBrake") == SpadBypass.override then
         rawset(mover, "ApplyEmergencyBrake", SpadBypass.previous)
     end
@@ -920,10 +926,209 @@ function SpadBypass.sync(mover)
     SpadBypass.mover, SpadBypass.original = mover, original
     SpadBypass.previous, SpadBypass.override = rawget(mover, "ApplyEmergencyBrake"), override
     mover.ApplyEmergencyBrake = override
+    local setter = mover.SetJunctionSetting
+    if type(setter) == "function" then
+        SpadBypass.junctionOriginal, SpadBypass.junctionPrevious = setter, rawget(mover, "SetJunctionSetting")
+        SpadBypass.junctionOverride = function(self, id, groups)
+            if self == mover and state.alive and config.bypassSpad then
+                if not SpadBypass.junction and self.isPaused and self.pauseJunctionId == id and SpadBypass.isSpad(self) then
+                    SpadBypass.beginJunction(self, id)
+                end
+                local hold = SpadBypass.junction
+                if hold and hold.mover == self and hold.id == id then
+                    hold.serverGroups = table.clone(groups)
+                    return -- A late server setting must not resume an undecided train.
+                end
+            end
+            return setter(self, id, groups)
+        end
+        mover.SetJunctionSetting = SpadBypass.junctionOverride
+    end
     SpadBypass.bindManualInput()
     -- Enabling during an existing SPAD permits driving again, without inventing a speed.
     if SpadBypass.isSpad(mover) and not mover.skeletonModel.Parent:GetAttribute("IsLoading") then
         mover:UnlockControls()
+    end
+end
+function SpadBypass.closeJunction()
+    local hold = SpadBypass.junction
+    SpadBypass.junction = nil
+    if hold and hold.popup then hold.popup:Close() end
+end
+function SpadBypass.beginJunction(mover, id)
+    SpadBypass.junction = { mover = mover, id = id, page = 1 }
+    SpadBypass.holdJunction()
+end
+function SpadBypass.holdJunction()
+    local hold = SpadBypass.junction
+    if not hold then return end
+    local mover = hold.mover
+    if mover ~= SpadBypass.mover or mover.isDestroyed then SpadBypass.closeJunction(); return end
+    -- Pausing SCR stops its movement step without clearing stored speed. Clear
+    -- that momentum once held, and block native/manual/AP throttle until a route is chosen.
+    mover.currentSpeed, mover.acceleration, mover.targetSpeed, mover.throttle = 0, 0, 0, 0
+    mover.isPaused, mover.pauseJunctionId = true, hold.id
+    SpadBypass.drag = nil
+end
+function SpadBypass.junctionRoutes(mover, id)
+    -- Use SCR's own node selector to trace complete alternatives. A node group
+    -- can be only part of a branch, so a single group is not assumed a route.
+    local selectNode, groups
+    local searchDistance = require(game.ReplicatedStorage.Modules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
+    local inspected = {}
+    local function findSelector(fn, depth)
+        if selectNode or depth > 3 or type(fn) ~= "function" or inspected[fn] then return end
+        inspected[fn] = true
+        for _, value in pairs(debug.getupvalues(fn)) do
+            if type(value) == "function" then
+                if debug.info(value, "n") == "selectNextNode" then selectNode = value
+                elseif depth < 3 then findSelector(value, depth + 1) end
+            end
+        end
+    end
+    findSelector(mover.Initialise, 1)
+    for _, value in pairs(debug.getupvalues(mover.Initialise)) do
+        if type(value) == "table" and type(value[id]) == "table" then
+            for _, nodes in pairs(value[id]) do
+                local node = type(nodes) == "table" and nodes[1]
+                if type(node) == "table" and node.junctionId == id and typeof(node.position) == "Vector3" then
+                    groups = value[id]; break
+                end
+            end
+        end
+    end
+    if not selectNode or not groups then return {}, "Track data unavailable" end
+    local ids = {}
+    for group in pairs(groups) do table.insert(ids, group) end
+    table.sort(ids)
+    if #ids > 8 then return {}, "Too many branches to verify" end
+    local entry
+    for _, carriage in ipairs(mover.carriages) do
+        for _, bogie in ipairs(carriage.bogies) do
+            local current = bogie.currentNode
+            if current then
+                local previous = bogie.prevNode
+                local from = previous and previous.position or bogie.position - carriage.trackingPart.CFrame.LookVector
+                    * (mover.isInitialDirection and 10 or -10)
+                local excluded = { current }
+                if previous then table.insert(excluded, previous) end
+                local nextNode, junctionId = selectNode(from, current.position, mover.junctionSettings, current.junctionId, excluded)
+                if not nextNode and junctionId == id then
+                    entry = { from = from, current = current, excluded = excluded }; break
+                end
+            end
+        end
+        if entry then break end
+    end
+    if not entry then return {}, "Junction approach changed" end
+    local result, seen = {}, {}
+    for mask = 1, 2 ^ #ids - 1 do
+        local allowed = {}
+        for i, group in ipairs(ids) do if bit32.band(mask, 2 ^ (i - 1)) ~= 0 then table.insert(allowed, group) end end
+        local settings = table.clone(mover.junctionSettings)
+        settings[id] = allowed
+        local from, current, excluded = entry.from, entry.current, table.clone(entry.excluded)
+        local used, complete = {}, false
+        for _ = 1, 512 do
+            local nextNode, junctionId = selectNode(from, current.position, settings, current.junctionId, excluded)
+            if not nextNode then
+                complete = next(used) ~= nil and junctionId ~= nil and junctionId ~= id
+                break
+            end
+            if nextNode.junctionId and nextNode.junctionId ~= id then complete = next(used) ~= nil; break end
+            if not nextNode.junctionId and next(used) then
+                local closest = math.huge
+                for _, nodes in pairs(groups) do
+                    for _, node in ipairs(nodes) do closest = math.min(closest, (node.position - nextNode.position).Magnitude) end
+                end
+                -- Untagged nodes can connect two groups of the SAME junction.
+                -- Do not declare a route complete at the first untagged node.
+                if closest > searchDistance then complete = true; break end
+            end
+            if table.find(excluded, nextNode) then break end
+            if nextNode.junctionId == id then used[nextNode.nodeGroupId] = true end
+            table.insert(excluded, nextNode)
+            from, current = current.position, nextNode
+        end
+        if complete then
+            local actual, labels = {}, {}
+            for _, group in ipairs(ids) do if used[group] then table.insert(actual, group); table.insert(labels, tostring(group)) end end
+            local key = table.concat(labels, ",")
+            if not seen[key] then
+                seen[key] = true
+                table.insert(result, { groups = actual, key = key, name = "Tracks " .. key })
+            end
+        end
+    end
+    return result, #result == 0 and "No complete route verified" or nil
+end
+function SpadBypass.resumeJunction(hold, route)
+    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad
+        or SpadBypass.mover ~= hold.mover or hold.mover.isDestroyed then return false end
+    local mover, emergency = hold.mover, emergencyState()
+    if mover.skeletonModel.Parent:GetAttribute("IsLoading") or emergency.releaseInProgress
+        or (emergency.currentState ~= enums.EmergencyState.None and emergency.currentState ~= enums.EmergencyState.SignalAtDanger)
+        or mover.areControlsLocked or mover.areControlsSoftLocked then
+        hold.message = "Train controls unavailable. Stay stopped and try again."; return false
+    end
+    local routes = SpadBypass.junctionRoutes(mover, hold.id)
+    local verified
+    for _, candidate in ipairs(routes) do if candidate.key == route.key then verified = candidate; break end end
+    if not verified then hold.routes = nil; hold.message = "Route changed. Choose again."; return false end
+    SpadBypass.holdJunction()
+    -- Only the saved native setter may release this pause, after revalidation.
+    SpadBypass.junctionOriginal(mover, hold.id, verified.groups)
+    if mover.isPaused then hold.message = "The game has not released this junction. Staying stopped."; return false end
+    SpadBypass.closeJunction()
+    state.lastDesired, state.sample, state.approach, state.fullBrakeSince = nil, nil, nil, nil
+    return true
+end
+function SpadBypass.showJunction(hold)
+    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad then return end
+    setthreadidentity(8)
+    if hold.popup and not hold.popup._closed then hold.popup:Close() end
+    local options, content = {}, "Stopped. Choose a route to resume from rest."
+    if not hold.routes then
+        local ok, routes, message = pcall(SpadBypass.junctionRoutes, hold.mover, hold.id)
+        hold.routes = ok and routes or {}
+        if ok then hold.message = message else hold.message = "Track data unavailable" end
+    end
+    local first = (hold.page - 1) * 2 + 1
+    for index = first, math.min(first + 1, #hold.routes) do
+        local route = hold.routes[index]
+        content ..= "\nRoute " .. index .. ": " .. route.name
+        table.insert(options, { text = "Route " .. index, callback = function()
+            task.defer(function()
+                local ok, resumed = pcall(SpadBypass.resumeJunction, hold, route)
+                if not ok then hold.message = "Unable to verify route. Staying stopped." end
+                if not ok or not resumed then SpadBypass.showJunction(hold) end
+            end)
+        end })
+    end
+    if #hold.routes > 2 then
+        table.insert(options, { text = "More routes", callback = function()
+            hold.page = hold.page % math.ceil(#hold.routes / 2) + 1
+            task.defer(SpadBypass.showJunction, hold)
+        end })
+    elseif #hold.routes == 0 then
+        table.insert(options, { text = "Retry", callback = function() hold.routes = nil; task.defer(SpadBypass.showJunction, hold) end })
+    end
+    if hold.message then content ..= "\n" .. hold.message end
+    -- Dismissing leaves the train stopped; the Autopilot tab can reopen this popup.
+    hold.popup = window:Popup({ title = "Junction " .. tostring(hold.id), content = content, dismissable = true, options = options })
+end
+function SpadBypass.updateJunction()
+    local mover = SpadBypass.mover
+    if not mover then return end
+    local hold = SpadBypass.junction
+    if hold and hold.mover ~= mover then SpadBypass.closeJunction(); hold = nil end
+    if not hold and mover.isPaused and mover.pauseJunctionId and SpadBypass.isSpad(mover) then
+        SpadBypass.beginJunction(mover, mover.pauseJunctionId)
+        hold = SpadBypass.junction
+    end
+    if hold and not hold.shown then
+        hold.shown = true
+        task.defer(SpadBypass.showJunction, hold)
     end
 end
 local function readyAction(key, interval)
@@ -2164,6 +2369,10 @@ local function step()
         if config.bypassSpad then SpadBypass.sync(mover) end
         resetTrain(mover)
     end
+    if SpadBypass.junction and SpadBypass.junction.mover == mover then
+        setStatus("Junction paused - choose a route to resume")
+        return
+    end
     acknowledgeAws()
     local emergency, release = emergencyState()
     if emergency.currentState ~= enums.EmergencyState.None
@@ -2295,6 +2504,12 @@ bypassSpadToggle = tab:CreateToggle({ name = "Bypass SPAD ⚠️", value = false
             notify("SPAD bypass unavailable: " .. tostring(err))
         end
     end })
+tab:CreateButton({ name = "Recall choose route popup", callback = function()
+    local hold = SpadBypass.junction
+    if not hold then notify("No junction is waiting for a route choice."); return end
+    if hold.popup and not hold.popup._closed then hold.popup:Close() end
+    SpadBypass.showJunction(hold)
+end })
 diagnostics:CreateButton({ name = "Copy result to clipboard", callback = function()
     local ok, copied = pcall(function() return console:Copy() end)
     notify(ok and copied and "Results copied to clipboard." or "Clipboard copy failed.")
@@ -2351,7 +2566,10 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     elapsed = 0
     if config.bypassSpad and bypassElapsed >= 0.5 then
         bypassElapsed = 0
-        local ok, err = pcall(function() SpadBypass.sync(loadedMover()) end)
+        local ok, err = pcall(function()
+            SpadBypass.sync(loadedMover())
+            SpadBypass.updateJunction()
+        end)
         if not ok then
             config.bypassSpad = false
             pcall(SpadBypass.detach, true)
@@ -2360,7 +2578,10 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         end
     end
     if config.bypassSpad then
-        local ok, err = pcall(SpadBypass.updateManualControls, manualDt)
+        local ok, err = pcall(function()
+            SpadBypass.holdJunction()
+            SpadBypass.updateManualControls(manualDt)
+        end)
         if not ok then
             config.bypassSpad = false
             pcall(SpadBypass.detach, true)
