@@ -59,7 +59,7 @@ end
 local health = diagnostics:CreateText({ name = "Runtime health", text = "Waiting for updates." })
 local drivingDetails = diagnostics:CreateText({ name = "Braking and motion data", text = "Waiting for a train." })
 local console = diagnostics:CreateConsole({ name = "Results", height = 280, follow = true, maxLines = 250 })
-local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift", mainPower = "Electric" }
+local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift", mainPower = "Electric", bypassSpad = false }
 local INITIAL_BRAKING = 5 -- mph/s fallback until moving full-brake calibration locks
 local DEFAULT_STOP_OFFSET = 0.01
 local MIN_STOP_OFFSET = 0.0003125 -- five halvings; never target the obstacle itself
@@ -786,6 +786,42 @@ local function emergencyState()
         end
     end
     error("Emergency controller state unavailable.")
+end
+-- Intercept the mover call before it zeros speed; polling after SPAD is too late.
+-- Keep the override local to our train and restore its previous instance method.
+local SpadBypass: { [string]: any } = {}
+function SpadBypass.isSpad(mover)
+    local model = mover and mover.skeletonModel and mover.skeletonModel.Parent
+    if not model or mover.isDestroyed then return false end
+    local brakeTime = model:GetAttribute("EmergencyBrakeTime")
+    return brakeTime ~= nil and brakeTime ~= 0 and model:GetAttribute("EmergencySignalName") ~= nil
+end
+function SpadBypass.detach(reapply)
+    local mover, original = SpadBypass.mover, SpadBypass.original
+    if not mover then return end
+    if rawget(mover, "ApplyEmergencyBrake") == SpadBypass.override then
+        rawset(mover, "ApplyEmergencyBrake", SpadBypass.previous)
+    end
+    SpadBypass.mover, SpadBypass.original, SpadBypass.override, SpadBypass.previous = nil, nil, nil, nil
+    if reapply and SpadBypass.isSpad(mover) then original(mover) end
+end
+function SpadBypass.sync(mover)
+    if mover == SpadBypass.mover then return end
+    SpadBypass.detach(false)
+    if not config.bypassSpad or not mover then return end
+    local original = mover.ApplyEmergencyBrake
+    if type(original) ~= "function" then error("SPAD brake controller unavailable.") end
+    local override = function(self, ...)
+        if state.alive and config.bypassSpad and self == mover and SpadBypass.isSpad(self) then return end
+        return original(self, ...)
+    end
+    SpadBypass.mover, SpadBypass.original = mover, original
+    SpadBypass.previous, SpadBypass.override = rawget(mover, "ApplyEmergencyBrake"), override
+    mover.ApplyEmergencyBrake = override
+    -- Enabling during an existing SPAD permits driving again, without inventing a speed.
+    if SpadBypass.isSpad(mover) and not mover.skeletonModel.Parent:GetAttribute("IsLoading") then
+        mover:UnlockControls()
+    end
 end
 local function readyAction(key, interval)
     local now = os.clock()
@@ -2021,10 +2057,15 @@ local function step()
         disable("Disabled - vehicle not loaded"); notify("Vehicle is not loaded. Autopilot has been turned off."); return
     end
     state.shiftTransition = nil
-    if mover ~= state.mover then resetTrain(mover) end
+    if mover ~= state.mover then
+        if config.bypassSpad then SpadBypass.sync(mover) end
+        resetTrain(mover)
+    end
     acknowledgeAws()
     local emergency, release = emergencyState()
-    if emergency.currentState ~= enums.EmergencyState.None then
+    if emergency.currentState ~= enums.EmergencyState.None
+        and not (config.bypassSpad and SpadBypass.mover == mover
+            and emergency.currentState == enums.EmergencyState.SignalAtDanger) then
         -- No speed writes anywhere in this branch, including while release is in progress.
         setStatus("Emergency / SPAD - waiting for permitted release")
         if not emergency.releaseInProgress and readyAction("release", 2) then
@@ -2135,16 +2176,33 @@ tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel
 tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
+local bypassSpadToggle
+bypassSpadToggle = tab:CreateToggle({ name = "Bypass SPAD ⚠️", value = false, forgetState = true,
+    description = "Prevent SPAD from applying the train's emergency brake, including during manual driving.",
+    callback = function(enabled)
+        if not state.alive then return end
+        config.bypassSpad = enabled
+        local ok, err = pcall(function()
+            if enabled then SpadBypass.sync(loadedMover()) else SpadBypass.detach(true) end
+        end)
+        if not ok then
+            config.bypassSpad = false
+            pcall(SpadBypass.detach, true)
+            bypassSpadToggle:Set(false, true)
+            notify("SPAD bypass unavailable: " .. tostring(err))
+        end
+    end })
 diagnostics:CreateButton({ name = "Copy result to clipboard", callback = function()
     local ok, copied = pcall(function() return console:Copy() end)
     notify(ok and copied and "Results copied to clipboard." or "Clipboard copy failed.")
 end })
 diagnostics:CreateButton({ name = "Clear results", callback = function() console:Clear() end })
 
-local elapsed, displayElapsed = 0, 0
+local elapsed, displayElapsed, bypassElapsed = 0, 0, 0
 local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     elapsed += dt
     displayElapsed += dt
+    bypassElapsed += dt
     if not state.alive then return end
     board.elapsed += dt
     if (board.dirty or board.elapsed >= 2) and not state.miscThread then
@@ -2185,8 +2243,20 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         log("Update watchdog recovered a stalled driving update.")
         setStatus("Recovering stalled update")
     end
-    if elapsed < 0.05 or not state.enabled or state.busy then return end
-    elapsed = 0; state.busy = true; state.busySince = now
+    if elapsed < 0.05 then return end
+    elapsed = 0
+    if config.bypassSpad and bypassElapsed >= 0.5 then
+        bypassElapsed = 0
+        local ok, err = pcall(function() SpadBypass.sync(loadedMover()) end)
+        if not ok then
+            config.bypassSpad = false
+            pcall(SpadBypass.detach, true)
+            bypassSpadToggle:Set(false, true)
+            notify("SPAD bypass disabled: " .. tostring(err))
+        end
+    end
+    if not state.enabled or state.busy then return end
+    state.busy = true; state.busySince = now
     local generation = state.generation
     state.stepThread = task.defer(function()
         if not state.alive or not state.enabled or state.generation ~= generation then state.busy = false; return end
@@ -2208,6 +2278,9 @@ state.destroy = function()
     if not state.alive then return end
     -- Termination is independent of UI callbacks: teardown continues even if a widget is gone.
     state.alive = false; state.enabled = false; state.generation += 1
+    config.bypassSpad = false
+    local bypassOk, bypassErr = pcall(SpadBypass.detach, true)
+    if not bypassOk then warn("SCR Autopilot SPAD bypass cleanup failed: " .. tostring(bypassErr)) end
     state.mode = "Terminated"
     funCamera:destroy()
     if state.confirmationPopup then state.confirmationPopup:Close(); state.confirmationPopup = nil end
