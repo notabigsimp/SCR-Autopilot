@@ -684,6 +684,41 @@ function FunCamera.nativeJoystick(controls, thumbstickModule)
 end
 -- END FUN CAMERA CONTROLLER
 misc:CreateDivider({ spacing = 20 })
+local antiAfkConnection: RBXScriptConnection? = nil
+local antiAfkToggle
+local function stopAntiAfk()
+    if antiAfkConnection then
+        antiAfkConnection:Disconnect()
+        antiAfkConnection = nil
+    end
+end
+local function antiAfkIdle()
+    if not state.alive or not antiAfkConnection then return end
+    local ok, err = pcall(function()
+        setthreadidentity(8)
+        local virtualUser = game:GetService("VirtualUser")
+        virtualUser:CaptureController()
+        local camera = workspace.CurrentCamera
+        virtualUser:ClickButton2(Vector2.zero, camera and camera.CFrame or CFrame.new())
+    end)
+    if not ok then
+        stopAntiAfk()
+        antiAfkToggle:Set(false, true)
+        notify("Anti-AFK disabled: " .. tostring(err))
+    end
+end
+local function setAntiAfk(enabled)
+    if not state.alive then return end
+    if not enabled then stopAntiAfk(); return end
+    if antiAfkConnection then return end
+    antiAfkConnection = game:GetService("Players").LocalPlayer.Idled:Connect(antiAfkIdle)
+end
+misc:CreateSection({ name = "Utilities" })
+antiAfkToggle = misc:CreateToggle({ name = "Anti-AFK", value = true, forgetState = true,
+    description = "Prevent idle disconnection while this toggle is enabled.",
+    callback = setAntiAfk })
+-- Start protection even if the UI does not invoke callbacks for initial values.
+setAntiAfk(true)
 misc:CreateSection({ name = "Fun Zone" })
 local funInput = game:GetService("UserInputService")
 local nativeJoystick
@@ -2282,6 +2317,7 @@ state.destroy = function()
     local bypassOk, bypassErr = pcall(SpadBypass.detach, true)
     if not bypassOk then warn("SCR Autopilot SPAD bypass cleanup failed: " .. tostring(bypassErr)) end
     state.mode = "Terminated"
+    stopAntiAfk()
     funCamera:destroy()
     if state.confirmationPopup then state.confirmationPopup:Close(); state.confirmationPopup = nil end
     connection:Disconnect()
