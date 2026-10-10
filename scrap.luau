@@ -831,7 +831,74 @@ function SpadBypass.isSpad(mover)
     local brakeTime = model:GetAttribute("EmergencyBrakeTime")
     return brakeTime ~= nil and brakeTime ~= 0 and model:GetAttribute("EmergencySignalName") ~= nil
 end
+function SpadBypass.clearManualInput()
+    SpadBypass.drag = nil
+    for _, connection in ipairs(SpadBypass.inputConnections or {}) do connection:Disconnect() end
+    SpadBypass.inputConnections = nil
+end
+function SpadBypass.bindManualInput()
+    local input = game:GetService("UserInputService")
+    local handle = path(hud(), { "Additional", "SimpleTouch", "Guide", "Handle" })
+    local connections = {}
+    SpadBypass.inputConnections = connections
+    if handle then
+        table.insert(connections, handle.InputBegan:Connect(function(event)
+            if event.UserInputType == Enum.UserInputType.Touch
+                or event.UserInputType == Enum.UserInputType.MouseButton1 then
+                -- Keep our own drag: SCR clears its drag while emergencyState is SPAD.
+                SpadBypass.drag = { input = event, handle = handle }
+            end
+        end))
+    end
+    table.insert(connections, input.InputEnded:Connect(function(event)
+        local drag = SpadBypass.drag
+        if drag and (event == drag.input or (drag.input.UserInputType == Enum.UserInputType.MouseButton1
+            and event.UserInputType == Enum.UserInputType.MouseButton1)) then SpadBypass.drag = nil end
+    end))
+    table.insert(connections, input.WindowFocusReleased:Connect(function() SpadBypass.drag = nil end))
+end
+function SpadBypass.updateManualControls(dt)
+    local mover = SpadBypass.mover
+    -- SCR's heartbeat ignores ALL manual speed input during an emergency, even
+    -- when ApplyEmergencyBrake was intercepted. Restore only the manual SPAD
+    -- input path; do not change the shared emergency/release state or fight AP.
+    if not state.alive or not config.bypassSpad or state.enabled or not SpadBypass.isSpad(mover) then return end
+    local model = mover.skeletonModel.Parent
+    local emergency = emergencyState()
+    if model:GetAttribute("IsLoading") or emergency.currentState ~= enums.EmergencyState.SignalAtDanger then return end
+    if mover.areControlsLocked or mover.areControlsSoftLocked then return end
+    local input = game:GetService("UserInputService")
+    if input:GetFocusedTextBox() then return end
+    local delta = 0
+    for _, key in ipairs(input:GetKeysPressed()) do
+        if key.KeyCode == Enum.KeyCode.W or key.KeyCode == Enum.KeyCode.Up then delta += 1 end
+        if key.KeyCode == Enum.KeyCode.S or key.KeyCode == Enum.KeyCode.Down then delta -= 1 end
+    end
+    for _, pad in ipairs(input:GetConnectedGamepads()) do
+        for _, key in ipairs(input:GetGamepadState(pad)) do
+            if key.KeyCode == Enum.KeyCode.ButtonR2 then delta += key.Position.Z end
+            if key.KeyCode == Enum.KeyCode.ButtonL2 then delta -= key.Position.Z end
+        end
+    end
+    if delta ~= 0 then mover:ApplyThrottleDelta(math.clamp(delta, -1, 1) * math.min(dt, 0.1) * 25) end
+    local drag = SpadBypass.drag
+    if not drag then return end
+    local event, handle = drag.input, drag.handle
+    if not handle.Parent or event.UserInputState == Enum.UserInputState.End
+        or event.UserInputState == Enum.UserInputState.Cancel then SpadBypass.drag = nil; return end
+    local guide = handle.Parent
+    local gui = guide:FindFirstAncestorWhichIsA("ScreenGui")
+    if not gui or not gui.Enabled or not guide.Parent.Visible or guide.AbsoluteSize.Y <= 0 then return end
+    local y = event.Position.Y
+    if event.UserInputType == Enum.UserInputType.MouseButton1 then
+        y = input:GetMouseLocation().Y
+        if not gui.IgnoreGuiInset then y -= game:GetService("GuiService"):GetGuiInset().Y end
+    end
+    local target = (1 - math.clamp((y - guide.AbsolutePosition.Y) / guide.AbsoluteSize.Y, 0, 1)) * mover.maxSpeed
+    mover:SetTargetSpeed(target < 5 and 0 or target)
+end
 function SpadBypass.detach(reapply)
+    SpadBypass.clearManualInput()
     local mover, original = SpadBypass.mover, SpadBypass.original
     if not mover then return end
     if rawget(mover, "ApplyEmergencyBrake") == SpadBypass.override then
@@ -853,6 +920,7 @@ function SpadBypass.sync(mover)
     SpadBypass.mover, SpadBypass.original = mover, original
     SpadBypass.previous, SpadBypass.override = rawget(mover, "ApplyEmergencyBrake"), override
     mover.ApplyEmergencyBrake = override
+    SpadBypass.bindManualInput()
     -- Enabling during an existing SPAD permits driving again, without inventing a speed.
     if SpadBypass.isSpad(mover) and not mover.skeletonModel.Parent:GetAttribute("IsLoading") then
         mover:UnlockControls()
@@ -2279,6 +2347,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         setStatus("Recovering stalled update")
     end
     if elapsed < 0.05 then return end
+    local manualDt = elapsed
     elapsed = 0
     if config.bypassSpad and bypassElapsed >= 0.5 then
         bypassElapsed = 0
@@ -2288,6 +2357,15 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
             pcall(SpadBypass.detach, true)
             bypassSpadToggle:Set(false, true)
             notify("SPAD bypass disabled: " .. tostring(err))
+        end
+    end
+    if config.bypassSpad then
+        local ok, err = pcall(SpadBypass.updateManualControls, manualDt)
+        if not ok then
+            config.bypassSpad = false
+            pcall(SpadBypass.detach, true)
+            bypassSpadToggle:Set(false, true)
+            notify("SPAD manual controls unavailable: " .. tostring(err))
         end
     end
     if not state.enabled or state.busy then return end
