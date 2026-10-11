@@ -766,6 +766,209 @@ antiAfkToggle = misc:CreateToggle({ name = "Anti-AFK", value = true, forgetState
     callback = setAntiAfk })
 -- Start protection even if the UI does not invoke callbacks for initial values.
 setAntiAfk(true)
+-- TICKET ASSIST: acts only on the passenger already opened through the game's prompt.
+local TicketAssist: { [string]: any } = { enabled = false, busy = false, elapsed = 0, epoch = 0 }
+function TicketAssist.roleAllowed(teamName)
+    return teamName == "Guards" or teamName == "RPOs"
+end
+function TicketAssist.allowed()
+    local team = game:GetService("Players").LocalPlayer.Team
+    return TicketAssist.roleAllowed(team and team.Name)
+end
+function TicketAssist.setEnabled(enabled)
+    setthreadidentity(8)
+    TicketAssist.epoch += 1
+    TicketAssist.enabled = enabled and state.alive and TicketAssist.allowed()
+    TicketAssist.session, TicketAssist.passenger, TicketAssist.done = nil, nil, {}
+    if TicketAssist.promptConnection then
+        TicketAssist.promptConnection:Disconnect()
+        TicketAssist.promptConnection = nil
+    end
+    if TicketAssist.enabled then
+        local epoch = TicketAssist.epoch
+        local promptService: any = game:GetService("ProximityPromptService")
+        TicketAssist.promptConnection = promptService.PromptTriggered:Connect(function(prompt, player)
+            if player ~= game:GetService("Players").LocalPlayer or epoch ~= TicketAssist.epoch then return end
+            -- Both keyboard E and clicking/tapping the circle fire this event.
+            if prompt.ActionText ~= "Check Ticket" and prompt.ActionText ~= "Check Discount card"
+                and prompt.ActionText ~= "Sell Ticket" then return end
+            TicketAssist.queue(epoch)
+        end)
+    end
+    if TicketAssist.toggle then TicketAssist.toggle:Set(TicketAssist.enabled, true) end
+end
+function TicketAssist.syncAvailability()
+    if TicketAssist.allowed() then
+        if TicketAssist.toggle:IsLocked() then TicketAssist.toggle:Unlock() end
+    else
+        if TicketAssist.enabled then TicketAssist.setEnabled(false) end
+        if not TicketAssist.toggle:IsLocked() then
+            TicketAssist.toggle:Lock("Available only in the Guard or RPO role.")
+        end
+    end
+end
+function TicketAssist.callback(button)
+    if not button then error("Ticket phone button unavailable.") end
+    for _, item in ipairs(getconnections(button.Activated)) do
+        if type(item.Function) == "function" then return item.Function end
+    end
+    error("Ticket phone callback unavailable.")
+end
+function TicketAssist.button(frame, text)
+    if frame then
+        for _, item in ipairs(frame:GetChildren()) do
+            if item:IsA("TextButton") and item.Text == text then return item end
+        end
+    end
+    error("Ticket phone action unavailable: " .. text)
+end
+function TicketAssist.snapshot(openSale)
+    local session, passenger, sale, refresh
+    for _, value in pairs(getupvalues(openSale)) do
+        if typeof(value) == "Instance" then passenger = value
+        elseif type(value) == "table" then
+            if value.ok == true and type(value.kind) == "string" then session = value end
+            if value.stationOptions and value.saleType and value.isExcess ~= nil then sale = value end
+        elseif type(value) == "function" and debug.info(value, "n") == "refreshSellUI" then
+            refresh = value
+        end
+    end
+    return session, passenger, sale, refresh
+end
+function TicketAssist.decision(session, page)
+    local valid
+    if page == "Ticket" and session.kind == "ticket" then
+        valid = session.validity and session.validity.isValid
+    elseif page == "Discount" and session.kind == "discount" then
+        valid = session.discount and session.discount.valid
+    end
+    if type(valid) ~= "boolean" then error("Ticket validity unavailable; please check manually.") end
+    return valid and "Accept" or "Reject"
+end
+function TicketAssist.plan(session, coachClass, hasTicket, fixable)
+    local request = session.request
+    if type(request) ~= "table" or type(request.origin) ~= "string" or request.origin == ""
+        or type(request.destination) ~= "string" or request.destination == ""
+        or (request.product ~= "Single" and request.product ~= "Return" and request.product ~= "Weekly")
+        or type(request.isChild) ~= "boolean"
+        or (coachClass ~= "Standard" and coachClass ~= "First") then
+        error("Ticket sale details incomplete; please issue manually.")
+    end
+    return { fromStation = request.origin, toStation = request.destination, saleType = request.product,
+        class = coachClass, isChild = request.isChild, isExcess = hasTicket and fixable }
+end
+function TicketAssist.step(epoch)
+    setthreadidentity(8)
+    if not state.alive or not TicketAssist.enabled or epoch ~= TicketAssist.epoch or not TicketAssist.allowed() then return end
+    local player = game:GetService("Players").LocalPlayer
+    local gui = player.PlayerGui:FindFirstChild(player.Team.Name == "Guards" and "GuardGui" or "RPOGui")
+    local phone = gui and gui:FindFirstChild("Phone")
+    local screen = phone and phone:FindFirstChild("Screen")
+    if not gui or not gui.Enabled or not phone or not phone.Visible or not screen then return end
+    local root: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    if not root then error("Ticket modules unavailable.") end
+    local loadModule: any = require
+    local client = loadModule(root.Guard.GuardTicketClient)
+    if not client.HasActivePassenger() then
+        TicketAssist.session, TicketAssist.passenger, TicketAssist.done = nil, nil, {}
+        return
+    end
+    local openSale = TicketAssist.callback(TicketAssist.button(screen:FindFirstChild("Home"), "Sell ticket"))
+    local session, passenger, sale, refresh = TicketAssist.snapshot(openSale)
+    if not session or not passenger or not passenger:IsDescendantOf(game) then return end
+    if session ~= TicketAssist.session or passenger ~= TicketAssist.passenger then
+        TicketAssist.session, TicketAssist.passenger, TicketAssist.done = session, passenger, {}
+    end
+    local page
+    for _, name in ipairs({ "Ticket", "Discount", "Sell", "Home" }) do
+        local frame = screen:FindFirstChild(name)
+        if frame and frame.Visible then page = name; break end
+    end
+    if not page or TicketAssist.done[page] then return end
+    local seating = loadModule(root.Passenger.PassengerSeating)
+    local system = loadModule(root.Passenger.PassengerTicketSystem)
+    local record = seating.GetNpcPassengerRecord(passenger) or passenger
+    if page == "Ticket" and session.validity and session.validity.isValid and session.discount
+        and record:GetAttribute(system.Attributes.DiscountStage) == system.DiscountStage.Pending then
+        -- Ask the same passenger for their card before making the final decision.
+        local prompt = passenger:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if not prompt or not prompt.Enabled then error("Discount card prompt unavailable.") end
+        for _, item in ipairs(getconnections(prompt.Triggered)) do
+            if type(item.Function) == "function" then
+                TicketAssist.done[page] = true
+                item.Function()
+                return
+            end
+        end
+        error("Discount card callback unavailable.")
+    elseif page == "Ticket" or page == "Discount" then
+        local action = TicketAssist.decision(session, page)
+        local callback = TicketAssist.callback(TicketAssist.button(screen:FindFirstChild(page), action))
+        TicketAssist.done[page] = true
+        callback()
+        setthreadidentity(8)
+        log("Ticket check assist: " .. action .. " " .. string.lower(page) .. ".")
+    elseif page == "Home" then
+        TicketAssist.done[page] = true
+        openSale()
+    elseif page == "Sell" then
+        local trainUtility = loadModule(root.Train.TrainUtility)
+        local trainName = player:GetAttribute("GuardTrainName") or trainUtility.GetRPOTrainName(player)
+        local trains = workspace:FindFirstChild("ActiveTrains")
+        local train = trains and trainName and trains:FindFirstChild(trainName)
+        if not train then error("Ticket passenger's train unavailable.") end
+        local seatId = record:GetAttribute("SeatId")
+        if passenger:IsA("Player") then
+            for id = 1, train:GetAttribute("MaxSeatId") or 0 do
+                if train:GetAttribute(string.format("Seat%iOccupant", id)) == passenger.Name then seatId = id; break end
+            end
+        end
+        local coachClass = seatId and seating.GetSeatCoachClass(train, seatId)
+        local context = loadModule(root.Passenger.PassengerTicketContext).Build(train, seatId, record)
+        local ticket = system.ReadTicket(record)
+        local validity = ticket and system.EvaluateTicket(ticket, context)
+        local fixable = validity and system.IsExcessFixable(validity.reasons) or false
+        local plan = TicketAssist.plan(session, coachClass, ticket ~= nil, fixable)
+        if not sale or not refresh then error("Ticket sale controller unavailable.") end
+        if not table.find(sale.stationOptions, plan.fromStation) or not table.find(sale.stationOptions, plan.toStation) then
+            error("Requested stations unavailable in the ticket phone.")
+        end
+        for key, value in pairs(plan) do sale[key] = value end
+        refresh()
+        local issue = TicketAssist.callback(TicketAssist.button(screen:FindFirstChild("Sell"), "Issue"))
+        TicketAssist.done[page] = true
+        issue()
+        setthreadidentity(8)
+        log("Ticket check assist: issued " .. plan.saleType .. " from " .. plan.fromStation .. " to " .. plan.toStation .. ".")
+    end
+end
+function TicketAssist.queue(epoch)
+    if not state.alive or not TicketAssist.enabled or TicketAssist.busy or epoch ~= TicketAssist.epoch then return end
+    TicketAssist.busy = true
+    TicketAssist.thread = task.defer(function()
+        setthreadidentity(8)
+        local ok, err = pcall(TicketAssist.step, epoch)
+        TicketAssist.busy, TicketAssist.thread = false, nil
+        setthreadidentity(8)
+        if not ok and state.alive and TicketAssist.enabled and epoch == TicketAssist.epoch then
+            TicketAssist.setEnabled(false)
+            notify("Ticket check assist disabled: " .. tostring(err))
+        end
+    end)
+end
+function TicketAssist.update(dt)
+    TicketAssist.elapsed += dt
+    if TicketAssist.elapsed < 0.25 then return end
+    TicketAssist.elapsed = 0
+    setthreadidentity(8)
+    TicketAssist.syncAvailability()
+    -- Continue card/reject/sale transitions after the prompt callback has returned.
+    TicketAssist.queue(TicketAssist.epoch)
+end
+TicketAssist.toggle = misc:CreateToggle({ name = "Ticket check assist", value = false, forgetState = true,
+    description = "After you open a passenger with E, check their ticket/card and issue the matching fare. Guard and RPO only.",
+    callback = function(enabled) TicketAssist.setEnabled(enabled) end })
+TicketAssist.syncAvailability()
 misc:CreateSection({ name = "Fun Zone" })
 local funInput = game:GetService("UserInputService")
 local nativeJoystick
@@ -2603,6 +2806,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     bypassElapsed += dt
     if not state.alive then return end
     board.elapsed += dt
+    TicketAssist.update(dt)
     if (board.dirty or board.elapsed >= 2) and not state.miscThread then
         board.dirty = false; board.elapsed = 0
         state.miscThread = task.defer(function()
@@ -2696,6 +2900,7 @@ state.destroy = function()
     local bypassOk, bypassErr = pcall(SpadBypass.detach, true)
     if not bypassOk then warn("SCR Autopilot SPAD bypass cleanup failed: " .. tostring(bypassErr)) end
     state.mode = "Terminated"
+    TicketAssist.setEnabled(false)
     stopAntiAfk()
     funCamera:destroy()
     if state.confirmationPopup then state.confirmationPopup:Close(); state.confirmationPopup = nil end
