@@ -845,6 +845,19 @@ function TicketAssist.decision(session, page)
     if type(valid) ~= "boolean" then error("Ticket validity unavailable; please check manually.") end
     return valid and "Accept" or "Reject"
 end
+function TicketAssist.excessFixable(system, record, ticket, context)
+    if not ticket then return false end
+    local validity = system.EvaluateTicket(ticket, context)
+    local reasons = table.clone(validity.reasons)
+    -- EvaluateTicket covers the ticket itself, not the discount card used to buy it.
+    -- An invalid card requires an excess fare, rather than a full replacement ticket.
+    if record:GetAttribute(system.Attributes.HasDiscountCard) == true
+        and record:GetAttribute(system.Attributes.DiscountValid) == false
+        and not table.find(reasons, system.InvalidReason.DiscountExpired) then
+        table.insert(reasons, system.InvalidReason.DiscountExpired)
+    end
+    return system.IsExcessFixable(reasons)
+end
 function TicketAssist.plan(session, coachClass, hasTicket, fixable)
     local request = session.request
     if type(request) ~= "table" or type(request.origin) ~= "string" or request.origin == ""
@@ -926,8 +939,7 @@ function TicketAssist.step(epoch)
         local coachClass = seatId and seating.GetSeatCoachClass(train, seatId)
         local context = loadModule(root.Passenger.PassengerTicketContext).Build(train, seatId, record)
         local ticket = system.ReadTicket(record)
-        local validity = ticket and system.EvaluateTicket(ticket, context)
-        local fixable = validity and system.IsExcessFixable(validity.reasons) or false
+        local fixable = TicketAssist.excessFixable(system, record, ticket, context)
         local plan = TicketAssist.plan(session, coachClass, ticket ~= nil, fixable)
         if not sale or not refresh then error("Ticket sale controller unavailable.") end
         if not table.find(sale.stationOptions, plan.fromStation) or not table.find(sale.stationOptions, plan.toStation) then
