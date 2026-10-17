@@ -1603,212 +1603,701 @@ local function powerChoices(mover)
     if config.mainPower == "Diesel" then return { diesel, electric, battery } end
     return { electric, diesel, battery }
 end
--- SHIFT WEBHOOK HELPERS: no account remotes, no saved webhook credentials.
-local ShiftWebhook = { enabled = false, url = "", current = nil, threads = {}, summarySeen = false }
-function ShiftWebhook.clean(value, limit)
-    local text = tostring(value or "Unknown"):gsub("[`\r\n]", " "):gsub("@", "＠")
-    local length = utf8.len(text)
-    if length and length > (limit or 80) then text = text:sub(1, utf8.offset(text, (limit or 80) + 1) - 1) end
+-- SHIFT WEBHOOK HELPERS: credentials remain in the user's local webhook setting.
+local ShiftWebhook = { enabled=false,url="",current=nil,threads={},summarySeen=false }
+function ShiftWebhook.clean(value,limit)
+    local text=tostring(value or "Unknown"):gsub("[`\r\n]"," "):gsub("@","＠")
+    local length=utf8.len(text)
+    if not length then return "Unknown" end
+    if length>(limit or 80) then text=text:sub(1,utf8.offset(text,(limit or 80)+1)-1) end
     return text
 end
 function ShiftWebhook.validUrl(value)
-    return type(value) == "string" and (value:match("^https://discord%.com/api/webhooks/%d+/[%w_%.%-]+$")
+    return type(value)=="string" and (value:match("^https://discord%.com/api/webhooks/%d+/[%w_%.%-]+$")
         or value:match("^https://discord%.com/api/v%d+/webhooks/%d+/[%w_%.%-]+$")
-        or value:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%.%-]+$")) ~= nil
+        or value:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%.%-]+$"))~=nil
+end
+function ShiftWebhook.apiUrl(value)
+    -- v10 treats attachments as the complete replacement list on message edits.
+    local tail=value:match("^https://discord%.com/api/v%d+/(webhooks/.+)$")
+        or value:match("^https://discord%.com/api/(webhooks/.+)$")
+        or value:match("^https://discordapp%.com/api/(webhooks/.+)$")
+    assert(tail,"Invalid webhook URL")
+    return "https://discord.com/api/v10/"..tail
 end
 function ShiftWebhook.number(text)
-    return tonumber(tostring(text or ""):gsub(",", ""):match("[+-]?%d+%.?%d*"))
+    return tonumber(tostring(text or ""):gsub(",",""):match("[+-]?%d+%.?%d*"))
 end
-function ShiftWebhook.clock(timestamp, date)
-    if not timestamp or not date then return "—" end
-    local parts = date.GetDate(timestamp)
-    return string.format("%02d:%02d:%02d", parts.hour, parts.min, parts.sec)
+function ShiftWebhook.clock(timestamp,date)
+    if type(timestamp)~="number" or not date then return nil end
+    local parts=date.GetDate(timestamp)
+    return string.format("%02d:%02d:%02d",parts.hour,parts.min,parts.sec)
+end
+function ShiftWebhook.gameDate()
+    if not board.date then
+        local loadGameModule:any=require
+        board.date=loadGameModule(game:GetService("ReplicatedStorage").Modules.Date)
+    end
+    return board.date
 end
 function ShiftWebhook.delay(value)
-    if value == nil then return "—" end
-    return string.format("+%.2f", math.max(0, value)):gsub("0+$", ""):gsub("%.$", "") .. "m"
+    return string.format("+%.2f",math.max(0,value)):gsub("0+$",""):gsub("%.$","").."m"
 end
-function ShiftWebhook.length(text)
-    return utf8.len(text) or #text
+-- Raster glyphs only; no font files or renderer service required.
+ShiftWebhook.fonts = {
+sans = {
+[32] = {12,4,-2,-2,8.0000,"cccccccccccc"},
+[33] = {13,25,-2,-23,9.0000,"ccccccc41b1cc1bcc01bcc01bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcccccccccccc0232cc01b2cc1b2cc0232ccccccc8"},
+[34] = {17,25,-2,-23,13.0000,"ccccccccc4171472cc171472cc171472cc171472cc171472cc171472cc171472ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+[35] = {22,25,-2,-23,18.0000,"ccccccccccccc17817ccc02328232ccc0232871ccc071871ccc171417ccc017817cc4fffbc41fff72cc471871ccc17817ccc0178132ccc02328232cc01fffbc41fff72cc017817ccc0178232ccc0232871ccc071871ccc17817cccccccccccccccccccccccc0"},
+[36] = {21,31,-2,-26,17.0000,"cccccccccccc8131cccc4131cccc4131cccc12f61cc82ff2cc42f7272cc01b531412cc02710131ccc0b10131ccc02710131ccc02b531ccc4f231ccc41f32cccc2f32ccc812f2ccc81f7ccc4135b2ccc013101bccc01314bcc1c13101bcc2314135b2cc2ffbcc02ff32cc816f21cccc131cccc4131cccc4131cccccccccccc8"},
+[37] = {29,25,-2,-23,25.0000,"ccccccccccccccc812b2cc07cc81fbc8231cc8b10172c0132cc817c27c07ccc232c1718231ccc232c1714132ccc0232c1787ccc427c274232ccc8724171017cccc1f72471cccc012721423242b21cccc0174fb1cccc231027101bccc81324728171ccc474171c71ccc0231417c072ccc132817c071ccc7c1718171cc8231c02710172cc8132c41fbccc71cc2b2cccccccccccccccc"},
+[38] = {26,25,-2,-23,21.0000,"ccccccccccccccc02b6cccc41ffcccc1bab2ccc827281b1ccc4b1cb1ccc4b1cbccc82728272ccccb202b1cccc2f72cccc8f31cccc41f71c172cc02b12b18172cc1b82b14271ccb1c2b10bcc1bc4f272cc1bc8f7cc01b1c8f1cc4f1c02f31cc02faff3cc42ff3201fcc416b6181b2ccccccccccccc8"},
+[39] = {12,25,-2,-23,8.0000,"ccccccc171cc171cc171cc171cc171cc171cc171ccccccccccccccccccccccccccccccccccccccccccccccccc"},
+[40] = {14,30,-2,-23,10.0000,"ccccccccc271cc0172cc4bcc4271cc4bcc4172cc4bcc8bcc4172cc4271cc4271cc4271cc427cc827cc8271cc4271cc4271cc4172cc4172cc8bcc8271cc8bcc8271cc8bcc8172cc8271ccccccc4"},
+[41] = {14,30,-2,-23,10.0000,"ccccccc4172cc8271cc8bcc8172cc8bcc8271cc8bcc8bcc8271cc4172cc4172cc4172cc4172cc4172cc4172cc4172cc4172cc4271cc4b1cc4bcc4172cc4bcc4172cc4bcc4271cc0172ccccccccc"},
+[42] = {17,25,-2,-23,13.0000,"cccccccccc0232ccc4232ccc4232cc412101310121c42b232b2c416f361cc01b1cc817071cc01710171cc16861cccccccccccccccccccccccccccccccccccccccccccccccccccccccc0"},
+[43] = {25,20,-2,-18,21.0000,"ccccccccccccccc0232ccccc4232ccccc4232ccccc4232ccccc4232ccccc4232cccc2fff31cc42fff31cc4d572d5cccc232ccccc4232ccccc4232ccccc4232ccccc4232ccccc49ccccccccccccccccccccc4"},
+[44] = {11,11,-2,-6,7.0000,"cccccc4b1c8bc8172c8271c8bcc72c8171cccccc8"},
+[45] = {16,13,-2,-11,12.0000,"cccccccccffccffcc1eaccccccccccccccccccccccccccccccccc"},
+[46] = {11,8,-2,-6,7.0000,"cccccc4232c81b2c41b2c8232cccccc4"},
+[47] = {18,28,-3,-23,12.0000,"cccccccccccc271ccc4bccc4172ccc4b1ccc0172ccc4271ccc01bccc4272ccc4bccc4172ccc4b1ccc01bccc4271ccc4bccc4272ccc4bccc4172ccc4271ccc01bccc4271ccc4bccc4172ccc4b1ccc0172cccccccccccc"},
+[48] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc02fb2cc82f2f2cc01b182b1cc272c0b2ccb1c02bc81bc41b1c4272c8b1c4272c8b1c4272c8b1c4b2c8b2c4b2c8b1c4272c8b1c4272c8b1c42bc41bc81b1c02bccb2c0b2cc2b182bcc4f32f1cc8ff1ccc012b2cccccccccccc4"},
+[49] = {16,25,-2,-23,12.0000,"cccccccccc17cc812bcc012f3cc2fbcc276bcc6101bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccccccccc0"},
+[50] = {21,25,-2,-23,17.0000,"cccccccccccc12f21cc81ff32cc42f2f31cc0232c1fcc02c82b1cccc1b1cccc1b1cccc1bcccc0b2cccc2b1ccc82b1ccc8f2ccc41f1ccc41f1ccc41b2ccc81b2cccc272cccc1b1cccc1fff2c82fff2c82fff2ccccccccccc4"},
+[51] = {21,25,-2,-23,17.0000,"ccccccccccc816b6ccc1ff31cc417af3cc412c02b2cccc0b2cccc0272cccc0272cccc1b1ccc412b2cccfb1ccc0f721ccc0af32cccc01b2cccc01b1cccc0b1cccc0b1cccc1b1c8121c01fcc1baf31cc1ff71cc416f21cccccccccccc4"},
+[52] = {21,25,-2,-23,17.0000,"ccccccccccccc4b2cccc2b2ccccf2ccc82f2ccc41f32ccc4b272ccc0271272ccc1720272cccb4272cc82714272cc41728272cc01bc272cc0b1c272cc272c0272c81fffb2c1fffb2c1ee2faccc4272cccc0272cccc0272cccc0272ccccccccccc8"},
+[53] = {21,25,-2,-23,17.0000,"ccccccccccc82ff32cc42ff32cc42ff32cc4bcccc4bcccc4bcccc4bcccc4bcccc01fb21cc81ff32cc413af72cccc2fcccc01b1cccc0b2cccc0272cccc0b2cccc1b1cc21c02fcc027af31cc02ff31cc416f21cccccccccccc4"},
+[54] = {21,25,-2,-23,17.0000,"cccccccccccc812f2ccc1ff1cc41f3671cc01b21c1cc4b2cccc1bcccc0272cccc0b1cccc1b012b21cc01b1fb2cc1f76f2c81f181fc81b2c01b1c41b1c4b2c41b1c4b2c8b1c4b1c8272c01b1c81b281b2cc02f2f31cc42ff1ccc12b21cccccccccccc0"},
+[55] = {20,25,-2,-23,16.0000,"cccccccccc8fff7c4fff7c4fff32ccc81bccccb2ccc81bccccb2ccc81bcccc272ccc81b1ccc8272ccccb1ccc82bccccb2ccc81b1ccc82bccccb2ccccb1ccc81bcccc2bcccc272cccccccccccc4"},
+[56] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc1ff2cc8f6f2cc02b182b1ccb2c0b1ccb1c0272ccb1c0b1cc1bc1bcc4b2101b1cc82fb2ccc2fb1cc41fab2cc0b2c1b2c81bc41bc8272c8b1c4272c8b1c42bc41b1c41b2c1fcc2f6f31cc02ff31ccc6b21cccccccccccc0"},
+[57] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc1ff2cc41f32f1cc0f182bcc1b1c0b2c8272c41bc8272c41bc8272c41b1c42b1c02b1c41f182f1c82fff1cc2fb1b1cc012b201bcccc01bcccc0272cccc0b1cccc2bcc05c12b1cc02b2f32cc42ff1cc816b21cccccccccccc8"},
+[58] = {11,19,-2,-17,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccc0232c81b2c41b2c8232cccccc4"},
+[59] = {11,22,-2,-17,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccc0b1c41bc8172c8271c8bcc72c8171cccccc8"},
+[60] = {25,20,-2,-18,21.0000,"cccccccccccccccc812ccccc427ccccc2fcccc42f2cccc01f2cccc01f2cccc01f2cccc8b2ccccc0f21ccccc1f21ccccc12f1ccccc12f2ccccc12fccccc0127ccccc812cccccccccccccccccccc0"},
+[61] = {25,17,-2,-15,21.0000,"ccccccccccccc82fff31cc42fff31cc4ddd9ccccccccccccccccccccc02fff31cc42fff31cc4ddd9cccccccccccccccccccccccccccccccccccccc8"},
+[62] = {25,21,-2,-19,21.0000,"cccccccccccccc2cccccc72ccccc4f2ccccc02f1ccccc12f1ccccc12f1ccccc12b21ccccc1fcccc812b2cccc01f21cccc1f21cccc2f21cccc0f21cccc8721ccccc021ccccccccccccccccccccccccccccc0"},
+[63] = {17,25,-2,-23,13.0000,"ccccccccc812b21cc1ff2c82ff32c423181fc41c41b1ccc0bccc01bccc0b1cccb2cccb2cccb2ccc272ccc0bccc4bccc4271ccccccccccc8171ccc0fccc0fccc0171cccccccccc0"},
+[64] = {33,28,-2,-23,29.0000,"ccccccccccccccccccc416f21ccccc41ffb2cccc8f25092b1ccc81b2cc01b1ccc4b1ccc271ccc271ccc4bcc8171c127202324172cc4bc1ff2827cc47281b101b2827cc01718bc1718171cc278172c1718171cc27827c01718171cc27827c01718171cc27827c017c17cc027827c027c72cc0171427181b14171cc47241b10132720172cc827142f3202f32ccc1b81b282721ccc4272ccccccc42b1ccccccc02f2509acccc812ffb2ccccc052f361ccccccccccccccccccc0"},
+[65] = {24,25,-2,-23,20.0000,"cccccccccccccc4f1cccc41f2cccc42f3cccc01f71cccc27672ccccb5bccc81b4b1ccc42724272ccc4b141b1ccc1bcb2ccc272c2bcc81b1c1b1cc42bc4b2cc4fff7cc01fff71cc2fff72ccb2cc2b1c41b1cc1b2c42bcc4fc01b2cc42b1c2b1cc8b2cccccccccccc4"},
+[66] = {22,25,-2,-23,18.0000,"cccccccccccc1ff21cc81ffb1cc01baf7cc01bc02b2cc1bc4b2cc1bc4b2cc1bc4b2cc1bc01b1cc1bc2b1cc01ff321cc41ff72cc41baf71cc1bc01fcc1bc41b2c81bc8b2c81bc8b2c81bc41b2c81bc01f1c81baf72cc1ffb1cc01ff6cccccccccccc8"},
+[67] = {23,25,-2,-23,19.0000,"cccccccccccccc12f321ccc2ff71cc4fff1cc0f3218521cc2b2cccc01b2cccc4fcccc41b1cccc42b1cccc42bcccc82bcccc82bcccc82bcccc81b1cccc41b2cccc82b1cccc41f1cccc42f354921cc02fff1cc41ffb1ccc12f325cccccccccccc4"},
+[68] = {26,25,-2,-23,22.0000,"cccccccccccccc1ff61ccc41fff2ccc1fff71cc41bc012f31cc01bcc2fcc01bcc02b1cc1bcc4b2cc1bcc42bcc1bcc42bcc1bcc41b1c81bcc41b1c81bcc41b1c81bcc42bcc1bcc4b2cc1bcc01b1cc1bcc0fcc01bccf1cc01bc012f2cc41fff31cc81ffb21ccc1ff21ccccccccccccccc8"},
+[69] = {20,25,-2,-23,16.0000,"ccccccccccc1ffbcc1ffbcc1ffbcc1bcccc1bcccc1bcccc1bcccc1bcccc1bcccc1ff71cc1ff71cc1ff71cc1bcccc1bcccc1bcccc1bcccc1bcccc1bcccc1ffb1c81ffb1c81ffb1cccccccccc8"},
+[70] = {19,25,-2,-23,15.0000,"cccccccccc41ffbc81ffbc81ffbc81bccc81bccc81bccc81bccc81bccc81bccc81ff71c81ff71c81ff71c81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bcccccccccccc0"},
+[71] = {25,25,-2,-23,21.0000,"ccccccccccccccc12f361ccc01ffb1cc82fff1cc4f3218571cc02b2cc05cc1b2cccccfccccc1b1ccccc2b1ccccc2bccccc02bc4ffc82bc4ffc82bc4ffc81b1cc01bccb2cc01bcc2b1cc1bcc1f1c81bcc01f2185fcc41fff7cc812ffb1ccc016f61cccccccccccccc"},
+[72] = {26,25,-2,-23,22.0000,"cccccccccccccc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1ffff1cc1ffff1cc1ffff1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cccccccccccccc"},
+[73] = {13,25,-2,-23,9.0000,"ccccccc41b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1ccccccc4"},
+[74] = {16,25,-2,-23,12.0000,"ccccccccccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb1cccb1cc81b1cc82bc85012b2c82fbcc2f7cc01b21cccccccccc"},
+[75] = {23,25,-2,-23,18.0000,"cccccccccccc41bc82b1c81bc41b2cc1bc01b2cc01bc0fcc41bc2b1cc41b82b1cc81b41b2ccc1b4b2ccc01b02bccc41b2bccc81fbccc81b1b2ccc41b02b2ccc01b42b1ccc1b8f1cc81b81fcc81bc1b2cc41bc02b2cc01bc4f1cc1bc41f1c81bc81fcccccccccccc0"},
+[76] = {19,25,-2,-23,15.0000,"cccccccccc41bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81ffb1c41ffb1c41ffb1cccccccccc"},
+[77] = {32,25,-2,-23,28.0000,"ccccccccccccccccc1f2ccc2fcc01f3cc81f3cc01f31cc42f3cc01f7cc4f7cc0172b1cc172bcc017672cc271bcc01721bc81721bcc01720b1c4275bcc017201bc4b01bcc01724b1c17201bcc01724272c27101bcc017241b817241bcc01728271427141bcc017281724b81bcc0172cb57281bcc0172c2767181bcc0172c1f32c1bcc0172c02f1c1bcc0172c01fc01bcc0172c4b2c01bcc0172c4271c01bccccccccccccccccc0"},
+[78] = {27,25,-2,-23,23.0000,"cccccccccccccc41fcc4b1cc1f2cc0b1cc1f31ccb1cc1f7ccb1cc1f72c8b1cc1b1b1c4b1cc1b0272c4b1cc1b01b1c0b1cc1b42bc0b1cc1b8b2cb1cc1b81b18b1cc1bc2b8b1cc1bc0b24b1cc1bc01b10b1cc1bc42b0b1cc1bc8b2b1cc1bc81f71cc1bcc2f31cc1bcc0f31cc1bcc01f1cc1bcc42b1cccccccccccccc4"},
+[79] = {27,25,-2,-23,23.0000,"ccccccccccccccc816b61cccc1ff721ccc01fff31cc81f21812f1cc01f1c82fcc02b1cc02b1ccb2cc8fc81b1cc82bc82bccc1b1c42bccc1b1c42bccc1b1c42bccc1b1c42bccc1b1c41b1cc82bccb2cc8b2cc2b1cc02b1cc1f1c82fcc42f21812fccc2fff31ccc01ff72cccc012f61ccccccccccccccc8"},
+[80] = {22,25,-2,-23,18.0000,"cccccccccccc1ff21cc81ffb1cc01fff1cc1bc02fcc1bc42b1c81bc41b1c81bc8b2c81bc8b1c81bc41b1c81bc4fcc1bc1f2cc1ffb2cc01ff72cc41f761ccc1bcccc41bcccc41bcccc41bcccc41bcccc41bcccc41bcccccccccccccc4"},
+[81] = {28,28,-2,-23,23.0000,"cccccccccccccccc016b61cccc012ff321ccc41fff31ccc1f21812f1cc8f1c82fcc42b1cc02b1cc0b2cc8b2cc1b1cc82bcc2bccc1b1c82bccc1b1c82bccc1b1c82bccc1b1c82bccc1b1c81b1cc82bcc0b2cc8b2cc02b1cc02b1cc01f1c82b2cc82f21812f1ccc2fff31ccc41ffb2cccc012f6f1ccccc82f1ccccc81f2ccccc81f2cccccccccccccc8"},
+[82] = {23,25,-2,-23,19.0000,"cccccccccccc41ff6ccc1ffb2cc41f6f71cc01bc02fcc01bc42b1cc1bc41b1cc1bc41b1cc1bc42bcc01bc02b1cc01f6f31cc41ff321cc81ff31ccc1b412b1cc81bc2b1cc41bc0fcc41bc01b2cc01bc42bcc01bc41b2cc1bc82b1c81bccfc81bcc2b2cccccccccccc"},
+[83] = {20,25,-2,-23,16.0000,"ccccccccccc812f36cc01ff71c81ffb1c8f21c12c81b2ccc81b1ccc81b2ccccf1ccc81f21ccc42f71ccc01f72ccc41f71ccc41f3cccc2b2cccc2bcccc2bc45ccfc41321c12b2c41fffc81ff72cc052f61ccccccccccc4"},
+[84] = {21,25,-2,-23,17.0000,"ccccccccccc1fffbc01fffbc01fffbcc81bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccccccccccc8"},
+[85] = {25,25,-2,-23,21.0000,"ccccccccccccc4272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc2bcc0272cc2bcc0272cc2bcc0b2cc1b1c81b1cc0f1c4fcc42f541f2cc8fff3ccc02ff32ccc812f61cccccccccccccc4"},
+[86] = {24,25,-2,-23,19.0000,"cccccccccccc42b1cc42bc01b2cc4b2c4b2cc01bc82bcc0272c81b1ccb1ccb2c81bcc02bc8272cc4b1c4b1cc4272c01bcc81bc0272cccb1cb1ccc27281bccc01b8272ccc4b14b1ccc427201bccc81b0271ccccb1bcccc02f32cccc01f31cccc4f3cccc82b2cccccccccccccc4"},
+[87] = {33,25,-2,-23,29.0000,"ccccccccccccccccc2b1ccb2ccb2c1b2c81fc81b1c0b2c82f1c42bc42bc8f32c4272c41b1c01f32c4b1c8b2c0272bc01bccb2c0271b1c2bcc2bc0b0272c272cc1b181720172cb1cc0b2827101b81bcc42728b8b14172cc41b417282724271cc41b1017281b4b1cc8b10271cb01bccc2720bc027572ccc1b172c027671ccc0b271c0172bccc42f31c4f7ccc41f3c82f2ccc41f2c81f1ccc8f1c81fcccccccccccccccccc4"},
+[88] = {23,25,-2,-23,19.0000,"cccccccccccc0f1ccfc41fc82b1c82b1c4b2cc0fc02bcc41b181b1cc8f8272ccc1b201bccc42b0b1ccc8fbcccc1f31cccc0f3cccc02f31ccc81b2bccc82720b2ccc02b102b1cc81b28fcc82bc1b1cc01b1c02bcc0fc41b2c82b1c82b1c01b2cc1fcccccccccccc0"},
+[89] = {22,25,-2,-23,17.0000,"ccccccccccc42b1cc2bc4b2c81b1c42b1c42bccb2c01b1cc2b1c2bcc4b2cb1cc42b8272cccb24b1ccc1b0272ccc4b2b1ccc41f32ccccf3cccc01b2cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1ccccccccccccc0"},
+[90] = {22,25,-2,-23,18.0000,"ccccccccccc82fffbc42fffbc42fff71cccc1b2cccc0b2cccc02b1cccc1b1cccc0b2cccc02bcccc02b1cccc1b2cccc0fcccc02b1cccc1b2cccc0fcccc02b1cccc1b1cccc0b2cccc02fff72c01fffb2c01fffb2ccccccccccc8"},
+[91] = {14,30,-2,-23,10.0000,"cccccccc0f7ccf7ccb9ccbcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8b9ccf7ccf7ccccccc8"},
+[92] = {18,29,-3,-23,12.0000,"ccccccccc8bccc8271ccc41bccc8271ccc4172ccc8bccc8271ccc41bccc8271ccc4172ccc8bccc8271ccc4172ccc8b1ccc4172ccc8bccc8271ccc4172ccc8b1ccc4172ccc8bccc8271ccc4172ccc8bccc8172ccccccccc4"},
+[93] = {14,30,-2,-23,10.0000,"ccccccc8f7ccf7cc9bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc9bccf7ccf7cccccccc0"},
+[94] = {25,25,-2,-23,21.0000,"ccccccccccccccc0231ccccc01bccccc0f1cccc81727cccc872072cccc0171027cccc072872ccc81718271ccc472c072ccc0271c0171ccc72c8bcc8271c8171cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+[95] = {17,8,-2,-2,12.0000,"ccccccccccccccccc4eee1cfff1ccccccccc"},
+[96] = {13,27,-2,-25,9.0000,"ccccccc0172cc4271cc427cc872cc4171ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc8"},
+[97] = {20,19,-2,-17,16.0000,"ccccccccccc412f21cc41ff31cc017efcc0121c1b1cccc272cccc272cc81af2cc12ff32ccf65272c8272c0272c8b1c0272c8b2c2b2c82f67272ccfb1272cc02b210272ccccccccccc"},
+[98] = {22,27,-2,-25,18.0000,"cccccccccccc272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccc427242b21cc42721fb2cc0272b6f2cc2f181fcc2b1c01b1c8272c8b2c8272c8272c8272c8272c8272c8272c8272c8b2c82bc41b1c82b2c1fcc2f36f31cc276fb1cc0272012b2cccccccccccc8"},
+[99] = {18,19,-2,-17,14.0000,"cccccccccc816b21cc02ffcc2fa7c82b2c02c8b2ccc01bccc42bccc4272ccc4272ccc42bccc41b2ccc42b2c02c81f3a7cc1ff3cc412b61ccccccccc8"},
+[100] = {22,27,-2,-25,18.0000,"cccccccccccccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcc8672102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc1f3672bcc02fb12bcc412b242bcccccccccccc"},
+[101] = {20,19,-2,-17,16.0000,"ccccccccccc812b21ccc2fb2cc4fab2cc2bc1b1c41b1c0272c41bc4172c42fff3c42fff3c42bdd5c42bcccc1b1ccccf1c012cc1f3a72cc01ff32cc86b61ccccccccccc0"},
+[102] = {15,27,-2,-25,10.0000,"ccccccccc42b2cc1f32ccfac81b1cc42bcc8272cc8272cc8272cc1ff3c01ff3c016facc272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272ccccccccc"},
+[103] = {22,26,-2,-17,18.0000,"cccccccccccc82b2102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc2f3672bcc02fb12bcc412b24272cccc4272cccc4b2cccc02b1cc12c42b2cc02baf31cc02ff71cc816f21ccccccccccccc"},
+[104] = {21,27,-2,-25,17.0000,"ccccccccccc4272cccc0272cccc0272cccc0272cccc0272cccc0272cccc0272cccc0272cccc027242b21cc02721fb1cc27276f3cc2f182b1c82b1c1b1c82bc4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2ccccccccccc0"},
+[105] = {12,26,-2,-24,8.0000,"ccccccc161ccfccfcc171ccccccccccc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272ccccccc"},
+[106] = {15,33,-5,-24,8.0000,"ccccccccc0161cc8fcc8fcc8171cccccccccccccc272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8b2cc8b1cc41b1cc42bc816f1c81f32cc1b21ccccccccc0"},
+[107] = {20,27,-2,-25,16.0000,"ccccccccccc272cccc272cccc272cccc272cccc272cccc272cccc272cccc272cccc272c1b2c8272cfcc27282b1cc27242b1cc027201b1cc42721b2cc8272b2ccc2f71ccc276b1cc82720fcc827201fcc427241b2cc027282b2cc272c2b2c8272c0f1cccccccccc4"},
+[108] = {12,27,-2,-25,8.0000,"ccccccc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272ccccccc"},
+[109] = {31,19,-2,-17,27.0000,"cccccccccccccccc4272012b1c2b21cc42721f7201fb1cc027276f1b2f3cc02b281f3282b1cc2b1c2b2c0b2cc272c01b1c0b2cc272c01b1c0272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cccccccccccccccc4"},
+[110] = {22,19,-2,-17,18.0000,"cccccccccccc27242b2cc82721fb1cc027276f3cc02f182b1cc2b1c1b1cc272c4b2cc272c4b2cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cccccccccccc"},
+[111] = {22,19,-2,-17,18.0000,"cccccccccccc812f21ccc02ff31cc4f36f3cc02b1c1b2c81b2c42b1c41bccb1c4272ccb2c4272cc272c4272ccb2c42bccb1c41b2c42bcc2b1c1b2cc0f36f3cc41ff32ccc012f21cccccccccccc8"},
+[112] = {22,26,-2,-17,18.0000,"cccccccccccc27242b21cc42721fb2cc0272b6f2cc2f181fcc2b1c01b1c8272c8b2c8272c8272c8272c8272c8272c8272c8272c8b2c82bc41b1c82b2c1fcc2f36f31cc2721fb1cc0272012b2cc8272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccccccccccccc4"},
+[113] = {22,26,-2,-17,18.0000,"cccccccccccc8672102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc1f3672bcc02fb12bcc412b2102bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccccccccccc"},
+[114] = {15,19,-2,-17,11.0000,"cccccccc427201232c42721fc4272f3c42f2cc02b2cc42bcc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272ccccccccc0"},
+[115] = {17,19,-2,-17,13.0000,"cccccccccc6b6cc1ffc81fe3c82bc01c8272ccc01b2ccc0f321cc82f321cc412f31ccc1b2ccc02bc41c4272c423ef1c42ff2c812f61ccccccccc8"},
+[116] = {15,23,-2,-21,11.0000,"cccccccc8521cc8b2cc8b2cc8b2cc1ff3c01ff3c016faccb2cc8b2cc8b2cc8b2cc8b2cc8b2cc8b2cc8b2cc82bcc82f6cc1f7cc012b2cccccccc0"},
+[117] = {22,19,-2,-17,18.0000,"ccccccccccccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c01b1ccb2c02b1cc2b181f1cc1f3272b1cc02f721b1cc412b14b1cccccccccccc"},
+[118] = {20,19,-2,-17,15.0000,"cccccccccc42bc82bc01b1c4b2c4b2c01bc82bc0272c81b1cb1ccb281bcc01b8272cc4b14b1cc427201bcc81b0271cccb0bccc027272ccc01f31ccc4f3ccc82b2cccccccccccc"},
+[119] = {27,19,-2,-17,23.0000,"cccccccccccccc2bc4b1c0b1c1b1c1b2c1bc4b1c2fc172c4272cf3c271c41b8172718bccb14170724172cc27142320b4171cc2724710274271cc1b01741710bcc4b1232872172cc427171827171cc41727182727cccf3c1f2ccc2b2c0f1ccc1b1c02bccccccccccccccc0"},
+[120] = {19,19,-2,-17,15.0000,"cccccccccc1b2c01b1c02b1c272c8b281bcc1b14b1cc02b0172cc8b1bccc1f31ccc02fccc01f31cccb2bcc82720272cc01b101b1ccb282bc82bc0b2c01b1c02b1cccccccccc"},
+[121] = {20,26,-2,-17,15.0000,"cccccccccc42bc81bc01b1c4272c4b2c4b1c42bc01bccb1c271cc272cbcc01b8172cc4b14271cc42724bcccb0172ccc27127ccc017272ccc4f31ccc42fccccb2ccc81b1ccc8272ccccb1ccc82bccc132f1ccc1f31ccc01b2ccccccccccccc0"},
+[122] = {18,19,-2,-17,14.0000,"ccccccccc82ffb1c02ffb1c0eeb1ccc0b2ccc02bccc01b1ccc1b2ccc0b2ccc02bccc01b1ccc1b2ccc0b2ccc02beec01fff1c2fff1ccccccccc4"},
+[123] = {14,30,-2,-23,10.0000,"cccccccc8127cc01fcc0b21cc1bcc4172cc4172cc4172cc4172cc4172cc4172cc4271cc01bcc0272cc4272cc82bcc8271cc4172cc4172cc4172cc4172cc4172cc4172cc41bcc8b21cc01fcc4127ccccccc8"},
+[124] = {12,34,-2,-25,8.0000,"ccccccc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172ccccccc"},
+[125] = {14,30,-2,-23,10.0000,"ccccccc872cc8f1cc012bcc8bcc8271cc4271cc4271cc4271cc4271cc4271cc4172cc8b1cc8272cc4272cc0b1cc0172cc4271cc4271cc4271cc4271cc4271cc4271cc4b1cc12bcc0f1cc0721cccccccc8"},
+[126] = {25,15,-2,-13,21.0000,"cccccccccccccc12721c0232cc8fb24172cc427212ff1cc472c2f31cc89c49cccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+[8212] = {34,13,-2,-11,30.0000,"ccccccccccccccccc4fffffff7cfffffff7ceeeeeee6cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
+[183] = {11,15,-2,-13,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccccccc8"},
+},
+mono = {
+[32] = {19,4,-2,-2,15.0000,"ccccccccccccccccccc"},
+[33] = {19,23,-2,-21,15.0000,"ccccccccccc427cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc17cccc132cccc132cccc132cccc121ccccccccc5ccccb1ccc8b1ccc8232ccccccccccc4"},
+[34] = {19,23,-2,-21,15.0000,"cccccccccc81724bcc4171472cc4171472cc4171472cc4171472cc8714232cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
+[35] = {19,22,-2,-20,15.0000,"ccccccccccc1328231cc41328231cc413287cc823187cc823187cc2fff2c02fff2cc78132cc878132cc878231cc41328231c81fff3c01fff3cc23187cc823187cc82314132cc8714132cc878132ccccccccccc"},
+[36] = {19,27,-2,-22,15.0000,"cccccccccccc7cccc07cccc132ccc012f21cc42ff1cc272123521cc714231cc417147cc817247ccc27217ccc02f2ccc412f2ccc42f31ccc235b1cc87872cc87872cc87872c41293201bc81ff71cc6f321ccc0231cccc7cccc07cccccccccccc"},
+[37] = {20,23,-2,-21,15.0000,"ccccccccccc2721c0132c42f3c07c417102328231c413241324132c8132413247cc17102320231cc02f30132cc8272471cccc231cccc132cccc071cccc23102721cc413202f31cc0710710232cc2320132417c81324132417c87141710232c4232c2f3c4132c4272ccccccccccc0"},
+[38] = {20,23,-2,-21,15.0000,"ccccccccccc412721ccc02f72cc81724271cc427c71cc4232c72cc427c71cc4171427cccb1b1ccc1f2ccc41b2ccc42f31417c81710b1017c8728b0232c87181f32c4171c1fcc72c0272cc272141f1ccff2b1cc12b2101bcccccccccc8"},
+[39] = {19,23,-2,-21,15.0000,"ccccccccccc4b1ccc827cccc27cccc27cccc27cccc27ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0"},
+[40] = {19,29,-2,-22,15.0000,"cccccccccccc42cccc072ccc872ccc8232ccc817cccc71ccc827cccc72ccc817cccc27cccc232cccc72cccc72cccc72cccc232cccc27cccc171cccc72cccc27cccc072cccc271cccc27cccc072cccc172cccc12ccccccccccc"},
+[41] = {19,29,-2,-22,15.0000,"ccccccccccc6cccc172cccc171cccc271cccc27cccc071cccc27cccc071cccc232cccc27cccc17cccc171ccc8171ccc8171ccc817cccc17cccc232cccc71ccc827cccc71ccc8232ccc8171ccc4171ccc4171cccc21cccccccccccc0"},
+[42] = {19,23,-2,-21,15.0000,"ccccccccccc4132cccc032ccc0283245cc271031027cc017232721cc82b21ccc01b2ccc1723272cc0271031027cc0283245ccc132cccc132cccccccccccccccccccccccccccccccccccccccccccc8"},
+[43] = {19,18,-2,-16,15.0000,"ccccccccccc417cccc17cccc17cccc17cccc17cccc17cc8fff31c0fff31cc417cccc17cccc17cccc17cccc17cccc17ccccccccccc4"},
+[44] = {19,14,-2,-7,15.0000,"ccccccccccc81cccc0bccc81b2ccc8b2ccc8172ccc8172ccc8171ccc4272ccc02b2ccc42321cccccccccccc"},
+[45] = {19,12,-2,-10,15.0000,"cccccccccc81fb2cc41fb2ccccccccccccccccccccccccccccccccccccccc0"},
+[46] = {19,9,-2,-7,15.0000,"ccccccccccc49ccc81b1ccc42b2ccc42b2ccc8232ccccccccccc4"},
+[47] = {19,26,-2,-21,15.0000,"cccccccccccc417cccc232cccc7cccc232cccc71ccc817cccc231ccc817cccc232cccc71ccc8232cccc71ccc817cccc231ccc817cccc232cccc71ccc8232cccc71ccc817cccc231ccc817cccccccccccc8"},
+[48] = {19,22,-2,-20,15.0000,"ccccccccccc02b21cc81fb2cc47214272cc27c0271c871c472c417c4172c4232c02fc423281b27c423241b57c42320272417c4232b1817c42f1c17c4172c4232c4171c472c8232c027cc17214272cc01fb2cc812b21ccccccccccc"},
+[49] = {19,22,-2,-20,15.0000,"ccccccccccc4172ccc01f2cc81b272cc8721072cc812872cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccd729cc2ff72c82ff72cccccccccc0"},
+[50] = {19,22,-2,-20,15.0000,"ccccccccccc12b21cc82fb1cc027141b1cc02c0172cccc72cccc232cccc72ccc8171ccc827ccc8271ccc4271ccc4271ccc4271ccc4271ccc4271ccc4272ddc8ffb2c8ffb2cccccccccc0"},
+[51] = {19,22,-2,-20,15.0000,"cccccccccc812f21cc41ff1cc012181bcccc171cccc72cccc71ccc817ccc8271cc82f31ccc2f72ccc81272cccc171cccc71cccc71ccc827ccc41271cc2ff1cc02f321ccccccccccc0"},
+[52] = {19,22,-2,-20,15.0000,"ccccccccccccb2ccc42b2ccc01f2ccc071232ccc2320232cc8174232cc8714232cc4278232cc01718232cc0232c232cc17c0232cc71c0232c81fff32c1fff32ccc0232cccc232cccc232cccc232cccccccccc8"},
+[53] = {19,23,-2,-20,15.0000,"cccccccccc41ff31cc1ff31cc17cccc17cccc17cccc17cccc17cccc1f361cc41ff2ccc81272cccc27cccc171ccc8171ccc817cccc72ccc41bcc02fb2cc42f321cccccccccccccccc"},
+[54] = {19,22,-2,-20,15.0000,"ccccccccccc416b2cc82f72cc4b21ccc027ccc817cccc232cccc71cccc716b21cc1ff72c81b541271c417c872c4171c427c871c427c872c427c827c472cc72141bcc01ff1cc412b21ccccccccccc"},
+[55] = {19,22,-2,-20,15.0000,"cccccccccc01ffb2c41ffb2c8dd172ccc817cccc72ccc817cccc72ccc8171ccc8232ccc8171ccc8232ccc8171ccc8232ccc8171ccc827ccc8171ccc827ccc8171cccccccccccc"},
+[56] = {19,22,-2,-20,15.0000,"ccccccccccc12f2cc82ff1cc17181bcc232c0171c872c471c872c0171c8172c72cc02725bcc82f32ccc1f321cc427101b1cc271c271c871c472c4171c472c4172c472c8b281b1c81ff31cc46b6ccccccccccc"},
+[57] = {19,22,-2,-20,15.0000,"ccccccccccc12b21cc82fb2cc02728271cc72c027c817c4171c427c871c427c872c4171c4232c8b181272c81ff72cc02f2172cccc71ccc817cccc232ccc827ccc012b1cc02fb1cc42b61ccccccccccc4"},
+[58] = {19,18,-2,-16,15.0000,"ccccccccccc4232ccc81b2ccc41b2ccc8271cccc1ccccccccccccccccccccccc41cccc0271ccc41b2ccc41b2ccc8232ccccccccccc4"},
+[59] = {19,23,-2,-16,15.0000,"ccccccccccc4232ccc81b2ccc41b2ccc8271cccc1ccccccccccccccccccccccc41cccc0b1ccc41b2ccc8fccc81bcccc72ccc8171ccc41bccc02fccc42321cccccccccccc"},
+[60] = {19,19,-2,-17,15.0000,"cccccccccccc46cccc271ccc4b1ccc01b1ccc0172ccc4272ccc4271ccc4271cccc271cccc272cccc172cccc1b1ccccb1cccc271cccc6cccccccccc8"},
+[61] = {19,15,-2,-13,15.0000,"cccccccccc01ffb2c41ffb2ccccccccccccccc81ffb2c41ffb2ccccccccccccccccccccccccccccc0"},
+[62] = {19,19,-2,-17,15.0000,"cccccccccc812cccc0b1cccc271cccc272cccc172cccc1b1cccc271ccccb1ccc4271ccc01b1ccc0172ccc4272ccc4271ccc4b1ccc812cccccccccccc4"},
+[63] = {19,23,-2,-21,15.0000,"ccccccccccc761ccc4f32ccc812bcccc172cccc171cccc71cccc72ccc8171ccc4127ccc2f31ccc1b21ccc0132cccc132cccc121ccccccccc5ccccb1ccc8b1ccc8132ccccccccccc8"},
+[64] = {20,28,-2,-21,15.0000,"cccccccccccc6721ccc17a72cc4171c232cc071c4231c8231c8132c417cc032c4231417a07c4741f32023c432471071023c013201324710231c231023147423c0231071017423c023107413247c0747423247c074742320132c023475720231c023102b2f2c423142320172c8132cccc47cccc4231cccc471c41cc417e232ccc2f21ccccccccccc8"},
+[65] = {20,22,-2,-20,15.0000,"ccccccccccccb2ccc81fccc823271ccc47172ccc017027ccc02320171ccc71472cc817827cc82328171cc471c71cc017c0232cc0232d127cc0ffb1c81ffb2c8232c817c871c8171c017cc072c0232cc027cccccccccc8"},
+[66] = {19,22,-2,-20,15.0000,"cccccccccc4fb6cc4ff71cc72c272cc72c027cc72c0171c872c017cc72c0232cc7281271ccff2cc4ff71cc7285bcc72c472c872c427c872c4232c872c472c872c1bccff71ccfb21ccccccccccc"},
+[67] = {19,22,-2,-20,15.0000,"ccccccccccc46b21cc41ff2cc2b29232c8172ccc827ccc8171ccc817cccc27cccc27cccc27cccc27cccc27cccc171ccccbcccc272ccccf29232cc02ff2cc412f21cccccccccc4"},
+[68] = {19,22,-2,-20,15.0000,"cccccccccc02f76cc42ff31cc27c1272c827c4271c427c872c427c827c427c8171c027c8171c027c8171c027c8171c027c8171c027c817c427c827c427c4172c427c4bc827812b1c82ff31cc2f721ccccccccccc0"},
+[69] = {19,22,-2,-20,15.0000,"cccccccccc41ff7cc1ff7cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff32cc1ff32cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff7cc1ff7cccccccccc4"},
+[70] = {19,22,-2,-20,15.0000,"cccccccccc41ff7cc1ff7cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff31cc1ff31cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc8171ccc8171cccccccccccc0"},
+[71] = {19,22,-2,-20,15.0000,"ccccccccccc46b6cc42ff2cc2b2d6c8272ccc872ccc8271ccc8232cccc72cccc7181f7c47181f7c472c827c472c827c427c827c4171c427c8b1c027c81b21827cc1ff7cc412f21cccccccccc4"},
+[72] = {19,22,-2,-20,15.0000,"cccccccccc017c827c417c827c417c827c417c827c417c827c417c827c417c827c417c827c41fffc41fffc417c827c417c827c417c827c417c827c417c827c417c827c417c827c417c827cccccccccc0"},
+[73] = {19,22,-2,-20,15.0000,"cccccccccc42ff7cc2ff7ccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27ccc2ff7cc2ff7cccccccccc4"},
+[74] = {19,22,-2,-20,15.0000,"cccccccccc41ff3cc01ff3cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc27cccc27cccc72cc012141271cc02fb1cc412f21ccccccccccc0"},
+[75] = {19,22,-2,-20,15.0000,"cccccccccc472c0172c872c072cc72c27cc072827cc4724171cc4720171cc872072ccc7632ccc0f3ccc47272ccc072171ccc720271cc8724bcc8724172cc4728172cc072c271cc72c0b1c872c01bcccccccccc0"},
+[76] = {19,22,-2,-20,15.0000,"cccccccccc8232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc2ff31cc2ff31cccccccccc0"},
+[77] = {19,22,-2,-20,15.0000,"cccccccccc0172c01bc42bc02bc42b1cfc42323281327c4231782317c4231231013207c4235320231071c02310707471c071023232471c07101b1471c0714b871c078132871c07cc071c07cc0232c07cc0232c17cc0232c17cc0232c17cc0232cccccccccc"},
+[78] = {19,22,-2,-20,15.0000,"cccccccccc01bc4132c41b1c0132c41fc0132c41f1c132c417132c132c4170718132c41702328132c41701714132c41742324132c4174174132c41782320132c4178170132c417c7532c417c17132c417c07232c417c02b2c417c4b2c417c4272cccccccccc0"},
+[79] = {19,22,-2,-20,15.0000,"ccccccccccc02b21cc81ff1cc172141bcc72c0172c417c827c4232c8171c072cc71c071cc72c171cc72c171cc72c071cc72c072cc71c072c8171c027c827c4172c0171c827214172cc02fb2cc812b21ccccccccccc"},
+[80] = {19,22,-2,-20,15.0000,"cccccccccc4fb21cc4ff71cc72812bcc72c0171c872c472c872c427c872c4232c872c472c872c0171c87281272ccff32cc0fb21cc472cccc72cccc72cccc72cccc72cccc72cccccccccccc4"},
+[81] = {20,27,-2,-20,15.0000,"ccccccccccc82b21ccc1ff1cc01b92bcc0bc0172c8171c427c8232c8171c472cc71c471cc72c0171cc72c0171cc72c471cc72c472cc71c472c8171c427c827c8172c0171cc27214172cc42fb2ccc12b21ccc8232cccc0171cccc0b1412ccc1fbccc012b21cccccccccc8"},
+[82] = {19,22,-2,-20,15.0000,"cccccccccc42f721cc42ff2cc023281272cc232c0bcc232c027cc232c027cc232c072cc23281b1cc2ff1cc02f72cc82324172cc42328171cc0232c72cc0232c171cc232c072cc232c0271c8232c472c8232c427cccccccccc0"},
+[83] = {19,22,-2,-20,15.0000,"ccccccccccc16b61cc02ff1cc272189cc72ccc8171ccc8172ccccb2ccc81f1ccc82f21ccc012f2ccc81b2cccc271cccc72cccc72ccc8171c4121c01bc81ff32cc16f321ccccccccccc"},
+[84] = {19,22,-2,-20,15.0000,"cccccccccc02fff1c02fff1cc427cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27ccccccccccc4"},
+[85] = {19,22,-2,-20,15.0000,"cccccccccc027c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c417c827c417c8232c872c0171c82728172cc02ffcc812b21ccccccccccc"},
+[86] = {20,22,-2,-20,15.0000,"cccccccccc427cc0171c171cc27c472cc71c427c817c8171c4232cc72c471cc27c017cc0171c232cc471c71cc4232817cc8178232ccc71471ccc232017ccc0170232ccc017171ccc4f3ccc82b2ccc81b1cccccccccccc"},
+[87] = {19,22,-2,-20,15.0000,"cccccccccc17cc0132c17cc0132c17cc0232c07cc0232c07cc0231c071cc231c07141328231c0714278231c02314b1471c023101b247c42320231747c423207023107c4232132013207c4136314717c41327823232c41b281b2c41b1cb2c41bc0272cccccccccc0"},
+[88] = {20,22,-2,-20,15.0000,"cccccccccc8bc8171c4172c472cc27c027cc4728171cc4171472cccb0271ccc17272ccc42fccccb1ccc81b2ccc8f31ccc0271bccc1720172cc8278271cc0171c72cc072c0271c8271c4bc4172c8172cccccccccc8"},
+[89] = {20,22,-2,-20,15.0000,"cccccccccc4271cc27c0172cc72c4271c427cc72c472cc271c27cc4728171cc4271427ccc720171ccc171232ccc47271ccc41b2cccc271cccc27cccc027cccc027cccc027cccc027cccc027cccccccccccc0"},
+[90] = {19,22,-2,-20,15.0000,"cccccccccc01ffb2c41ffb2c8dd271ccc872ccc827ccc8171ccc872ccc827ccc8171ccc872ccc827ccc8171ccc872ccc827ccc8171ccc8bdd1c41fffc41fffcccccccccc0"},
+[91] = {19,29,-2,-22,15.0000,"ccccccccccc1f71cc81f71cc817cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc1f71cc81f71cccccccccc8"},
+[92] = {19,26,-2,-21,15.0000,"cccccccccc4232cccc17cccc0232cccc17cccc071cccc132cccc071cccc232cccc17cccc0232cccc17cccc071cccc132cccc071cccc232cccc17cccc0231cccc17cccc071cccc232cccc071cccc232cccccccccc0"},
+[93] = {19,29,-2,-22,15.0000,"cccccccccccf72cccf72cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccf72cccf72ccccccccccc"},
+[94] = {19,22,-2,-20,15.0000,"ccccccccccc427ccc81b1ccc42317ccc01320232ccc231471cc41328132cc47c071cc232c017cc7c8232ccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+[95] = {20,9,-2,-2,15.0000,"ccccccccccccccccccccccccc4fffb1cfffb1cccccccccc4"},
+[96] = {19,23,-2,-21,15.0000,"cccccccccc8271cccc171cccc1232ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
+[97] = {19,18,-2,-16,15.0000,"cccccccccc816b6cc8ff3cc43218172cccc27cccc17cccc17cc412fbcc0ff7cc271c17cc72c017cc71c027ccb141fcc1fb27cc012b2107cccccccccc4"},
+[98] = {19,23,-2,-21,15.0000,"cccccccccc4232cccc232cccc232cccc232cccc232cccc232012721cc0236f71cc2b210127cc272c071c8232c4232c8232c427c8232c427c8232c427c8232c4232c8232c472c8232c017cc232141272cc2ff2cc412f21ccccccccccc"},
+[99] = {19,18,-2,-16,15.0000,"ccccccccccc46761cc41ffcc01b1452cc072ccc8171ccc827cccc232cccc232cccc232cccc27cccc172cccc2721452cc42ffcc812b61cccccccccc4"},
+[100] = {19,23,-2,-21,15.0000,"cccccccccccc417cccc17cccc17cccc17cccc17cc86b27cc01ff3cc17214127cc232c017cc71c017c817c417c817c417c827c417c817c417c8171c027cc72c2bcc271012327cc0f7207cc4272147cccccccccc4"},
+[101] = {19,18,-2,-16,15.0000,"ccccccccccc02b21cc81fb2cc4b14172cc27c0171c871c472c4171c4232c41ffb2c41ffb2c417cccc071cccc232cccc1b1852cc01ff3cc82f61cccccccccc4"},
+[102] = {19,23,-2,-21,15.0000,"cccccccccccc2f21cc41fb1cc4b181cc4171ccc817cccc17cccc17cccfff3c4fff3cc417cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17ccccccccccc8"},
+[103] = {19,23,-2,-16,15.0000,"ccccccccccc12ff1c82ff71c4172101271cc232c0232cc72c027cc232c0232cc17241271cc0ff2cc0236b21cc471cccc71cccc721ccc81ff21cc1ff72c4171c427c427c817c42721c172c8ff72cc012f321cccccccccc8"},
+[104] = {19,23,-2,-21,15.0000,"cccccccccc4232cccc232cccc232cccc232cccc232cccc232012721cc0236f71cc2b210172cc272c17cc232c0171c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471cccccccccc0"},
+[105] = {19,24,-2,-22,15.0000,"ccccccccccc85ccccb1ccc8b2ccc8232cccccccccccc41f71cc81f71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cc82ff71c82ff71cccccccccc0"},
+[106] = {19,29,-2,-22,15.0000,"cccccccccccc05cccc272ccc82bccc8171ccccccccccc82ff1cc02ff1cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71ccc817cc01218172cc01fb2cc812b21ccccccccccc4"},
+[107] = {19,23,-2,-21,15.0000,"cccccccccc427cccc27cccc27cccc27cccc27cccc27c0172c827c172cc278172cc0274172cc4270172cc827072ccc2f3ccc027171ccc270271cc8274271cc4278271cc027cb1cc27c0b1c827c01bcccccccccc0"},
+[108] = {19,23,-2,-21,15.0000,"cccccccccc41f71cc81f71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cc82ff71c82ff71cccccccccc0"},
+[109] = {19,18,-2,-16,15.0000,"cccccccccc02301724232c8231f12b2c42b0232357c4271017247c4232417871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871cccccccccc"},
+[110] = {19,18,-2,-16,15.0000,"cccccccccc4231012721cc02312f71cc2b210172cc272c17cc232c0171c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471cccccccccc0"},
+[111] = {19,18,-2,-16,15.0000,"ccccccccccc12b6cc81ff1cc172141bcc72c0172c4171c427c427c817c4232c817c4232c817c4232c817c417c8232c872c0171c827214172cc02fb2cc812b21ccccccccccc"},
+[112] = {19,23,-2,-16,15.0000,"cccccccccc4231012721cc02312f71cc2b210127cc272c071c8232c4232c8232c427c8232c427c8232c427c8232c4232c8232c472c8232c017cc23218272cc2ff2cc02f721cc4232cccc232cccc232cccc232cccc232cccccccccccc4"},
+[113] = {19,23,-2,-16,15.0000,"ccccccccccc06b63cc01ff3cc07214127cc232c017cc71c017c817c417c817c417c827c417c817c417c8171c027cc72c2bcc271012fcc0f7217cc42721017cccc17cccc17cccc17cccc17cccc17cccccccccc4"},
+[114] = {19,18,-2,-16,15.0000,"cccccccccc417412721cc170fb1c81f210172c81b1c27c8171c017c817cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccccccccccc4"},
+[115] = {19,18,-2,-16,15.0000,"ccccccccccc06f2cc41ffcc472185cc017cccc171cccc2721ccc82f21ccc012f2ccc81272cccc27cccc17cc9c172cc2ff2cc016f21ccccccccccc"},
+[116] = {19,22,-2,-20,15.0000,"ccccccccccc023cccc17cccc17cccc17ccc0fff1c4fff1cc017cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc171ccccb1ccc81fb1cc812f31cccccccccc0"},
+[117] = {19,18,-2,-16,15.0000,"cccccccccc4232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c0171c827c1b1c817242f1ccfb171cc02b2471cccccccccc0"},
+[118] = {19,18,-2,-16,15.0000,"cccccccccc072c8171c027c8232c872c471c827c017cc171c72cc0728171cc027827cc4171472cc8232017ccc170232ccc07171ccc02fccc41b2ccc8b1ccccccccccc0"},
+[119] = {19,18,-2,-16,15.0000,"cccccccccc17cc027c17cc0232c07cc0232c0714132871c071427871c02324b147c423201b2017c413202317017c41707023532c87132013632c8723147231c8f82b1c827281bcc271cbcccccccccc4"},
+[120] = {19,18,-2,-16,15.0000,"cccccccccc0172c4bc8271c271ccb8172cc0172472cc827127ccc02f1ccc4b2ccc8b2ccc4f31ccc27127cc8171472cc01728172ccbc0271c4271c4b1cccccccccc"},
+[121] = {19,23,-2,-16,15.0000,"cccccccccc072c8171c0271c4232c872c471c827c017cc171c232cc072c71cc027817cc8714231cc8232017ccc170232ccc07171ccc02fccc41b2ccc827cccc72ccc827ccc41271cc81f31ccc1b2cccccccccccc4"},
+[122] = {19,18,-2,-16,15.0000,"cccccccccc42ff7cc2ff7ccc8171ccc4172ccc8bccc827ccc8171ccc4172ccc872ccc827ccc8171ccc4172ccc82ff71c82ff71cccccccccc0"},
+[123] = {19,29,-2,-22,15.0000,"cccccccccccc1271ccc02f1ccc272ccc8232cccc71cccc71cccc71cccc71cccc71cccc7ccc81232ccc02b2ccc42b2cccc172cccc171cccc71cccc71cccc71cccc71cccc71cccc71cccc232cccc272ccccf31ccc4671cccccccccc4"},
+[124] = {19,31,-2,-24,15.0000,"ccccccccccc4132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132ccccccccccc4"},
+[125] = {19,29,-2,-22,15.0000,"cccccccccc8b21ccc4f31ccc81bcccc171cccc71cccc71cccc71cccc71cccc71cccc232cccc171cccc1f1ccc01f1ccc171ccc8232cccc71cccc71cccc71cccc71cccc71cccc71ccc8171ccc41bccc0f31ccc0b21ccccccccccc8"},
+[126] = {19,14,-2,-12,15.0000,"cccccccccc41271ccc01f32c231c02320172871c0714172017c47c1f32ccc01272ccccccccccccccccccccccccccccc4"},
+[8212] = {21,12,-3,-10,15.0000,"ccccccccccc0fffb1c0fffb1cccccccccccccccccccccccccccccccccccccccccc4"},
+[183] = {19,14,-2,-12,15.0000,"ccccccccccc85ccccb2ccc42fccc41b2ccc82321ccccccccccccccccccccccccccccccccccc"},
+},
+}
+
+-- Indexed PNG renderer. Stored DEFLATE avoids executor-specific compression APIs.
+function ShiftWebhook.be32(n)
+    return string.char(bit32.extract(n,24,8),bit32.extract(n,16,8),bit32.extract(n,8,8),bit32.extract(n,0,8))
 end
-function ShiftWebhook.pad(text, width)
-    return text .. string.rep(" ", math.max(1, width - ShiftWebhook.length(text)))
-end
-function ShiftWebhook.payload(report)
-    local width = 19
-    for _, stop in ipairs(report.stops) do width = math.max(width, ShiftWebhook.length(ShiftWebhook.clean(stop.name, 40))) end
-    local header = "   " .. ShiftWebhook.pad("Station", width + 1) .. "ATA      Late"
-    local fields = {
-        { name = "🚆 " .. ShiftWebhook.clean(report.class), value = ShiftWebhook.clean(report.driver)
-            .. " · **" .. ShiftWebhook.clean(report.duration) .. "**", inline = true },
-        { name = "Points", value = report.points ~= nil and tostring(report.points) or "—", inline = true },
-        { name = "XP", value = report.xp ~= nil and tostring(report.xp) or "—", inline = true },
-    }
-    local chunks, lines = {}, { header }
-    for index, stop in ipairs(report.stops) do
-        local icon = (not stop.ata or stop.late == nil) and "⚪" or (stop.late > 0 and "🟠" or "🟢")
-        if stop.ata and index == #report.stops then icon = "🏁" end
-        local row = icon .. " " .. ShiftWebhook.pad(ShiftWebhook.clean(stop.name, 40), width + 1)
-            .. ShiftWebhook.pad(stop.ata or "—", 9) .. ShiftWebhook.delay(stop.late)
-        -- Leave space for fences; every station survives long-route pagination.
-        if ShiftWebhook.length(table.concat(lines, "\n") .. "\n" .. row) > 950 then
-            table.insert(chunks, "```text\n" .. table.concat(lines, "\n") .. "\n```")
-            lines = { header }
+function ShiftWebhook.pngChunk(kind, data)
+    if not ShiftWebhook.crcTable then
+        ShiftWebhook.crcTable = {}
+        for i=0,255 do
+            local c=i
+            for _=1,8 do c=bit32.bxor(bit32.rshift(c,1),bit32.band(c,1)==1 and 0xEDB88320 or 0) end
+            ShiftWebhook.crcTable[i]=c
         end
-        table.insert(lines, row)
     end
-    if #report.stops == 0 then table.insert(lines, "   Station data unavailable") end
-    table.insert(chunks, "```text\n" .. table.concat(lines, "\n") .. "\n```")
-    local messages, embedFields, size = {}, fields, 350
-    local function flush()
-        table.insert(messages, { username = "SCR Autopilot", allowed_mentions = { parse = {} }, embeds = { {
-            title = ShiftWebhook.clean(report.route) .. " | Shift complete" .. (#messages > 0 and " (continued)" or ""),
-            color = 3447003, fields = embedFields,
-            footer = { text = "SCR Autopilot" .. (report.partial and " · Recorded from mid-shift" or "") },
-        } } })
-        embedFields, size = {}, 350
+    local crc=0xFFFFFFFF
+    for _,s in ipairs({kind,data}) do
+        for i=1,#s do crc=bit32.bxor(bit32.rshift(crc,8),ShiftWebhook.crcTable[bit32.band(bit32.bxor(crc,string.byte(s,i)),255)]) end
     end
-    for index, chunk in ipairs(chunks) do
-        if #embedFields >= 25 or size + ShiftWebhook.length(chunk) > 5500 then flush() end
-        table.insert(embedFields, { name = index == 1 and "🛤️ Journey" or "🛤️ Journey (continued)", value = chunk, inline = false })
-        size += ShiftWebhook.length(chunk) + 30
-    end
-    flush()
-    return messages
+    return ShiftWebhook.be32(#data)..kind..data..ShiftWebhook.be32(bit32.bnot(crc))
 end
--- END SHIFT WEBHOOK HELPERS
-ShiftWebhook.status = webhookTab:CreateText({ name = "Report status", text = "Disabled" })
-function ShiftWebhook.setStatus(text)
-    if state.alive then setLiveText(ShiftWebhook.status, text) end
+function ShiftWebhook.png(pixels, width, height)
+    local raw=buffer.tostring(pixels)
+    local blocks={string.char(120,1)}
+    local a,b=1,0
+    for start=1,#raw,65535 do
+        local data=raw:sub(start,start+65534)
+        local n=#data
+        table.insert(blocks,string.char(start+n>#raw and 1 or 0,n%256,math.floor(n/256),255-n%256,255-math.floor(n/256))..data)
+        for i=1,n do a=(a+string.byte(data,i))%65521; b=(b+a)%65521 end
+    end
+    table.insert(blocks,ShiftWebhook.be32(b*65536+a))
+    local bg={23,27,34}
+    local palette={string.char(unpack(bg))}
+    for _,rgb in ipairs({{241,244,248},{156,169,184},{87,214,154},{255,180,92},{93,172,255},{50,58,70}}) do
+        for shade=1,3 do
+            table.insert(palette,string.char(math.floor(bg[1]+(rgb[1]-bg[1])*shade/3+.5),
+                math.floor(bg[2]+(rgb[2]-bg[2])*shade/3+.5),math.floor(bg[3]+(rgb[3]-bg[3])*shade/3+.5)))
+        end
+    end
+    return "\137PNG\r\n\26\n"..ShiftWebhook.pngChunk("IHDR",ShiftWebhook.be32(width)..ShiftWebhook.be32(height)..string.char(8,3,0,0,0))
+        ..ShiftWebhook.pngChunk("PLTE",table.concat(palette))..ShiftWebhook.pngChunk("IDAT",table.concat(blocks))..ShiftWebhook.pngChunk("IEND","")
 end
-function ShiftWebhook.send(payloads, url)
-    if not ShiftWebhook.validUrl(url) then ShiftWebhook.setStatus("Enter a valid Discord webhook link."); return end
-    local send = request or http_request or (http and http.request)
-    if type(send) ~= "function" then ShiftWebhook.setStatus("HTTP request API unavailable."); return end
-    local job = {}
-    ShiftWebhook.threads[job] = true
-    job.thread = task.defer(function()
-        local ok, reason = pcall(function()
-            for index, payload in ipairs(payloads) do
-                if not state.alive then return "cancelled" end
-                local delivered = false
-                for attempt = 1, 3 do
-                    local response = send({ Url = url .. "?wait=true", Method = "POST",
-                        Headers = { ["Content-Type"] = "application/json" },
-                        Body = game:GetService("HttpService"):JSONEncode(payload) })
-                    local code = type(response) == "table" and tonumber(response.StatusCode) or nil
-                    if code and code >= 200 and code < 300 then delivered = true; break end
-                    if code ~= 429 then return "HTTP " .. tostring(code or "unknown") end
-                    local decoded, body = pcall(function() return game:GetService("HttpService"):JSONDecode(response.Body) end)
-                    local delay = decoded and type(body) == "table" and tonumber(body.retry_after) or 2
-                    task.wait(math.clamp(delay or 2, 1, 30))
-                    if not state.alive then return "cancelled" end
+function ShiftWebhook.glyph(font, code)
+    local g=font[code] or font[63]
+    if not g[7] then
+        local data=buffer.create(g[1]*g[2]); local at=0
+        for i=1,#g[6] do
+            local v=tonumber(g[6]:sub(i,i),16)
+            local count=math.floor(v/4)+1
+            buffer.fill(data,at,v%4,count); at+=count
+        end
+        g[7]=data
+    end
+    return g
+end
+function ShiftWebhook.textWidth(value, font, scale)
+    local w=0
+    for _,code in utf8.codes(tostring(value)) do w+=ShiftWebhook.glyph(font,code)[5]*scale end
+    return w
+end
+function ShiftWebhook.drawText(canvas, x, baseline, value, size, color, mono, right, maxWidth)
+    value=tostring(value or "—")
+    local font=mono and ShiftWebhook.fonts.mono or ShiftWebhook.fonts.sans
+    local scale=size/(mono and 28 or 30)
+    if maxWidth then scale=math.min(scale,maxWidth/math.max(1,ShiftWebhook.textWidth(value,font,scale))*scale) end
+    if right then x-=ShiftWebhook.textWidth(value,font,scale) end
+    for _,code in utf8.codes(value) do
+        local g=ShiftWebhook.glyph(font,code)
+        local width,height=math.max(1,math.ceil(g[1]*scale)),math.max(1,math.ceil(g[2]*scale))
+        local gx,gy=math.floor(x+g[3]*scale+.5),math.floor(baseline+g[4]*scale+.5)
+        for py=0,height-1 do
+            local sy=math.min(g[2]-1,math.floor((py+.5)/scale))
+            local y=gy+py
+            if y>=0 and y<canvas.height then
+                for px=0,width-1 do
+                    local shade=buffer.readu8(g[7],sy*g[1]+math.min(g[1]-1,math.floor((px+.5)/scale)))
+                    local xx=gx+px
+                    if shade>0 and xx>=0 and xx<canvas.width then buffer.writeu8(canvas.pixels,y*(canvas.width+1)+xx+1,(color-1)*3+shade) end
                 end
-                if not delivered then return "Rate limited; try again later." end
-                if index < #payloads then task.wait(1) end
             end
-            return "sent"
+        end
+        x+=g[5]*scale
+    end
+end
+function ShiftWebhook.rect(canvas,x,y,w,h,color)
+    x,y,w,h=math.floor(x),math.floor(y),math.floor(w),math.floor(h)
+    for yy=math.max(0,y),math.min(canvas.height-1,y+h-1) do
+        local left,right=math.max(0,x),math.min(canvas.width,x+w)
+        if right>left then buffer.fill(canvas.pixels,yy*(canvas.width+1)+left+1,color*3,right-left) end
+    end
+end
+function ShiftWebhook.node(canvas,x,y,r,color,hollow)
+    for yy=-r,r do for xx=-r,r do
+        local distance=xx*xx+yy*yy
+        if distance<=r*r and (not hollow or distance>=(r-3)*(r-3)) then ShiftWebhook.rect(canvas,x+xx,y+yy,1,1,color) end
+    end end
+end
+function ShiftWebhook.render(report,first,last,page,pages)
+    local count=last-first+1
+    local footer=155+count*64
+    local c={width=720,height=footer+117}
+    c.pixels=buffer.create((c.width+1)*c.height)
+    local complete=report.phase=="complete"
+    local disconnected=report.phase=="disconnected"
+    local accent=complete and 3 or (disconnected and 4 or 5)
+    local function text(x,y,value,size,color,mono,right,maxWidth)
+        ShiftWebhook.drawText(c,x,y,value,size or 28,color or 1,mono,right,maxWidth)
+    end
+    text(32,60,ShiftWebhook.clean(report.route,12),32,1,false,false,100)
+    local class=tostring(report.class or "Unknown"):gsub("^[Cc][Ll][Aa][Ss][Ss]%s*","")
+    text(141,59,"CLASS "..class,24,2,false,false,240)
+    text(688,59,complete and "SHIFT COMPLETE" or (disconnected and "DISCONNECTED" or report.phase=="stopped" and "INCOMPLETE" or "LIVE SHIFT"),24,accent,false,true,270)
+    ShiftWebhook.rect(c,32,84,656,1,6)
+    text(76,114,"ETD",20,2);text(266,114,"ATD",20,2);text(680,114,"POINTS",20,2,false,true)
+    for index=first,last do
+        local stop=report.stops[index]
+        local y=137+(index-first)*64
+        local active=stop.arrivedAt~=nil or stop.atd~=nil or stop.points~=nil
+        local color=(complete or active) and accent or 6
+        if index<last then
+            local nextStop=report.stops[index+1]
+            local nextServed=complete or nextStop.arrivedAt~=nil or nextStop.atd~=nil or nextStop.points~=nil
+            ShiftWebhook.rect(c,41,y,3,64,nextServed and accent or 6)
+        end
+        ShiftWebhook.node(c,42,y,(index==1 or index==#report.stops) and 8 or 5,color,index==1 or index==#report.stops)
+        if not active and index==report.stopIndex and not complete then ShiftWebhook.node(c,42,y,8,accent,true) end
+        text(76,y+11,ShiftWebhook.clean(stop.name,60),30,active and 1 or 2,false,false,stop.late and stop.late>0 and 465 or 600)
+        if stop.late and stop.late>0 then text(680,y+11,ShiftWebhook.delay(stop.late),24,4,true,true) end
+        text(76,y+42,stop.etd and stop.etd:sub(1,5) or "—",28,2,true)
+        text(266,y+42,stop.atd or "—",28,active and 1 or 2,true)
+        text(680,y+42,stop.points~=nil and ((stop.points>0 and "+" or "")..tostring(stop.points)) or "—",28,active and 1 or 2,true,true)
+    end
+    if count==0 then text(76,158,"Waiting for station data",26,2) end
+    ShiftWebhook.rect(c,32,footer,656,1,6)
+    text(32,footer+37,"Points: "..tostring(report.points or "—"),28,1,false,false,230)
+    text(280,footer+37,"XP: "..tostring(report.xp or "—"),28,1,false,false,170)
+    text(688,footer+37,report.duration or "0m 00s",28,1,false,true,215)
+    text(32,footer+67,"Updated "..os.date("!%Y-%m-%d %H:%M:%S UTC",report.updatedAt or os.time()),18,2,false,false,326)
+    local note=pages>1 and string.format("%d / %d",page,pages) or (report.partial and "RECORDED MID-SHIFT" or "")
+    if disconnected then note="DISCONNECTED · UNFINISHED" end
+    text(688,footer+67,note,18,disconnected and 4 or 2,false,true,310)
+    text(32,footer+94,"ETD = scheduled departure · ATD = actual departure",17,2,false,false,656)
+    return ShiftWebhook.png(c.pixels,c.width,c.height)
+end
+-- END SHIFT PNG RENDERER
+
+ShiftWebhook.status=webhookTab:CreateText({name="Report status",text="Disabled"})
+function ShiftWebhook.setStatus(text)
+    if state.alive then setLiveText(ShiftWebhook.status,text) end
+end
+function ShiftWebhook.http()
+    return request or http_request or (http and http.request)
+end
+function ShiftWebhook.identity(send)
+    local player=game:GetService("Players").LocalPlayer
+    local identity={username=player.Name}
+    if ShiftWebhook.avatar and ShiftWebhook.avatar.userId==player.UserId and os.clock()-ShiftWebhook.avatar.at<600 then
+        identity.avatar_url=ShiftWebhook.avatar.url
+        return identity
+    end
+    local ok,url=pcall(function()
+        local response=send({Url="https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds="..tostring(player.UserId)
+            .."&size=150x150&format=Png&isCircular=false",Method="GET"})
+        if tonumber(response.StatusCode)~=200 then return nil end
+        local body=game:GetService("HttpService"):JSONDecode(response.Body)
+        local image=body.data and body.data[1]
+        if image and image.state=="Completed" and type(image.imageUrl)=="string" and image.imageUrl:match("^https://") then return image.imageUrl end
+        return nil
+    end)
+    if ok and url then
+        ShiftWebhook.avatar={userId=player.UserId,at=os.clock(),url=url}
+        identity.avatar_url=url
+    end
+    return identity
+end
+function ShiftWebhook.multipart(report,identity)
+    local httpService=game:GetService("HttpService")
+    local boundary="SCRShift"..httpService:GenerateGUID(false):gsub("%-","")
+    local payload={content="",embeds={},allowed_mentions={parse={}},attachments={}}
+    if not report.messageId then payload.username=identity.username; payload.avatar_url=identity.avatar_url end
+    local chunks={}
+    local pages=math.max(1,math.ceil(#report.stops/20))
+    -- SCR routes fit under Discord's ten-attachment limit. Never silently drop stations.
+    if pages>10 then error("Report has too many stations") end
+    for page=1,pages do
+        local filename=string.format("shift-%02d.png",page)
+        table.insert(payload.attachments,{id=page-1,filename=filename,description="SCR "..tostring(report.route or "").." · "..report.phase})
+        local png=ShiftWebhook.render(report,(page-1)*20+1,math.min(page*20,#report.stops),page,pages)
+        table.insert(chunks,"--"..boundary..'\r\nContent-Disposition: form-data; name="files['..tostring(page-1)..']"; filename="'..filename
+            ..'"\r\nContent-Type: image/png\r\n\r\n'..png.."\r\n")
+    end
+    table.insert(chunks,1,"--"..boundary..'\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n'
+        ..httpService:JSONEncode(payload).."\r\n")
+    table.insert(chunks,"--"..boundary.."--\r\n")
+    return table.concat(chunks),"multipart/form-data; boundary="..boundary
+end
+function ShiftWebhook.deliver(report,view,identity,send)
+    view.messageId=report.messageId
+    view.updatedAt=os.time()
+    local body,contentType=ShiftWebhook.multipart(view,identity)
+    local editing=report.messageId~=nil
+    local url=ShiftWebhook.apiUrl(report.url)..(editing and ("/messages/"..report.messageId) or "?wait=true")
+    for attempt=1,3 do
+        if not state.alive or report.cancelled then return false,"cancelled" end
+        local ok,response=pcall(send,{Url=url,Method=editing and "PATCH" or "POST",Headers={["Content-Type"]=contentType},Body=body})
+        local code=ok and type(response)=="table" and tonumber(response.StatusCode) or nil
+        if code and code>=200 and code<300 then
+            local decoded,message=pcall(function() return game:GetService("HttpService"):JSONDecode(response.Body) end)
+            if not editing then
+                if not decoded or type(message)~="table" or type(message.id)~="string" then
+                    report.blocked=true
+                    return false,"Discord response missing message ID; automatic resend stopped."
+                end
+                report.messageId=message.id
+            end
+            if decoded and type(message)=="table" and type(message.attachments)=="table"
+                and #message.attachments~=math.max(1,math.ceil(#view.stops/20)) then
+                report.blocked=true
+                return false,"Unexpected attachment count; further uploads stopped."
+            end
+            report.lastSent=os.clock()
+            return true
+        end
+        -- A lost POST reply can still mean Discord created the message. Do not duplicate it.
+        if not editing and (not code or code>=500) then
+            report.blocked=true
+            return false,"Delivery unconfirmed; automatic resend stopped to avoid duplicates."
+        end
+        if code==404 and editing then report.blocked=true; return false,"Original report was deleted or webhook is unavailable." end
+        if code==429 then
+            local decoded,data=pcall(function() return game:GetService("HttpService"):JSONDecode(response.Body) end)
+            local delay=decoded and type(data)=="table" and tonumber(data.retry_after) or 2
+            if not delay or delay~=delay then delay=2 end
+            if attempt<3 then task.wait(math.clamp(delay,1,60)) end
+        elseif editing and (not code or code>=500) then
+            if attempt<3 then task.wait(attempt*2) end
+        else
+            return false,"HTTP "..tostring(code or "unknown")
+        end
+    end
+    return false,"Request failed after retries."
+end
+function ShiftWebhook.queue(report)
+    if report.cancelled or report.blocked then return end
+    if not report.url then
+        if not ShiftWebhook.validUrl(ShiftWebhook.url) then ShiftWebhook.setStatus("Enter a valid Discord webhook link."); return end
+        report.url=ShiftWebhook.url -- Keep edits bound to the webhook that created this message.
+    end
+    report.dirty=true
+    if report.worker then return end
+    local job={}
+    report.worker=job
+    ShiftWebhook.threads[job]=true
+    job.thread=task.defer(function()
+        local ok=pcall(function()
+            local send=ShiftWebhook.http()
+            if type(send)~="function" then ShiftWebhook.setStatus("HTTP request API unavailable."); return end
+            local identity=not report.messageId and ShiftWebhook.identity(send) or {}
+            while state.alive and not report.cancelled and report.dirty and not report.blocked do
+                if report.lastSent then task.wait(math.max(0,report.lastSent+4-os.clock())) end
+                if not state.alive or report.cancelled then break end
+                report.dirty=false
+                local view=table.clone(report)
+                view.stops={}
+                for _,stop in ipairs(report.stops) do table.insert(view.stops,table.clone(stop)) end
+                ShiftWebhook.setStatus(report.messageId and "Updating shift report..." or "Creating shift report...")
+                local delivered,reason=ShiftWebhook.deliver(report,view,identity,send)
+                if not delivered then ShiftWebhook.setStatus("Report failed: "..reason); break end
+                ShiftWebhook.setStatus(view.phase=="live" and "Live shift report connected." or view.phase=="complete" and "Shift completed · report updated."
+                    or view.phase=="disconnected" and "Disconnected · unfinished report updated." or "Report updated.")
+            end
         end)
-        ShiftWebhook.threads[job] = nil
-        -- Never expose raw HTTP errors: they may contain the webhook token.
-        if state.alive then ShiftWebhook.setStatus(ok and reason == "sent" and "Report sent."
-            or ("Report failed: " .. (ok and reason or "request error"))) end
+        report.worker=nil
+        ShiftWebhook.threads[job]=nil
+        if not ok then ShiftWebhook.setStatus("Report failed: image or request error.") end
     end)
 end
-local webhookInput = webhookTab:CreateInput({ name = "Discord webhook link", placeholder = "https://discord.com/api/webhooks/...",
-    value = "", forgetState = true, clearOnFocus = false, callback = function(value)
-        ShiftWebhook.url = tostring(value):match("^%s*(.-)%s*$") or ""
-        ShiftWebhook.setStatus(ShiftWebhook.validUrl(ShiftWebhook.url) and "Webhook ready." or "Enter a valid Discord webhook link.")
-    end })
-local reportToggle = webhookTab:CreateToggle({ name = "Send shift reports", value = false, forgetState = true,
-    description = "Send one report after each completed shift.", callback = function(value)
-        ShiftWebhook.enabled = value
-        if value then ShiftWebhook.setStatus("Waiting for a shift.")
-        else ShiftWebhook.current = nil; ShiftWebhook.setStatus("Disabled") end
-    end })
-webhookTab:CreateButton({ name = "Test webhook", callback = function()
-    ShiftWebhook.send({ { username = "SCR Autopilot", content = "SCR Autopilot · Webhook connected.",
-        allowed_mentions = { parse = {} } } }, ShiftWebhook.url)
-end })
 function ShiftWebhook.readLeg()
     if not driver then return nil end
-    -- Activate captures SCR's current leg directly. Read it without FetchLegData.
-    for _, value in pairs(getupvalues(driver.Activate)) do
-        if type(value) == "table" and type(value.schedule) == "table" and value.startTime then return value end
+    for _,value in pairs(getupvalues(driver.Activate)) do
+        if type(value)=="table" and type(value.schedule)=="table" and value.startTime then return value end
     end
     return nil
 end
-function ShiftWebhook.snapshot(leg, model)
-    local stops = {}
-    for _, stop in ipairs(leg.schedule) do
-        table.insert(stops, { name = stop.name or "Unknown" })
+function ShiftWebhook.syncLog(report,entries)
+    if type(entries)~="table" or #entries==0 then return end
+    local points,xp,nextIndex=0,0,1
+    for _,entry in ipairs(entries) do
+        points+=tonumber(entry.points) or 0; xp+=tonumber(entry.experience) or 0
+        local name=type(entry.message)=="string" and entry.message:match("^Stopped at (.+)$")
+        if name then
+            for index=nextIndex,#report.stops do
+                if report.stops[index].name==name then
+                    report.stops[index].points=tonumber(entry.points)
+                    nextIndex=index+1
+                    break
+                end
+            end
+        end
+    end
+    report.points,report.xp=points,xp
+end
+function ShiftWebhook.snapshot(leg,model)
+    local stops={}
+    local date=ShiftWebhook.gameDate()
+    for _,stop in ipairs(leg.schedule) do
+        table.insert(stops,{name=stop.name or "Unknown",scheduledDeparture=tonumber(stop.departTime),
+            etd=ShiftWebhook.clock(tonumber(stop.departTime),date)})
         if stop.isTurnAround then break end
     end
-    return { key = tostring(model) .. ":" .. tostring(leg.startTime) .. ":" .. tostring(leg.legDirection),
-        model = model, started = leg.startTime, route = leg.routeCode or model:GetAttribute("RouteCode"),
-        class = model:GetAttribute("TrainClass"), driver = model:GetAttribute("Driver"),
-        stops = stops, partial = (tonumber(leg.stopIndex) or 1) > 1, sent = false }
+    local report={key=tostring(model)..":"..tostring(leg.startTime)..":"..tostring(leg.legDirection),
+        model=model,started=leg.startTime,route=leg.routeCode or model:GetAttribute("RouteCode"),
+        class=model:GetAttribute("TrainClass"),driver=game:GetService("Players").LocalPlayer.Name,
+        stops=stops,partial=(tonumber(leg.stopIndex) or 1)>1,phase="live",stopIndex=leg.stopIndex}
+    ShiftWebhook.syncLog(report,leg.stopLog)
+    return report
+end
+function ShiftWebhook.elapsed(report)
+    local elapsed=math.max(0,math.floor(ShiftWebhook.gameDate().GetTime()-report.started))
+    report.duration=string.format("%dm %02ds",math.floor(elapsed/60),elapsed%60)
 end
 function ShiftWebhook.complete(summary)
-    local report = ShiftWebhook.current
-    if not report or report.sent then return end
-    local frame = path(summary, { "SummaryPage", "ScrollingFrame" })
-    local points = path(frame, { "TotalRow", "Points" })
-    local xp = path(frame, { "TotalRow", "Experience" })
-    local duration = path(frame, { "OtherDetails", "Time", "TimeTaken" })
-    report.points = points and ShiftWebhook.number(points.Text)
-    report.xp = xp and ShiftWebhook.number(xp.Text)
-    report.duration = duration and duration.Text or "Unknown"
-    report.sent = true -- mark before spawning; summary stays visible across ticks
-    if not ShiftWebhook.validUrl(ShiftWebhook.url) then
-        ShiftWebhook.setStatus("Report skipped: enter a valid webhook link."); return
+    local report=ShiftWebhook.current
+    if not report or report.phase~="live" then return end
+    local leg=ShiftWebhook.readLeg()
+    if leg then ShiftWebhook.syncLog(report,leg.stopLog) end
+    local frame=path(summary,{"SummaryPage","ScrollingFrame"})
+    local points=path(frame,{"TotalRow","Points"})
+    local xp=path(frame,{"TotalRow","Experience"})
+    local duration=path(frame,{"OtherDetails","Time","TimeTaken"})
+    report.points=points and ShiftWebhook.number(points.Text) or report.points
+    report.xp=xp and ShiftWebhook.number(xp.Text) or report.xp
+    if duration then report.duration=duration.Text end
+    -- Summary rows are authoritative if the final stopLog has already been cleared.
+    local logFrame=path(frame,{"LogFrame"})
+    if logFrame then
+        local rows=logFrame:GetChildren()
+        table.sort(rows,function(a,b) return (a:IsA("GuiObject") and a.LayoutOrder or -1)<(b:IsA("GuiObject") and b.LayoutOrder or -1) end)
+        local entries={}
+        for _,row in ipairs(rows) do
+            local description=path(row,{"Description"}); local value=path(row,{"Points"})
+            if description and value then
+                local message=description.Text:match("(Stopped at .+)$")
+                if message then table.insert(entries,{message=message,points=ShiftWebhook.number(value.Text)}) end
+            end
+        end
+        -- Preserve the total (completion bonuses/penalties need not belong to a station).
+        local totalPoints,totalXp=report.points,report.xp
+        ShiftWebhook.syncLog(report,entries)
+        report.points,report.xp=totalPoints,totalXp
     end
-    ShiftWebhook.setStatus("Sending shift report...")
-    ShiftWebhook.send(ShiftWebhook.payload(report), ShiftWebhook.url)
+    report.phase="complete"
+    ShiftWebhook.queue(report)
+end
+function ShiftWebhook.disconnected(message)
+    if not state.alive or not ShiftWebhook.enabled or type(message)~="string" or message=="" then return end
+    local report=ShiftWebhook.current
+    if not report or report.phase~="live" then return end
+    pcall(function() ShiftWebhook.elapsed(report) end)
+    report.phase="disconnected"
+    ShiftWebhook.queue(report)
 end
 function ShiftWebhook.update()
-    local summary = path(hud(), { "Summary" })
-    local visible = summary and summary.Visible == true
-    if visible then
+    local summary=path(hud(),{"Summary"})
+    if summary and summary.Visible==true then
         if not ShiftWebhook.summarySeen and ShiftWebhook.enabled then ShiftWebhook.complete(summary) end
-        ShiftWebhook.summarySeen = true
+        ShiftWebhook.summarySeen=true
         return
     end
-    ShiftWebhook.summarySeen = false
+    ShiftWebhook.summarySeen=false
     if not ShiftWebhook.enabled then return end
-    local mover, model = loadedMover()
+    local mover,model=loadedMover()
     if not mover then return end
-    local leg = ShiftWebhook.readLeg()
-    if not leg then ShiftWebhook.setStatus("Waiting for SCR schedule data."); return end
-    local key = tostring(model) .. ":" .. tostring(leg.startTime) .. ":" .. tostring(leg.legDirection)
-    local report = ShiftWebhook.current
-    if not report or report.key ~= key then
-        report = ShiftWebhook.snapshot(leg, model)
-        ShiftWebhook.current = report
-        ShiftWebhook.setStatus("Recording " .. ShiftWebhook.clean(report.route) .. ".")
+    local leg=ShiftWebhook.readLeg()
+    if not leg then return end
+    local key=tostring(model)..":"..tostring(leg.startTime)..":"..tostring(leg.legDirection)
+    local report=ShiftWebhook.current
+    local created=false
+    if not report or report.key~=key then
+        if report and report.phase=="live" then report.phase="stopped"; ShiftWebhook.queue(report) end
+        report=ShiftWebhook.snapshot(leg,model)
+        ShiftWebhook.current=report
+        created=true
     end
-    if report.sent then return end
-    local index = tonumber(leg.stopIndex)
-    local stop = index and report.stops[index]
-    local loading = model:GetAttribute("IsLoading") == true
-    -- A loading edge confirms acceptance by SCR; stationary/near-platform alone does not.
-    if loading and report.lastLoading == false then
-        if not board.date then
-            local loadGameModule: any = require
-            board.date = loadGameModule(game:GetService("ReplicatedStorage").Modules.Date)
+    if report.phase~="live" then return end
+    ShiftWebhook.syncLog(report,leg.stopLog)
+    report.stopIndex=tonumber(leg.stopIndex)
+    ShiftWebhook.elapsed(report)
+    local index=report.stopIndex
+    local stop=index and report.stops[index]
+    local loading=model:GetAttribute("IsLoading")==true
+    local changed=created
+    -- Keep departure times current if SCR fills in its schedule after job creation.
+    for i,scheduled in ipairs(leg.schedule) do
+        local recorded=report.stops[i]
+        if not recorded then break end
+        recorded.scheduledDeparture=tonumber(scheduled.departTime)
+        recorded.etd=ShiftWebhook.clock(recorded.scheduledDeparture,board.date)
+    end
+    -- Read-only observation of SCR's accepted loading edge, never a proximity estimate.
+    if loading and report.lastLoading==false then
+        report.pendingArrival={name=model:GetAttribute("NextStop"),arrivedAt=ShiftWebhook.clock(board.date.GetTime(),board.date)}
+    end
+    local arrival=report.pendingArrival
+    if arrival and stop and stop.name==arrival.name then
+        if not stop.arrivedAt then
+            stop.arrivedAt=arrival.arrivedAt;changed=true
+            report.departureStop=index
         end
-        report.pendingArrival = { name = model:GetAttribute("NextStop"),
-            ata = ShiftWebhook.clock(board.date.GetTime(), board.date),
-            late = StationBoard.number(model:GetAttribute("MinutesLate")) }
+        report.pendingArrival=nil
     end
-    local arrival = report.pendingArrival
-    if arrival and stop and stop.name == arrival.name then
-        if not stop.ata then stop.ata = arrival.ata; stop.late = arrival.late end
-        report.pendingArrival = nil
+    if not loading then report.pendingArrival=nil end
+    if loading and stop and not stop.atd then report.departureStop=index end
+    -- EndLoading/closed doors alone are not departure. Record the first observed
+    -- movement after accepted loading, even after SCR advances stopIndex.
+    local departing=report.departureStop and report.stops[report.departureStop]
+    if departing and not departing.atd and not loading and math.abs(tonumber(mover.currentSpeed) or 0)>0.1 then
+        local departedAt=board.date.GetTime()
+        departing.atd=ShiftWebhook.clock(departedAt,board.date)
+        departing.late=departing.scheduledDeparture and math.max(0,(departedAt-departing.scheduledDeparture)/60) or nil
+        report.departureStop=nil
     end
-    if not loading then report.pendingArrival = nil end
-    report.lastLoading = loading
+    report.lastLoading=loading
+    -- Upload only for job creation or a newly accepted arrival. Points/index/time
+    -- still update in memory, and are included at the next arrival or final update.
+    if changed then ShiftWebhook.queue(report) end
 end
+local webhookInput=webhookTab:CreateInput({name="Discord webhook link",placeholder="https://discord.com/api/webhooks/...",
+    value="",forgetState=true,clearOnFocus=false,callback=function(value)
+        ShiftWebhook.url=tostring(value):match("^%s*(.-)%s*$") or ""
+        ShiftWebhook.setStatus(ShiftWebhook.validUrl(ShiftWebhook.url) and "Webhook ready." or "Enter a valid Discord webhook link.")
+    end})
+local reportToggle=webhookTab:CreateToggle({name="Send live shift report",value=false,forgetState=true,
+    description="Create one image at job creation, replace it on station arrival, and finish it on completion or disconnection.",callback=function(value)
+        ShiftWebhook.enabled=value
+        if ShiftWebhook.errorConnection then ShiftWebhook.errorConnection:Disconnect();ShiftWebhook.errorConnection=nil end
+        if value then
+            local gui:any=game:GetService("GuiService")
+            ShiftWebhook.errorConnection=gui.ErrorMessageChanged:Connect(ShiftWebhook.disconnected)
+            ShiftWebhook.setStatus("Waiting for a shift.")
+            ShiftWebhook.disconnected(gui:GetErrorMessage())
+        else
+            for job in pairs(ShiftWebhook.threads) do if job.thread then pcall(task.cancel,job.thread) end end
+            table.clear(ShiftWebhook.threads)
+            if ShiftWebhook.current then ShiftWebhook.current.cancelled=true end
+            ShiftWebhook.current=nil
+            ShiftWebhook.setStatus("Disabled")
+        end
+    end})
+webhookTab:CreateButton({name="Test webhook",callback=function()
+    local player=game:GetService("Players").LocalPlayer
+    ShiftWebhook.queue({route="TEST",class="—",driver=player.Name,phase="stopped",stops={},duration="—"})
+end})
+-- END SHIFT WEBHOOK HELPERS
 
 local function preferredPower(mover)
     local choices = powerChoices(mover)
@@ -3351,6 +3840,7 @@ state.destroy = function()
         if job.thread then pcall(task.cancel, job.thread) end
     end
     table.clear(ShiftWebhook.threads)
+    if ShiftWebhook.errorConnection then ShiftWebhook.errorConnection:Disconnect(); ShiftWebhook.errorConnection = nil end
     ShiftWebhook.current = nil; ShiftWebhook.url = ""
     board.cache = nil; board.date = nil
     releasePowerHold()
