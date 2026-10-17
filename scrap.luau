@@ -34,10 +34,11 @@ shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false })
-local tab = window:CreateTab({ name = "Autopilot" })
+local tab = window:CreateTab({ name = "Auto Farm" })
 local webhookTab = window:CreateTab({ name = "Webhook" })
 local misc = window:CreateTab({ name = "Misc" })
 local diagnostics = window:CreateTab({ name = "Diagnostics" })
+local autopilotSection = tab:CreateSection({ name = "Autopilot" })
 local status = tab:CreateText({ name = "Operating status", text = "Disabled" })
 local speedRow = tab:CreateGroup({ direction = "row" })
 local currentSpeedStat = speedRow:CreateStat({ name = "Current speed", value = 0, suffix = " mph", numberEasing = false })
@@ -2777,6 +2778,7 @@ master = tab:CreateToggle({ name = "Autopilot", value = false, forgetState = tru
 end })
 master:Lock("Waiting for a loaded vehicle and its controller.")
 master:MoveToTop()
+autopilotSection:MoveToTop()
 tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
     callback = function(value) config.maxSpeed = value end })
 tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
