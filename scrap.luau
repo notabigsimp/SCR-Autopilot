@@ -145,16 +145,20 @@ function ConfigStore.load()
     if invalid > 0 then return true, "Loaded config; invalid settings were reset to defaults." end
     return true, "Config loaded."
 end
+function ConfigStore.snapshot()
+    local values = {}
+    for _, key in ipairs(ConfigStore.order) do
+        local binding = ConfigStore.bindings[key]
+        local value = binding.read()
+        assert(binding.valid(value), "Invalid setting: " .. key)
+        values[key] = value
+    end
+    return values
+end
 function ConfigStore.save()
     if type(writefile) ~= "function" then return false, "Config save failed: local file API unavailable." end
     local ok = pcall(function()
-        local values = {}
-        for _, key in ipairs(ConfigStore.order) do
-            local binding = ConfigStore.bindings[key]
-            local value = binding.read()
-            assert(binding.valid(value), "Invalid setting: " .. key)
-            values[key] = value
-        end
+        local values = ConfigStore.snapshot()
         local text = game:GetService("HttpService"):JSONEncode({ version = ConfigStore.version, values = values })
         if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder(ConfigStore.folder) then
             makefolder(ConfigStore.folder)
@@ -2884,15 +2888,15 @@ master:MoveToTop()
 autopilotSection:MoveToTop()
 local maximumSpeedControl = tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
     callback = function(value) config.maxSpeed = value end })
+local cautionSpeedControl = tab:CreateSlider({ name = "Caution/ red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
+    description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
+    callback = function(value) config.yellowSpeed = value end })
 local mainPowerControl = tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
     description = "Electric > Diesel > Battery or Diesel > Electric > Battery. Checks for a better source when passenger loading starts.",
     callback = function(value) config.mainPower = value end })
 local afterShiftControl = tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
-local cautionSpeedControl = tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
-    description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
-    callback = function(value) config.yellowSpeed = value end })
 -- AUTO FARM: use SCR's owned stock, route compatibility and native spawn queue.
 function AutoFarm.routeAllowed(route, train)
     return route.isUnlocked == true and not route.isComingSoon
@@ -3028,7 +3032,10 @@ function AutoFarm.setRejoin(enabled)
     AutoFarm.rejoinAt = 0
     if AutoFarm.errorConnection then AutoFarm.errorConnection:Disconnect(); AutoFarm.errorConnection = nil end
     if AutoFarm.teleportConnection then AutoFarm.teleportConnection:Disconnect(); AutoFarm.teleportConnection = nil end
-    if not AutoFarm.rejoin then return end
+    if not AutoFarm.rejoin then
+        if AutoFarm.clearResume then AutoFarm.clearResume() end
+        return
+    end
     local gui: any = game:GetService("GuiService")
     local function disconnected(message)
         if state.alive and AutoFarm.rejoin and type(message) == "string" and message ~= "" then
@@ -3108,8 +3115,56 @@ function AutoFarm.update(dt)
         end
     end)
 end
--- Let Roblox retain the current session's server context when rejoining.
+-- Queue execution independently of the teleport destination; never pin a JobId.
+AutoFarm.resumePath = "SCR-Autopilot/resume.json"
+AutoFarm.scriptUrl = "https://raw.githubusercontent.com/notabigsimp/SCR-Autopilot/main/scrap.luau"
+function AutoFarm.clearResume()
+    if type(isfile) == "function" and type(delfile) == "function" then
+        pcall(function() if isfile(AutoFarm.resumePath) then delfile(AutoFarm.resumePath) end end)
+    end
+end
+function AutoFarm.queueResume()
+    local queue = queue_on_teleport or queue_on_tp or queueonteleport or queueontp
+    assert(type(queue) == "function", "Executor has no queue_on_teleport API.")
+    assert(type(writefile) == "function" and type(readfile) == "function" and type(delfile) == "function"
+        and type(isfile) == "function", "Executor cannot store the rejoin session.")
+    local http = game:GetService("HttpService")
+    AutoFarm.resumeToken = AutoFarm.resumeToken or http:GenerateGUID(false)
+    if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder(ConfigStore.folder) then
+        makefolder(ConfigStore.folder)
+    end
+    writefile(AutoFarm.resumePath, http:JSONEncode({ token = AutoFarm.resumeToken, values = ConfigStore.snapshot() }))
+    -- Retrying a failed teleport updates the session file without stacking loaders.
+    if AutoFarm.resumeQueued then return end
+    local source = env.SCRAutopilotSource
+    local loader = type(source) == "string" and source ~= ""
+        and ("local source = " .. string.format("%q", source) .. "\ngetgenv().SCRAutopilotSource = source\n")
+        or ("local source = game:HttpGet(" .. string.format("%q", AutoFarm.scriptUrl) .. ")\n")
+    local payload = string.format([[
+repeat task.wait() until game:IsLoaded()
+if game.PlaceId ~= %s then return end
+local path, token = %q, %q
+if not isfile(path) then return end
+local ok, record = pcall(function() return game:GetService("HttpService"):JSONDecode(readfile(path)) end)
+if not ok or type(record) ~= "table" or record.token ~= token or type(record.values) ~= "table" then return end
+delfile(path)
+getgenv().SCRAutopilotResumeConfig = record.values
+%s
+local run, err = loadstring(source)
+assert(run, err)
+run()
+    ]], tostring(game.PlaceId), AutoFarm.resumePath, AutoFarm.resumeToken, loader)
+    local ok, err = pcall(queue, payload)
+    if not ok then AutoFarm.clearResume(); error(err, 0) end
+    AutoFarm.resumeQueued = true
+end
 function AutoFarm.reconnect()
+    local queued, err = pcall(AutoFarm.queueResume)
+    if not queued then AutoFarm.clearResume() end
+    if not queued and AutoFarm.resumeError ~= tostring(err) then
+        AutoFarm.resumeError = tostring(err)
+        notify("Rejoining without automatic script execution: " .. tostring(err))
+    end
     game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
 end
 function AutoFarm.changeSelection()
@@ -3151,7 +3206,7 @@ AutoFarm.routeControl = tab:CreateDropdown({ name = "Route", options = {}, forge
         if entry then AutoFarm.route = entry.data.routeCode; AutoFarm.changeSelection() end
     end })
 AutoFarm.rejoinControl = tab:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
-    description = "Retry after disconnecting every 30 seconds. Your executor must rerun the script after joining.",
+    description = "Rejoin after disconnecting and queue script execution when supported. Failed teleports retry every 30 seconds.",
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
 setBypassSpad = function(enabled)
         if not state.alive then return end
@@ -3456,7 +3511,16 @@ misc:CreateSection({ name = "Configuration" })
 misc:CreateButton({ name = "Save config", callback = function() ConfigStore.buttonAction(ConfigStore.save) end })
 misc:CreateButton({ name = "Reset to default", callback = function() ConfigStore.buttonAction(ConfigStore.reset) end })
 pcall(updateTrainBoard)
-local configLoaded, configMessage = ConfigStore.load()
+local resumeValues = env.SCRAutopilotResumeConfig
+env.SCRAutopilotResumeConfig = nil
+local configLoaded, configMessage
+if type(resumeValues) == "table" then
+    local failed, invalid = ConfigStore.apply(resumeValues)
+    configLoaded = #failed == 0 and invalid == 0
+    configMessage = configLoaded and "Rejoin session restored." or "Some rejoin settings could not be restored."
+else
+    configLoaded, configMessage = ConfigStore.load()
+end
 if not configLoaded or configMessage == "Loaded config; invalid settings were reset to defaults." then
     setthreadidentity(8)
     notify(configMessage)
