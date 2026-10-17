@@ -77,6 +77,9 @@ env.SCRAutopilot = state
 local modules, driver, utility, enums, accelerationModel, autoThrottle
 local brakeCurve, zeroBrakeCurve
 local master
+local AutoFarm: { [string]: any } = { enabled = false, elapsed = 0, epoch = 0, retryAt = 0,
+    rejoin = false, rejoinAt = 0 }
+state.autoFarm = AutoFarm
 local bypassSpadToggle, setBypassSpad, recallSpadJunction
 local callbackCache = setmetatable({}, { __mode = "k" })
 local emergencyCache = nil
@@ -110,6 +113,7 @@ function ConfigStore.oneOf(options)
     return function(value) return type(value) == "string" and table.find(options, value) ~= nil end
 end
 function ConfigStore.apply(values)
+    if ConfigStore.beforeApply then ConfigStore.beforeApply() end
     local failed, invalid = {}, 0
     for _, key in ipairs(ConfigStore.order) do
         local binding = ConfigStore.bindings[key]
@@ -1551,6 +1555,7 @@ local function releasePowerHold()
     if state.powerHold then pcall(function() state.powerHold:HoldEnd() end); state.powerHold = nil end
 end
 local function resetTrain(mover)
+    if state.mover ~= mover then state.generation += 1 end
     table.clear(callbackCache); emergencyCache = nil
     releasePowerHold()
     state.mover = mover; state.sample = nil
@@ -2541,11 +2546,14 @@ end
 local function syncAutopilotAvailability(mover)
     if not state.alive or not master then return end
     setthreadidentity(8)
-    if mover then
+    if mover or state.enabled or AutoFarm.enabled then
         if master:IsLocked() then master:Unlock() end
     else
-        if state.enabled then disable("Disabled - vehicle not loaded") end
         if not master:IsLocked() then master:Lock("Waiting for a loaded vehicle and its controller.") end
+    end
+    if not mover and state.mover then
+        state.generation += 1
+        resetTrain(nil)
     end
 end
 
@@ -2718,15 +2726,18 @@ local function handleShiftSummary()
     local callback = callbackFor(control)
     if not callback then setStatus("Shift complete - waiting for game action listener"); return true end
     setStatus(name == "NextLeg" and "Shift complete - starting next leg" or "Shift complete - quitting to menu")
+    local generation = state.generation
     startAction("shift", function()
         if config.shiftAction == "Do Nothing" then return end
         if not summary.Parent or not summary.Visible or not control.Parent
             or not control.Visible or not control.Interactable then return end
         state.shiftTransition = os.clock()
         callback()
+        if not state.alive or not state.enabled or state.generation ~= generation then return end
         if name == "QuitToMenu" then
             state.shiftTransition = nil
-            disable("Disabled - returned to menu")
+            if AutoFarm.enabled then setStatus("Auto Farm - waiting for replacement train")
+            else disable("Disabled - returned to menu") end
         elseif not summary.Parent or not summary.Visible then
             state.stopSignal = nil; state.approach = nil; state.lastDesired = nil; state.doorCycle = nil
             resetStopOffset(); state.stopTarget = nil
@@ -2743,10 +2754,11 @@ local function step()
     if handleShiftSummary() then return end
     local mover, model = loadedMover()
     if not mover then
+        if state.mover then state.generation += 1; resetTrain(nil) end
         if state.shiftTransition and os.clock() - state.shiftTransition < 30 then
             setStatus("Next leg - waiting for train"); return
         end
-        disable("Disabled - vehicle not loaded"); notify("Vehicle is not loaded. Autopilot has been turned off."); return
+        setStatus("Autopilot armed - waiting for train"); return
     end
     state.shiftTransition = nil
     if mover ~= state.mover then
@@ -2855,6 +2867,11 @@ master = tab:CreateToggle({ name = "Autopilot", value = false, forgetState = tru
     if not enabled then disable(); return end
     local ok, mover = pcall(loadedMover)
     if not ok or not mover then
+        if AutoFarm.enabled then
+            state.generation += 1; state.enabled = true
+            setStatus("Auto Farm - waiting for train")
+            return
+        end
         disable("Disabled - vehicle not loaded")
         syncAutopilotAvailability(nil)
         notify("Vehicle is not loaded or its controller is unavailable. Autopilot has been turned off.")
@@ -2867,15 +2884,275 @@ master:MoveToTop()
 autopilotSection:MoveToTop()
 local maximumSpeedControl = tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
     callback = function(value) config.maxSpeed = value end })
-local cautionSpeedControl = tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
-    description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
-    callback = function(value) config.yellowSpeed = value end })
 local mainPowerControl = tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
     description = "Electric > Diesel > Battery or Diesel > Electric > Battery. Checks for a better source when passenger loading starts.",
     callback = function(value) config.mainPower = value end })
 local afterShiftControl = tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
+local cautionSpeedControl = tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
+    description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
+    callback = function(value) config.yellowSpeed = value end })
+-- AUTO FARM: use SCR's owned stock, route compatibility and native spawn queue.
+function AutoFarm.routeAllowed(route, train)
+    return route.isUnlocked == true and not route.isComingSoon
+        and (not route.allowedTrains or table.find(route.allowedTrains, train.slug) ~= nil)
+        and not table.find(route.excludedTrains or {}, train.slug)
+end
+function AutoFarm.setOptions(control, options, value, emptyMessage)
+    control:Refresh(options)
+    control:Set(value or {}, true)
+    if #options == 0 then control:Lock(emptyMessage)
+    elseif control:IsLocked() then control:Unlock() end
+end
+function AutoFarm.refresh()
+    setthreadidentity(8)
+    local loadModule: any = require
+    local modulesRoot: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    if not modulesRoot or not modulesRoot:FindFirstChild("Shop") then return end
+    local shop = loadModule(modulesRoot.Shop)
+    local operators, trains, routes = shop.GetOperators(), shop.GetTrains(), shop.GetRoutes()
+    if type(operators) ~= "table" or type(trains) ~= "table" or type(routes) ~= "table" then return end
+    AutoFarm.refreshing = true
+    local operatorOptions, trainOptions, routeOptions = {}, {}, {}
+    AutoFarm.operatorMap, AutoFarm.trainMap, AutoFarm.routeMap = {}, {}, {}
+    local selectedOperator, selectedTrain, selectedRoute
+    for index, operator in ipairs(operators) do
+        table.insert(operatorOptions, operator.name)
+        AutoFarm.operatorMap[operator.name] = { data = operator, index = index }
+        if operator.slug == AutoFarm.operator then selectedOperator = operator.name end
+    end
+    selectedOperator = selectedOperator or operatorOptions[1]
+    local operatorEntry = selectedOperator and AutoFarm.operatorMap[selectedOperator]
+    if not operatorEntry then return end
+    AutoFarm.operator = operatorEntry.data.slug
+    for index, train in ipairs((AutoFarm.operator and trains[AutoFarm.operator]) or {}) do
+        if train.isUnlocked and not train.isComingSoon then
+            table.insert(trainOptions, train.name)
+            AutoFarm.trainMap[train.name] = { data = train, index = index }
+            if train.slug == AutoFarm.train then selectedTrain = train.name end
+        end
+    end
+    selectedTrain = selectedTrain or trainOptions[1]
+    local trainEntry = selectedTrain and AutoFarm.trainMap[selectedTrain]
+    if not trainEntry then
+        AutoFarm.setOptions(AutoFarm.operatorControl, operatorOptions, selectedOperator, "Waiting for operator data.")
+        AutoFarm.setOptions(AutoFarm.trainControl, trainOptions, nil, "No unlocked trains for this operator.")
+        AutoFarm.setOptions(AutoFarm.routeControl, {}, nil, "Choose an unlocked train first.")
+        AutoFarm.choice = nil; AutoFarm.refreshing = false; AutoFarm.ready = true
+        return
+    end
+    AutoFarm.train = trainEntry.data.slug
+    for index, route in ipairs((AutoFarm.operator and routes[AutoFarm.operator]) or {}) do
+        if trainEntry and AutoFarm.routeAllowed(route, trainEntry.data) then
+            local label = route.routeCode .. " · " .. route.name
+            table.insert(routeOptions, label)
+            AutoFarm.routeMap[label] = { data = route, index = index }
+            if route.routeCode == AutoFarm.route then selectedRoute = label end
+        end
+    end
+    selectedRoute = selectedRoute or routeOptions[1]
+    local routeEntry = selectedRoute and AutoFarm.routeMap[selectedRoute]
+    AutoFarm.route = routeEntry and routeEntry.data.routeCode
+    AutoFarm.choice = routeEntry and { operator = operatorEntry.data, train = trainEntry.data, route = routeEntry.data } or nil
+    AutoFarm.setOptions(AutoFarm.operatorControl, operatorOptions, selectedOperator, "Waiting for operator data.")
+    AutoFarm.setOptions(AutoFarm.trainControl, trainOptions, selectedTrain, "No unlocked trains for this operator.")
+    AutoFarm.setOptions(AutoFarm.routeControl, routeOptions, selectedRoute, "No unlocked routes for this train.")
+    AutoFarm.refreshing = false
+    AutoFarm.ready = true
+end
+function AutoFarm.native()
+    local loadModule: any = require
+    local root = game:GetService("ReplicatedStorage").Modules
+    local gui = loadModule(root.Gui.GuiInteraction)
+    local client
+    for _, value in pairs(debug.getupvalues(gui.SelectRole)) do
+        if type(value) == "table" and type(value.GetBusy) == "function" then client = value; break end
+    end
+    assert(client, "SCR client controller unavailable.")
+    return gui, loadModule(root.Train.TrainSpawn), client, loadModule(root.Shop)
+end
+function AutoFarm.depot(train, route)
+    local eligible = {}
+    for _, depot in ipairs(route.depots or {}) do
+        if not depot.maxLength or (type(train.trainLength) == "number" and train.trainLength <= depot.maxLength) then
+            table.insert(eligible, depot)
+        end
+    end
+    table.sort(eligible, function(a, b)
+        if a.legDirection ~= b.legDirection then return a.legDirection == "B" end
+        return (a.firstStop or 0) < (b.firstStop or 0)
+    end)
+    return eligible[1]
+end
+function AutoFarm.queued()
+    local queue = path(playerGui, { "MainGui", "Menu", "TrainSpawn", "SpawnQueue" })
+    return queue and queue.Visible == true
+end
+function AutoFarm.ownsTrain()
+    local active = workspace:FindFirstChild("ActiveTrains")
+    if not active then return false end
+    local player = game:GetService("Players").LocalPlayer
+    for _, model in ipairs(active:GetChildren()) do
+        if model:GetAttribute("Driver") == player.Name then return true end
+    end
+    return false
+end
+function AutoFarm.cancelQueue()
+    if AutoFarm.queued() then
+        local _, spawn = AutoFarm.native()
+        spawn.CancelTrainSpawn()
+    end
+end
+function AutoFarm.setEnabled(enabled)
+    setthreadidentity(8)
+    AutoFarm.epoch += 1
+    AutoFarm.enabled = enabled and state.alive
+    AutoFarm.retryAt = 0
+    if AutoFarm.enabled then
+        if master:IsLocked() then master:Unlock() end
+        master:Set(true, true)
+        master.callback(true)
+    else
+        disable()
+        task.defer(function()
+            setthreadidentity(8)
+            if not AutoFarm.enabled then pcall(AutoFarm.cancelQueue) end
+        end)
+    end
+end
+function AutoFarm.setRejoin(enabled)
+    setthreadidentity(8)
+    AutoFarm.rejoin = enabled and state.alive
+    AutoFarm.pendingRejoin = false
+    AutoFarm.rejoinAt = 0
+    if AutoFarm.errorConnection then AutoFarm.errorConnection:Disconnect(); AutoFarm.errorConnection = nil end
+    if AutoFarm.teleportConnection then AutoFarm.teleportConnection:Disconnect(); AutoFarm.teleportConnection = nil end
+    if not AutoFarm.rejoin then return end
+    local gui: any = game:GetService("GuiService")
+    local function disconnected(message)
+        if state.alive and AutoFarm.rejoin and type(message) == "string" and message ~= "" then
+            AutoFarm.pendingRejoin = true
+        end
+    end
+    AutoFarm.errorConnection = gui.ErrorMessageChanged:Connect(disconnected)
+    AutoFarm.teleportConnection = game:GetService("TeleportService").TeleportInitFailed:Connect(function(player)
+        if player == game:GetService("Players").LocalPlayer then disconnected("Teleport failed") end
+    end)
+    disconnected(gui:GetErrorMessage())
+end
+function AutoFarm.work(epoch)
+    if not state.alive or AutoFarm.epoch ~= epoch then return end
+    if AutoFarm.ready and not AutoFarm.catalogDirty and not AutoFarm.enabled then return end
+    local gui, spawn, client, shop = AutoFarm.native()
+    if not AutoFarm.ready or AutoFarm.catalogDirty then
+        if client.GetBusy() then return end
+        shop.RefreshTrains()
+        if not state.alive or AutoFarm.epoch ~= epoch then return end
+        shop.RefreshRoutes()
+        setthreadidentity(8)
+        if not state.alive or AutoFarm.epoch ~= epoch then return end
+        AutoFarm.catalogDirty = false
+        AutoFarm.refresh()
+    end
+    if not AutoFarm.enabled or AutoFarm.epoch ~= epoch then return end
+    local mover = loadedMover()
+    if mover or AutoFarm.ownsTrain() then return end
+    if AutoFarm.queued() or client.GetBusy() then return end
+    if os.clock() < AutoFarm.retryAt then return end
+    AutoFarm.retryAt = os.clock() + 10
+    local choice = AutoFarm.choice
+    if not choice then setStatus("Auto Farm - choose an unlocked train and route"); return end
+    local depot = AutoFarm.depot(choice.train, choice.route)
+    if not depot then setStatus("Auto Farm - no compatible depot"); return end
+    local player = game:GetService("Players").LocalPlayer
+    if not player.Team or player.Team.Name ~= "Drivers" then
+        setStatus("Auto Farm - selecting Driver role")
+        gui.SelectRole("Drivers")
+        setthreadidentity(8)
+    end
+    -- Native menu/role calls yield. An OFF or changed selection invalidates this request.
+    if not state.alive or not AutoFarm.enabled or AutoFarm.epoch ~= epoch then return end
+    if not player.Team or player.Team.Name ~= "Drivers" or client.GetBusy() then return end
+    if loadedMover() or AutoFarm.ownsTrain() or AutoFarm.queued() then return end
+    setStatus("Auto Farm - spawning " .. choice.train.name .. " / " .. choice.route.routeCode)
+    spawn.RequestTrainSpawn(choice.operator, choice.train, choice.route, depot.slug, depot.name, depot.legDirection)
+    setthreadidentity(8)
+    if not state.alive or not AutoFarm.enabled or AutoFarm.epoch ~= epoch then AutoFarm.cancelQueue() end
+end
+function AutoFarm.update(dt)
+    AutoFarm.elapsed += dt
+    if AutoFarm.elapsed < 1 or AutoFarm.busy then return end
+    AutoFarm.elapsed = 0
+    AutoFarm.busy = true
+    local epoch = AutoFarm.epoch
+    task.defer(function()
+        setthreadidentity(8)
+        local ok, err = pcall(function()
+            if not state.alive then return end
+            if AutoFarm.rejoin and AutoFarm.pendingRejoin and os.clock() >= AutoFarm.rejoinAt then
+                AutoFarm.rejoinAt = os.clock() + 30
+                AutoFarm.reconnect()
+                return
+            end
+            AutoFarm.work(epoch)
+        end)
+        setthreadidentity(8)
+        AutoFarm.busy = false
+        if not ok and state.alive then
+            AutoFarm.refreshing = false
+            if AutoFarm.lastError ~= tostring(err) then
+                log("Auto Farm: " .. tostring(err)); AutoFarm.lastError = tostring(err)
+                notify("Auto Farm: " .. tostring(err))
+            end
+        end
+    end)
+end
+-- Let Roblox retain the current session's server context when rejoining.
+function AutoFarm.reconnect()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+end
+function AutoFarm.changeSelection()
+    AutoFarm.epoch += 1
+    AutoFarm.retryAt = 0
+    local epoch = AutoFarm.epoch
+    task.defer(function()
+        setthreadidentity(8)
+        if state.alive and AutoFarm.epoch == epoch then pcall(AutoFarm.cancelQueue) end
+    end)
+    AutoFarm.refresh()
+end
+tab:CreateSection({ name = "Auto Farm" })
+AutoFarm.masterControl = tab:CreateToggle({ name = "Master switch", value = false, forgetState = true,
+    description = "Spawn the selected train, enable Autopilot and replace it after despawning.",
+    callback = AutoFarm.setEnabled })
+AutoFarm.operatorControl = tab:CreateDropdown({ name = "Operator", options = {}, forgetState = true,
+    placeholder = "Choose an operator", callback = function(value)
+        if AutoFarm.refreshing or not state.alive then return end
+        setthreadidentity(8)
+        local entry = AutoFarm.operatorMap and AutoFarm.operatorMap[value]
+        if not entry then return end
+        AutoFarm.operator, AutoFarm.train, AutoFarm.route = entry.data.slug, nil, nil
+        AutoFarm.changeSelection()
+    end })
+AutoFarm.trainControl = tab:CreateDropdown({ name = "Train Class", options = {}, forgetState = true,
+    placeholder = "Choose a train class", callback = function(value)
+        if AutoFarm.refreshing or not state.alive then return end
+        setthreadidentity(8)
+        local entry = AutoFarm.trainMap and AutoFarm.trainMap[value]
+        if not entry then return end
+        AutoFarm.train, AutoFarm.route = entry.data.slug, nil
+        AutoFarm.changeSelection()
+    end })
+AutoFarm.routeControl = tab:CreateDropdown({ name = "Route", options = {}, forgetState = true,
+    placeholder = "Choose a route", description = "Choose an unlocked route compatible with the selected train.", callback = function(value)
+        if AutoFarm.refreshing or not state.alive then return end
+        local entry = AutoFarm.routeMap and AutoFarm.routeMap[value]
+        if entry then AutoFarm.route = entry.data.routeCode; AutoFarm.changeSelection() end
+    end })
+AutoFarm.rejoinControl = tab:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
+    description = "Retry after disconnecting every 30 seconds. Your executor must rerun the script after joining.",
+    callback = function(enabled) AutoFarm.setRejoin(enabled) end })
 setBypassSpad = function(enabled)
         if not state.alive then return end
         config.bypassSpad = enabled
@@ -2909,6 +3186,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     if not state.alive then return end
     board.elapsed += dt
     TicketAssist.update(dt)
+    AutoFarm.update(dt)
     if (board.dirty or board.elapsed >= 2) and not state.miscThread then
         board.dirty = false; board.elapsed = 0
         state.miscThread = task.defer(function()
@@ -2982,7 +3260,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         if not state.alive or not state.enabled or state.generation ~= generation then state.busy = false; return end
         local ok, err = pcall(step)
         state.busy = false; state.stepThread = nil
-        if not state.alive then return end
+        if not state.alive or state.generation ~= generation then return end
         state.lastTick = os.clock(); state.ticks += 1
         local pending = {}
         for key, action in pairs(state.actions) do table.insert(pending, string.format("%s: %.1fs", key, os.clock() - action.started)) end
@@ -2998,6 +3276,9 @@ state.destroy = function()
     if not state.alive then return end
     -- Termination is independent of UI callbacks: teardown continues even if a widget is gone.
     state.alive = false; state.enabled = false; state.generation += 1
+    AutoFarm.enabled = false; AutoFarm.epoch += 1
+    AutoFarm.setRejoin(false)
+    pcall(AutoFarm.cancelQueue)
     config.bypassSpad = false
     local bypassOk, bypassErr = pcall(SpadBypass.detach, true)
     if not bypassOk then warn("SCR Autopilot SPAD bypass cleanup failed: " .. tostring(bypassErr)) end
@@ -3110,8 +3391,6 @@ function ConfigStore.control(key, default, control, read, apply, valid)
         control:Set(read(), true)
     end, valid)
 end
-ConfigStore.control("autopilot", false, master, function() return state.enabled end,
-    function(value) master.callback(value) end, ConfigStore.boolean)
 ConfigStore.control("maxSpeed", 125, maximumSpeedControl, function() return config.maxSpeed end,
     function(value) config.maxSpeed = value end, ConfigStore.speed)
 ConfigStore.control("yellowSpeed", 45, cautionSpeedControl, function() return config.yellowSpeed end,
@@ -3156,6 +3435,23 @@ ConfigStore.control("webhookUrl", "", webhookInput, function() return ShiftWebho
     function(value) return type(value) == "string" and #value <= 2048 and (value == "" or ShiftWebhook.validUrl(value)) end)
 ConfigStore.control("shiftReports", false, reportToggle, function() return ShiftWebhook.enabled end,
     function(value) reportToggle.callback(value) end, ConfigStore.boolean)
+for _, key in ipairs({ "operator", "train", "route" }) do
+    local setting = key
+    ConfigStore.bind("farm_" .. setting, "", function() return AutoFarm[setting] or "" end, function(value)
+        AutoFarm[setting] = value ~= "" and value or nil
+        AutoFarm.ready = false
+        AutoFarm.epoch += 1
+    end, function(value) return type(value) == "string" and #value <= 128 end)
+end
+ConfigStore.control("farmRejoin", false, AutoFarm.rejoinControl, function() return AutoFarm.rejoin end,
+    AutoFarm.setRejoin, ConfigStore.boolean)
+ConfigStore.control("farmMaster", false, AutoFarm.masterControl, function() return AutoFarm.enabled end,
+    AutoFarm.setEnabled, ConfigStore.boolean)
+ConfigStore.control("autopilot", false, master, function() return state.enabled end,
+    function(value) master.callback(value) end, ConfigStore.boolean)
+ConfigStore.beforeApply = function()
+    if AutoFarm.enabled then AutoFarm.setEnabled(false) end
+end
 misc:CreateSection({ name = "Configuration" })
 misc:CreateButton({ name = "Save config", callback = function() ConfigStore.buttonAction(ConfigStore.save) end })
 misc:CreateButton({ name = "Reset to default", callback = function() ConfigStore.buttonAction(ConfigStore.reset) end })
