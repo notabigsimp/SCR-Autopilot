@@ -76,6 +76,7 @@ env.SCRAutopilot = state
 local modules, driver, utility, enums, accelerationModel, autoThrottle
 local brakeCurve, zeroBrakeCurve
 local master
+local bypassSpadToggle, setBypassSpad, recallSpadJunction
 local callbackCache = setmetatable({}, { __mode = "k" })
 local emergencyCache = nil
 
@@ -980,6 +981,10 @@ TicketAssist.toggle = misc:CreateToggle({ name = "Ticket check assist", value = 
     description = "After you open a passenger with E, check their ticket/card and issue the matching fare. Guard and RPO only.",
     callback = function(enabled) TicketAssist.setEnabled(enabled) end })
 TicketAssist.syncAvailability()
+bypassSpadToggle = misc:CreateToggle({ name = "Bypass SPAD ⚠️", value = false, forgetState = true,
+    description = "Prevent SPAD from applying the train's emergency brake, including during manual driving.",
+    callback = function(enabled) setBypassSpad(enabled) end })
+misc:CreateButton({ name = "Recall choose route popup", callback = function() recallSpadJunction() end })
 misc:CreateSection({ name = "Fun Zone" })
 local funInput = game:GetService("UserInputService")
 local nativeJoystick
@@ -2783,10 +2788,7 @@ tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel
 tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
-local bypassSpadToggle
-bypassSpadToggle = tab:CreateToggle({ name = "Bypass SPAD ⚠️", value = false, forgetState = true,
-    description = "Prevent SPAD from applying the train's emergency brake, including during manual driving.",
-    callback = function(enabled)
+setBypassSpad = function(enabled)
         if not state.alive then return end
         config.bypassSpad = enabled
         local ok, err = pcall(function()
@@ -2798,12 +2800,13 @@ bypassSpadToggle = tab:CreateToggle({ name = "Bypass SPAD ⚠️", value = false
             bypassSpadToggle:Set(false, true)
             notify("SPAD bypass unavailable: " .. tostring(err))
         end
-    end })
-tab:CreateButton({ name = "Recall choose route popup", callback = function()
+end
+recallSpadJunction = function()
     local hold = SpadBypass.junction
     if not hold then notify("No junction is waiting for an exit choice."); return end
     SpadBypass.showJunction(hold)
-end })
+end
+
 diagnostics:CreateButton({ name = "Copy result to clipboard", callback = function()
     local ok, copied = pcall(function() return console:Copy() end)
     notify(ok and copied and "Results copied to clipboard." or "Clipboard copy failed.")
