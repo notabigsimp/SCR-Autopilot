@@ -33,7 +33,7 @@ local shutdown = Instance.new("BindableEvent")
 shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false, showName = "SCR Autopilot" })
 local tab = window:CreateTab({ name = "Auto Farm" })
 local webhookTab = window:CreateTab({ name = "Webhook" })
 local misc = window:CreateTab({ name = "Misc" })
