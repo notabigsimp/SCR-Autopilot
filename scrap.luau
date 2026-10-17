@@ -94,6 +94,92 @@ local function notify(message)
     if not state.alive then return end
     window:Notify({ title = "SCR Autopilot", content = message, duration = 6 })
 end
+-- LOCAL CONFIG: bindings keep persistence separate from each feature's runtime state.
+local ConfigStore: { [string]: any } = { folder = "SCR-Autopilot", path = "SCR-Autopilot/config.json",
+    version = 1, bindings = {}, order = {} }
+function ConfigStore.bind(key, default, read, apply, valid)
+    assert(not ConfigStore.bindings[key], "Duplicate config key: " .. key)
+    ConfigStore.bindings[key] = { default = default, read = read, apply = apply, valid = valid }
+    table.insert(ConfigStore.order, key)
+end
+function ConfigStore.boolean(value) return type(value) == "boolean" end
+function ConfigStore.speed(value)
+    return type(value) == "number" and value == value and value >= 5 and value <= 125 and value % 1 == 0
+end
+function ConfigStore.oneOf(options)
+    return function(value) return type(value) == "string" and table.find(options, value) ~= nil end
+end
+function ConfigStore.apply(values)
+    local failed, invalid = {}, 0
+    for _, key in ipairs(ConfigStore.order) do
+        local binding = ConfigStore.bindings[key]
+        local value = values[key]
+        if value == nil then value = binding.default
+        elseif not binding.valid(value) then value = binding.default; invalid += 1 end
+        setthreadidentity(8)
+        local ok = pcall(binding.apply, value)
+        if not ok then table.insert(failed, key) end
+    end
+    return failed, invalid
+end
+function ConfigStore.load()
+    if type(isfile) ~= "function" or type(readfile) ~= "function" then return false, "Local file API unavailable." end
+    local ok, result = pcall(function()
+        if not isfile(ConfigStore.path) then return nil end
+        local text = readfile(ConfigStore.path)
+        if #text > 65536 then error("Config file is too large.") end
+        local decoded = game:GetService("HttpService"):JSONDecode(text)
+        if type(decoded) ~= "table" or decoded.version ~= ConfigStore.version or type(decoded.values) ~= "table" then
+            error("Unsupported config format.")
+        end
+        return decoded.values
+    end)
+    if not ok then return false, "Could not read config. Defaults kept; save or reset to replace it." end
+    if not result then return true, "No saved config." end
+    local failed, invalid = ConfigStore.apply(result)
+    if #failed > 0 then return false, "Some settings could not be loaded: " .. table.concat(failed, ", ") end
+    if invalid > 0 then return true, "Loaded config; invalid settings were reset to defaults." end
+    return true, "Config loaded."
+end
+function ConfigStore.save()
+    if type(writefile) ~= "function" then return false, "Config save failed: local file API unavailable." end
+    local ok = pcall(function()
+        local values = {}
+        for _, key in ipairs(ConfigStore.order) do
+            local binding = ConfigStore.bindings[key]
+            local value = binding.read()
+            assert(binding.valid(value), "Invalid setting: " .. key)
+            values[key] = value
+        end
+        local text = game:GetService("HttpService"):JSONEncode({ version = ConfigStore.version, values = values })
+        if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder(ConfigStore.folder) then
+            makefolder(ConfigStore.folder)
+        end
+        writefile(ConfigStore.path, text)
+    end)
+    return ok, ok and "Config saved." or "Config save failed. Existing settings are still active."
+end
+function ConfigStore.reset()
+    if type(isfile) ~= "function" then return false, "Config reset failed: local file API unavailable." end
+    local deleted = pcall(function()
+        if isfile(ConfigStore.path) then
+            assert(type(delfile) == "function", "File deletion unavailable.")
+            delfile(ConfigStore.path)
+            assert(not isfile(ConfigStore.path), "Config file was not deleted.")
+        end
+    end)
+    if not deleted then return false, "Config reset failed: could not delete the saved config." end
+    local failed = ConfigStore.apply({})
+    if #failed > 0 then return false, "Saved config deleted; some defaults could not be applied: " .. table.concat(failed, ", ") end
+    return true, "Config deleted. Default settings restored."
+end
+function ConfigStore.buttonAction(action)
+    if not state.alive then return end
+    setthreadidentity(8)
+    local _, message = action()
+    setthreadidentity(8)
+    notify(message)
+end
 local function path(root, names)
     for _, name in ipairs(names) do
         if not root then return nil end
@@ -1039,7 +1125,7 @@ shortcutKeybind = misc:CreateKeybind({ name = "Freecam shortcut (Shift +)", valu
 -- This prevents that same press from immediately toggling Freecam.
 funCamera.isRecordingShortcut = function() return window._recordingKeybind ~= nil end
 funCamera:setShortcut(Enum.KeyCode.P)
-misc:CreateToggle({ name = "Unlock camera zoom", description = "Scroll to zoom out further, including SCR scene cameras.",
+local zoomToggle = misc:CreateToggle({ name = "Unlock camera zoom", description = "Scroll to zoom out further, including SCR scene cameras.",
     value = false, forgetState = true, callback = function(value) funCamera:setZoom(value) end })
 local function initialize()
     modules = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
@@ -1620,12 +1706,12 @@ function ShiftWebhook.send(payloads, url)
             or ("Report failed: " .. (ok and reason or "request error"))) end
     end)
 end
-webhookTab:CreateInput({ name = "Discord webhook link", placeholder = "https://discord.com/api/webhooks/...",
+local webhookInput = webhookTab:CreateInput({ name = "Discord webhook link", placeholder = "https://discord.com/api/webhooks/...",
     value = "", forgetState = true, clearOnFocus = false, callback = function(value)
         ShiftWebhook.url = tostring(value):match("^%s*(.-)%s*$") or ""
         ShiftWebhook.setStatus(ShiftWebhook.validUrl(ShiftWebhook.url) and "Webhook ready." or "Enter a valid Discord webhook link.")
     end })
-webhookTab:CreateToggle({ name = "Send shift reports", value = false, forgetState = true,
+local reportToggle = webhookTab:CreateToggle({ name = "Send shift reports", value = false, forgetState = true,
     description = "Send one report after each completed shift.", callback = function(value)
         ShiftWebhook.enabled = value
         if value then ShiftWebhook.setStatus("Waiting for a shift.")
@@ -2779,15 +2865,15 @@ end })
 master:Lock("Waiting for a loaded vehicle and its controller.")
 master:MoveToTop()
 autopilotSection:MoveToTop()
-tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
+local maximumSpeedControl = tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
     callback = function(value) config.maxSpeed = value end })
-tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
+local cautionSpeedControl = tab:CreateSlider({ name = "Caution / red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
     description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
     callback = function(value) config.yellowSpeed = value end })
-tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
+local mainPowerControl = tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
     description = "Electric > Diesel > Battery or Diesel > Electric > Battery. Checks for a better source when passenger loading starts.",
     callback = function(value) config.mainPower = value end })
-tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
+local afterShiftControl = tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
     description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
 setBypassSpad = function(enabled)
@@ -3016,4 +3102,67 @@ for _, child in ipairs(terminateButton.main:GetChildren()) do
 end
 terminateButton.title.TextColor3 = Color3.new(1, 1, 1)
 terminateButton.stroke.Color = Color3.fromRGB(255, 90, 100)
+-- Register only user settings; calibration, action queues and shift data are never persisted.
+function ConfigStore.control(key, default, control, read, apply, valid)
+    ConfigStore.bind(key, default, read, function(value)
+        apply(value)
+        setthreadidentity(8)
+        control:Set(read(), true)
+    end, valid)
+end
+ConfigStore.control("autopilot", false, master, function() return state.enabled end,
+    function(value) master.callback(value) end, ConfigStore.boolean)
+ConfigStore.control("maxSpeed", 125, maximumSpeedControl, function() return config.maxSpeed end,
+    function(value) config.maxSpeed = value end, ConfigStore.speed)
+ConfigStore.control("yellowSpeed", 45, cautionSpeedControl, function() return config.yellowSpeed end,
+    function(value) config.yellowSpeed = value end, ConfigStore.speed)
+ConfigStore.control("mainPower", "Electric", mainPowerControl, function() return config.mainPower end,
+    function(value) config.mainPower = value end, ConfigStore.oneOf({ "Electric", "Diesel" }))
+ConfigStore.control("shiftAction", "Continue Shift", afterShiftControl, function() return config.shiftAction end,
+    function(value) config.shiftAction = value end, ConfigStore.oneOf({ "Continue Shift", "Quit To Menu", "Do Nothing" }))
+ConfigStore.control("antiAfk", true, antiAfkToggle, function() return antiAfkConnection ~= nil end,
+    setAntiAfk, ConfigStore.boolean)
+ConfigStore.control("ticketAssist", false, TicketAssist.toggle, function() return TicketAssist.enabled end,
+    TicketAssist.setEnabled, ConfigStore.boolean)
+ConfigStore.control("bypassSpad", false, bypassSpadToggle, function() return config.bypassSpad end,
+    setBypassSpad, ConfigStore.boolean)
+ConfigStore.control("freecam", false, freecamToggle, function() return funCamera.freecam end,
+    function(value) freecamToggle.callback(value) end, ConfigStore.boolean)
+ConfigStore.control("cameraZoom", false, zoomToggle, function() return funCamera.zoom end,
+    function(value) funCamera:setZoom(value) end, ConfigStore.boolean)
+ConfigStore.bind("freecamKey", "P", function() return funCamera.shortcut.key.Name end, function(value)
+    local key = Enum.KeyCode[value]
+    funCamera:setShortcut(key)
+    setthreadidentity(8)
+    shortcutKeybind:Set(key, true)
+end, function(value) return type(value) == "string" and value:match("^[A-Z]$") ~= nil end)
+ConfigStore.bind("stationSearch", "", function() return board.followNext and "" or (board.station or "") end, function(value)
+    board.followNext = value == ""
+    if board.followNext then board.station = board.nextStop else board.station = value end
+    stationPicker:Set((board.labelsByStation and board.labelsByStation[board.station]) or {}, true)
+    board.dirty = true
+end, function(value) return type(value) == "string" and (value == "" or board.stations:FindFirstChild(value) ~= nil) end)
+ConfigStore.bind("trainSearch", "", function() return trainBoard.selected and tostring(trainBoard.selected.id) or "" end, function(value)
+    trainBoard.selected = nil
+    local label
+    for name, entry in pairs(trainBoard.byLabel) do
+        if tostring(entry.id) == value then trainBoard.selected, label = entry, name; break end
+    end
+    trainPicker:Set(label or {}, true)
+    board.dirty = true
+end, function(value) return type(value) == "string" and #value <= 128 end)
+ConfigStore.control("webhookUrl", "", webhookInput, function() return ShiftWebhook.url end,
+    function(value) webhookInput.callback(value) end,
+    function(value) return type(value) == "string" and #value <= 2048 and (value == "" or ShiftWebhook.validUrl(value)) end)
+ConfigStore.control("shiftReports", false, reportToggle, function() return ShiftWebhook.enabled end,
+    function(value) reportToggle.callback(value) end, ConfigStore.boolean)
+misc:CreateSection({ name = "Configuration" })
+misc:CreateButton({ name = "Save config", callback = function() ConfigStore.buttonAction(ConfigStore.save) end })
+misc:CreateButton({ name = "Reset to default", callback = function() ConfigStore.buttonAction(ConfigStore.reset) end })
+pcall(updateTrainBoard)
+local configLoaded, configMessage = ConfigStore.load()
+if not configLoaded or configMessage == "Loaded config; invalid settings were reset to defaults." then
+    setthreadidentity(8)
+    notify(configMessage)
+end
 log("Ready. Enable Autopilot only after the vehicle has loaded.")
