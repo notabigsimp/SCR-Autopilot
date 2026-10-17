@@ -3913,6 +3913,7 @@ state.destroy = function()
     TicketAssist.setEnabled(false)
     stopAntiAfk()
     funCamera:destroy()
+    if state.unsupportedPopup then state.unsupportedPopup:Close(); state.unsupportedPopup = nil end
     if state.confirmationPopup then state.confirmationPopup:Close(); state.confirmationPopup = nil end
     connection:Disconnect()
     if shutdownConnection then shutdownConnection:Disconnect(); shutdownConnection = nil end
@@ -3946,7 +3947,7 @@ local function confirmTermination()
     local popup = window:Popup({
         title = "⚠ Terminate Script?",
         content = "This removes the GUI and stops all Autopilot work. Hold the red button for 2 seconds to quit. Release early to cancel the hold.",
-        dismissable = true,
+        dismissable = false,
         options = {
             { text = "Cancel", style = "neutral" },
             { text = "HOLD TO TERMINATE", style = "danger" },
@@ -4104,3 +4105,71 @@ if not configLoaded or configMessage == "Loaded config; invalid settings were re
     notify(configMessage)
 end
 log("Ready. Enable Autopilot only after the vehicle has loaded.")
+
+-- Unsupported-game warning uses the normal window without interrupting startup.
+do
+    if game.GameId ~= 300039023 then
+        local teleport = game:GetService("TeleportService")
+        local player = game:GetService("Players").LocalPlayer
+        local busy, queued = false, false
+        local showUnsupported
+        local function failed(reason)
+            busy = false
+            if not state.alive then return end
+            notify("Could not join SCR: " .. tostring(reason))
+            task.defer(function()
+                if state.alive then showUnsupported("Could not join SCR: " .. tostring(reason) .. ". Please try again.") end
+            end)
+        end
+        local function join()
+            if busy or not state.alive then return end
+            busy = true
+            local ok, reason = pcall(function()
+                if not queued then
+                    local queue = queue_on_teleport or queue_on_tp or queueonteleport or queueontp
+                        or (syn and syn.queue_on_teleport)
+                    assert(type(queue) == "function", "Your executor does not support queue_on_teleport")
+                    local source = env.SCRAutopilotSource
+                    local loader = type(source) == "string" and source ~= ""
+                        and ("local source = " .. string.format("%q", source) .. "\ngetgenv().SCRAutopilotSource = source\n")
+                        or 'local source = game:HttpGet("https://raw.githubusercontent.com/notabigsimp/SCR-Autopilot/main/scrap.luau")\n'
+                    queue('if not game:IsLoaded() then game.Loaded:Wait() end\nif game.GameId ~= 300039023 then return end\n'
+                        .. loader .. 'local run, err = loadstring(source)\nassert(run, err)\nrun()')
+                    queued = true
+                end
+                teleport:Teleport(696347899, player)
+            end)
+            if not ok then failed(reason) end
+        end
+        showUnsupported = function(content)
+            if state.unsupportedPopup and not state.unsupportedPopup._closed then state.unsupportedPopup:Close() end
+            -- Popup buttons capture these colors during construction, including hover.
+            -- Restore the original theme immediately so other controls retain their colors.
+            local original = window.theme
+            local colors = table.clone(original)
+            colors.NeutralButton = Color3.fromRGB(0, 0, 0)
+            colors.NeutralButtonHover = Color3.fromRGB(20, 20, 20)
+            colors.NeutralButtonStroke = Color3.fromRGB(65, 65, 65)
+            colors.AccentColor = Color3.fromRGB(24, 160, 80)
+            colors.AccentStroke = Color3.fromRGB(32, 180, 95)
+            window.theme = colors
+            local ok, popup = pcall(function()
+                return window:Popup({
+                    title = "Game not supported",
+                    content = content or "SCR Autopilot does not support this game. Join Stepford County Railway to use the script.",
+                    dismissable = false,
+                    options = {
+                        { text = "Close", style = "neutral" },
+                        { text = "Join", style = "primary", callback = join },
+                    },
+                })
+            end)
+            window.theme = original
+            if ok then state.unsupportedPopup = popup else warn("SCR Autopilot popup failed: " .. tostring(popup)) end
+        end
+        window:Connect(teleport.TeleportInitFailed, function(who, _, reason, placeId)
+            if state.alive and busy and who == player and placeId == 696347899 then failed(reason) end
+        end)
+        showUnsupported()
+    end
+end
