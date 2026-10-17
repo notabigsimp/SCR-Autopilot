@@ -2369,7 +2369,7 @@ local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",val
         ShiftWebhook.setStatus(value and "Disconnection notifications enabled."
             or (ShiftWebhook.enabled and "Live shift reports enabled." or "Disabled"))
     end})
-local discordPingInput=webhookTab:CreateInput({name="Discord user to ping (User ID)",placeholder="User ID or <@123456789012345678> · optional",
+local discordPingInput=webhookTab:CreateInput({name="Ping Discord user ID (optional)",placeholder="User ID here",
     value="",forgetState=true,clearOnFocus=false,callback=function(value)
         ShiftWebhook.pingTarget=tostring(value):match("^%s*(.-)%s*$") or ""
         if ShiftWebhook.pingTarget~="" and not ShiftWebhook.mentionId(ShiftWebhook.pingTarget) then
