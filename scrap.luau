@@ -1604,7 +1604,7 @@ local function powerChoices(mover)
     return { electric, diesel, battery }
 end
 -- SHIFT WEBHOOK HELPERS: credentials remain in the user's local webhook setting.
-local ShiftWebhook = { enabled=false,url="",current=nil,threads={},summarySeen=false }
+local ShiftWebhook = { enabled=false,disconnectEnabled=false,pingTarget="",url="",current=nil,threads={},summarySeen=false }
 function ShiftWebhook.clean(value,limit)
     local text=tostring(value or "Unknown"):gsub("[`\r\n]"," "):gsub("@","＠")
     local length=utf8.len(text)
@@ -2094,7 +2094,7 @@ function ShiftWebhook.queue(report)
     end
     report.dirty=true
     if report.worker then return end
-    local job={}
+    local job={kind="shift"}
     report.worker=job
     ShiftWebhook.threads[job]=true
     job.thread=task.defer(function()
@@ -2198,8 +2198,80 @@ function ShiftWebhook.complete(summary)
     report.phase="complete"
     ShiftWebhook.queue(report)
 end
+function ShiftWebhook.mentionId(value)
+    local text=tostring(value or ""):match("^%s*(.-)%s*$") or ""
+    local id=text:match("^<@!?(%d+)>$") or text:match("^(%d+)$")
+    return id and #id>=17 and #id<=20 and id or nil
+end
+function ShiftWebhook.disconnectPayload(identity)
+    local id=ShiftWebhook.mentionId(ShiftWebhook.pingTarget)
+    local name=ShiftWebhook.clean(game:GetService("Players").LocalPlayer.Name,80)
+    return {username=identity.username,avatar_url=identity.avatar_url,content=id and ("<@"..id..">") or "",
+        allowed_mentions={parse={},users=id and {id} or {}},embeds={{title="SCR Autopilot",
+            description="**Player "..name.." disconnected!**",color=0xF04A47,
+            thumbnail={url="https://static.wikia.nocookie.net/bee-swarm-simulator/images/7/7f/Eviction.png"}}}}
+end
+function ShiftWebhook.sendDisconnect()
+    if not ShiftWebhook.validUrl(ShiftWebhook.url) then ShiftWebhook.setStatus("Disconnect notification skipped: enter a valid webhook link.");return end
+    local url=ShiftWebhook.apiUrl(ShiftWebhook.url).."?wait=true"
+    local job={kind="disconnect"}
+    ShiftWebhook.threads[job]=true
+    job.thread=task.defer(function()
+        local ok,reason=pcall(function()
+            local send=ShiftWebhook.http()
+            if type(send)~="function" then return "HTTP request API unavailable." end
+            local payload=ShiftWebhook.disconnectPayload(ShiftWebhook.identity(send))
+            local body=game:GetService("HttpService"):JSONEncode(payload)
+            for attempt=1,3 do
+                if not state.alive or job.cancelled or not ShiftWebhook.disconnectEnabled then return "cancelled" end
+                local response=send({Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=body})
+                local code=type(response)=="table" and tonumber(response.StatusCode)
+                if code and code>=200 and code<300 then return "sent" end
+                if code~=429 then return "HTTP "..tostring(code or "unknown") end
+                local decoded,data=pcall(function() return game:GetService("HttpService"):JSONDecode(response.Body) end)
+                local delay=decoded and type(data)=="table" and tonumber(data.retry_after) or 2
+                if not delay or delay~=delay then delay=2 end
+                if attempt<3 then task.wait(math.clamp(delay,1,60)) end
+            end
+            return "Rate limited."
+        end)
+        ShiftWebhook.threads[job]=nil
+        if state.alive and not job.cancelled then
+            ShiftWebhook.setStatus(ok and reason=="sent" and "Disconnection notification sent."
+                or "Disconnect notification failed: "..(ok and reason or "request error"))
+        end
+    end)
+end
+function ShiftWebhook.cancelJobs(kind)
+    for job in pairs(ShiftWebhook.threads) do
+        if job.kind==kind then
+            job.cancelled=true
+            if job.thread then pcall(task.cancel,job.thread) end
+            ShiftWebhook.threads[job]=nil
+        end
+    end
+end
+function ShiftWebhook.watchDisconnect()
+    local needed=ShiftWebhook.enabled or ShiftWebhook.disconnectEnabled
+    if not needed then
+        if ShiftWebhook.errorConnection then ShiftWebhook.errorConnection:Disconnect();ShiftWebhook.errorConnection=nil end
+        ShiftWebhook.disconnectSeen=false
+        return
+    end
+    local gui:any=game:GetService("GuiService")
+    if not ShiftWebhook.errorConnection then
+        ShiftWebhook.errorConnection=gui.ErrorMessageChanged:Connect(ShiftWebhook.disconnected)
+    end
+    ShiftWebhook.disconnected(gui:GetErrorMessage())
+end
 function ShiftWebhook.disconnected(message)
-    if not state.alive or not ShiftWebhook.enabled or type(message)~="string" or message=="" then return end
+    if not state.alive or type(message)~="string" then return end
+    if message=="" then ShiftWebhook.disconnectSeen=false;return end
+    if ShiftWebhook.disconnectEnabled and not ShiftWebhook.disconnectSeen then
+        ShiftWebhook.disconnectSeen=true -- One standalone alert per disconnect, even if SCR repeats the error.
+        ShiftWebhook.sendDisconnect()
+    end
+    if not ShiftWebhook.enabled then return end
     local report=ShiftWebhook.current
     if not report or report.phase~="live" then return end
     pcall(function() ShiftWebhook.elapsed(report) end)
@@ -2279,18 +2351,29 @@ local webhookInput=webhookTab:CreateInput({name="Discord webhook link",placehold
 local reportToggle=webhookTab:CreateToggle({name="Send live shift report",value=false,forgetState=true,
     description="Create one image at job creation, replace it on station arrival, and finish it on completion or disconnection.",callback=function(value)
         ShiftWebhook.enabled=value
-        if ShiftWebhook.errorConnection then ShiftWebhook.errorConnection:Disconnect();ShiftWebhook.errorConnection=nil end
         if value then
-            local gui:any=game:GetService("GuiService")
-            ShiftWebhook.errorConnection=gui.ErrorMessageChanged:Connect(ShiftWebhook.disconnected)
             ShiftWebhook.setStatus("Waiting for a shift.")
-            ShiftWebhook.disconnected(gui:GetErrorMessage())
         else
-            for job in pairs(ShiftWebhook.threads) do if job.thread then pcall(task.cancel,job.thread) end end
-            table.clear(ShiftWebhook.threads)
+            ShiftWebhook.cancelJobs("shift")
             if ShiftWebhook.current then ShiftWebhook.current.cancelled=true end
             ShiftWebhook.current=nil
-            ShiftWebhook.setStatus("Disabled")
+            ShiftWebhook.setStatus(ShiftWebhook.disconnectEnabled and "Disconnection notifications enabled." or "Disabled")
+        end
+        ShiftWebhook.watchDisconnect()
+    end})
+local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",value=false,forgetState=true,
+    description="Send a separate red notification on disconnection, including when no shift is active.",callback=function(value)
+        ShiftWebhook.disconnectEnabled=value
+        if not value then ShiftWebhook.cancelJobs("disconnect") end
+        ShiftWebhook.watchDisconnect()
+        ShiftWebhook.setStatus(value and "Disconnection notifications enabled."
+            or (ShiftWebhook.enabled and "Live shift reports enabled." or "Disabled"))
+    end})
+local discordPingInput=webhookTab:CreateInput({name="Discord user to ping (User ID)",placeholder="User ID or <@123456789012345678> · optional",
+    value="",forgetState=true,clearOnFocus=false,callback=function(value)
+        ShiftWebhook.pingTarget=tostring(value):match("^%s*(.-)%s*$") or ""
+        if ShiftWebhook.pingTarget~="" and not ShiftWebhook.mentionId(ShiftWebhook.pingTarget) then
+            ShiftWebhook.setStatus("To ping a user, paste their Discord User ID or <@ID>, not their username.")
         end
     end})
 webhookTab:CreateButton({name="Test webhook",callback=function()
@@ -3980,6 +4063,11 @@ ConfigStore.control("webhookUrl", "", webhookInput, function() return ShiftWebho
     function(value) return type(value) == "string" and #value <= 2048 and (value == "" or ShiftWebhook.validUrl(value)) end)
 ConfigStore.control("shiftReports", false, reportToggle, function() return ShiftWebhook.enabled end,
     function(value) reportToggle.callback(value) end, ConfigStore.boolean)
+ConfigStore.control("disconnectPing", "", discordPingInput, function() return ShiftWebhook.pingTarget end,
+    function(value) discordPingInput.callback(value) end,
+    function(value) return type(value)=="string" and #value<=80 and (value=="" or ShiftWebhook.mentionId(value)~=nil) end)
+ConfigStore.control("disconnectNotification", false, disconnectToggle, function() return ShiftWebhook.disconnectEnabled end,
+    function(value) disconnectToggle.callback(value) end, ConfigStore.boolean)
 for _, key in ipairs({ "operator", "train", "route" }) do
     local setting = key
     ConfigStore.bind("farm_" .. setting, "", function() return AutoFarm[setting] or "" end, function(value)
