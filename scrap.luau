@@ -1605,7 +1605,7 @@ local function powerChoices(mover)
     return { electric, diesel, battery }
 end
 -- SHIFT WEBHOOK HELPERS: credentials remain in the user's local webhook setting.
-local ShiftWebhook = { enabled=false,disconnectEnabled=false,pingTarget="",pingMode={"Disconnect webhook"},url="",current=nil,threads={},summarySeen=false }
+local ShiftWebhook = { enabled=false,disconnectEnabled=false,despawnEnabled=false,pingTarget="",pingMode={"Disconnect webhook"},url="",current=nil,threads={},summarySeen=false }
 function ShiftWebhook.clean(value,limit)
     local text=tostring(value or "Unknown"):gsub("[`\r\n]"," "):gsub("@","＠")
     local length=utf8.len(text)
@@ -2208,22 +2208,23 @@ function ShiftWebhook.pingSelection(value)
     -- Migrate the previous single-choice config to independent selections.
     if value=="Both" then return {"Live webhook","Disconnect webhook"} end
     if value=="None" then return {} end
-    if value=="Live webhook" or value=="Disconnect webhook" then return {value} end
+    if value=="Live webhook" or value=="Disconnect webhook" or value=="Accidental despawn webhook" then return {value} end
     if type(value)~="table" then return nil end
     local selected={}
     for key,option in pairs(value) do
         if type(key)~="number" or key%1~=0 or key<1 or key>#value
-            or (option~="Live webhook" and option~="Disconnect webhook") or selected[option] then return nil end
+            or (option~="Live webhook" and option~="Disconnect webhook" and option~="Accidental despawn webhook") or selected[option] then return nil end
         selected[option]=true
     end
     local result={}
-    for _,option in ipairs({"Live webhook","Disconnect webhook"}) do
+    for _,option in ipairs({"Live webhook","Disconnect webhook","Accidental despawn webhook"}) do
         if selected[option] then table.insert(result,option) end
     end
     return result
 end
 function ShiftWebhook.pingId(kind)
-    local option=kind=="live" and "Live webhook" or kind=="disconnect" and "Disconnect webhook" or nil
+    local option=kind=="live" and "Live webhook" or kind=="disconnect" and "Disconnect webhook"
+        or kind=="despawn" and "Accidental despawn webhook" or nil
     if option and table.find(ShiftWebhook.pingMode,option) then
         return ShiftWebhook.mentionId(ShiftWebhook.pingTarget)
     end
@@ -2237,19 +2238,33 @@ function ShiftWebhook.disconnectPayload(identity)
             description="**Player "..name.." disconnected!**",color=0xF04A47,
             thumbnail={url="https://static.wikia.nocookie.net/bee-swarm-simulator/images/7/7f/Eviction.png"}}}}
 end
-function ShiftWebhook.sendDisconnect()
-    if not ShiftWebhook.validUrl(ShiftWebhook.url) then ShiftWebhook.setStatus("Disconnect notification skipped: enter a valid webhook link.");return end
+function ShiftWebhook.despawnPayload(identity,reason)
+    local payload=ShiftWebhook.disconnectPayload(identity)
+    local id=ShiftWebhook.pingId("despawn")
+    payload.content=id and ("<@"..id..">") or ""
+    payload.allowed_mentions={parse={},users=id and {id} or {}}
+    payload.embeds[1].description="**Player "..ShiftWebhook.clean(game:GetService("Players").LocalPlayer.Name,80)
+        .."'s train was accidentally despawned!**\nReason: "..ShiftWebhook.clean(reason,1000)
+    payload.embeds[1].thumbnail.url="https://static.wikia.nocookie.net/roblox/images/0/05/Spawn_Decal.png/revision/latest?cb=20240608072018"
+    return payload
+end
+function ShiftWebhook.sendAlert(kind,despawnReason)
+    local label=kind=="despawn" and "Accidental despawn" or "Disconnection"
+    if not ShiftWebhook.validUrl(ShiftWebhook.url) then ShiftWebhook.setStatus(label.." notification skipped: enter a valid webhook link.");return end
     local url=ShiftWebhook.apiUrl(ShiftWebhook.url).."?wait=true"
-    local job={kind="disconnect"}
+    local job={kind=kind}
     ShiftWebhook.threads[job]=true
     job.thread=task.defer(function()
-        local ok,reason=pcall(function()
+        local ok,result=pcall(function()
+            setthreadidentity(8) -- This child may originate from SCR's native GUI callback.
             local send=ShiftWebhook.http()
             if type(send)~="function" then return "HTTP request API unavailable." end
-            local payload=ShiftWebhook.disconnectPayload(ShiftWebhook.identity(send))
+            local identity=ShiftWebhook.identity(send)
+            local payload=kind=="despawn" and ShiftWebhook.despawnPayload(identity,despawnReason) or ShiftWebhook.disconnectPayload(identity)
             local body=game:GetService("HttpService"):JSONEncode(payload)
             for attempt=1,3 do
-                if not state.alive or job.cancelled or not ShiftWebhook.disconnectEnabled then return "cancelled" end
+                local enabled=kind=="despawn" and ShiftWebhook.despawnEnabled or kind=="disconnect" and ShiftWebhook.disconnectEnabled
+                if not state.alive or job.cancelled or not enabled then return "cancelled" end
                 local response=send({Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=body})
                 local code=type(response)=="table" and tonumber(response.StatusCode)
                 if code and code>=200 and code<300 then return "sent" end
@@ -2263,10 +2278,70 @@ function ShiftWebhook.sendDisconnect()
         end)
         ShiftWebhook.threads[job]=nil
         if state.alive and not job.cancelled then
-            ShiftWebhook.setStatus(ok and reason=="sent" and "Disconnection notification sent."
-                or "Disconnect notification failed: "..(ok and reason or "request error"))
+            ShiftWebhook.setStatus(ok and result=="sent" and (label.." notification sent.")
+                or label.." notification failed: "..(ok and result or "request error"))
         end
     end)
+end
+function ShiftWebhook.sendDisconnect()
+    ShiftWebhook.sendAlert("disconnect")
+end
+function ShiftWebhook.sendDespawn(reason)
+    ShiftWebhook.sendAlert("despawn",reason)
+end
+function ShiftWebhook.detachDespawn()
+    local observer=ShiftWebhook.despawnObserver
+    if observer and observer.gui.DisplayMessage==observer.wrapper then observer.gui.DisplayMessage=observer.original end
+    ShiftWebhook.despawnObserver=nil
+end
+function ShiftWebhook.attachDespawn(gui,trainDriver)
+    ShiftWebhook.detachDespawn()
+    -- SCR v3774 Deactivate closes over one function: deactivateTrainDriver.
+    -- Its DisplayMessage(reason,"red") call happens only after removal of an active
+    -- train; manual despawn/completion use nil and never take that branch.
+    local deactivate
+    for _,value in pairs(getupvalues(trainDriver.Deactivate)) do
+        if type(value)=="function" then
+            if deactivate then error("Ambiguous SCR deactivation handler") end
+            deactivate=value
+        end
+    end
+    assert(deactivate and type(gui.DisplayMessage)=="function","SCR despawn handler unavailable")
+    local original=gui.DisplayMessage
+    local observer={gui=gui,original=original}
+    observer.wrapper=function(reason,color,...)
+        local fromDespawn=debug.info(2,"f")==deactivate
+        local result=table.pack(original(reason,color,...))
+        if fromDespawn and color=="red" and type(reason)=="string" and reason:match("%S")
+            and state.alive and ShiftWebhook.despawnEnabled and ShiftWebhook.despawnObserver==observer then
+            -- Report after the native red warning has been accepted. Preserve all
+            -- original arguments, returns and errors; no train controls are changed.
+            local ok=pcall(ShiftWebhook.sendDespawn,reason)
+            if not ok then ShiftWebhook.setStatus("Accidental despawn notification failed: observer error.") end
+        end
+        return table.unpack(result,1,result.n)
+    end
+    gui.DisplayMessage=observer.wrapper
+    ShiftWebhook.despawnObserver=observer
+end
+function ShiftWebhook.setDespawnEnabled(value)
+    ShiftWebhook.despawnEnabled=value and state.alive
+    ShiftWebhook.detachDespawn()
+    if not ShiftWebhook.despawnEnabled then ShiftWebhook.cancelJobs("despawn");return true end
+    local ok=pcall(function()
+        if not driver then initialize() end
+        local loadGameModule:any=require
+        local gui=loadGameModule(game:GetService("ReplicatedStorage").Modules.Gui.GuiInteraction)
+        ShiftWebhook.attachDespawn(gui,driver)
+    end)
+    if not ok then
+        ShiftWebhook.despawnEnabled=false
+        ShiftWebhook.detachDespawn()
+        ShiftWebhook.setStatus("Accidental despawn watcher unavailable; toggle off and retry.")
+    else
+        ShiftWebhook.setStatus("Watching for accidental train despawns.")
+    end
+    return ok
 end
 function ShiftWebhook.cancelJobs(kind)
     for job in pairs(ShiftWebhook.threads) do
@@ -2383,7 +2458,7 @@ local discordPingInput=webhookTab:CreateInput({name="Ping Discord user ID (optio
             ShiftWebhook.setStatus("To ping a user, paste their Discord User ID or <@ID>, not their username.")
         end
     end})
-local webhookPingMode=webhookTab:CreateDropdown({name="Ping for",options={"Live webhook","Disconnect webhook"},
+local webhookPingMode=webhookTab:CreateDropdown({name="Ping for",options={"Live webhook","Disconnect webhook","Accidental despawn webhook"},
     multiSelect=true,value={"Disconnect webhook"},forgetState=true,placeholder="No pings",
     callback=function(value) ShiftWebhook.pingMode=ShiftWebhook.pingSelection(value) or {} end})
 webhookTab:CreateButton({name="Test webhook",callback=function()
@@ -2412,6 +2487,13 @@ local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",val
         ShiftWebhook.watchDisconnect()
         ShiftWebhook.setStatus(value and "Disconnection notifications enabled."
             or (ShiftWebhook.enabled and "Live shift reports enabled." or "Disabled"))
+    end})
+webhookTab:CreateSection({name="Accidental despawn webhook"})
+local despawnToggle
+despawnToggle=webhookTab:CreateToggle({name="Send on accidental despawn",value=false,forgetState=true,
+    description="Notify only when SCR removes your train with a red despawn-reason warning. Normal despawns and shift completion do not notify.",
+    callback=function(value)
+        if not ShiftWebhook.setDespawnEnabled(value) and despawnToggle then despawnToggle:Set(false,true) end
     end})
 -- END SHIFT WEBHOOK HELPERS
 
@@ -3946,6 +4028,8 @@ state.destroy = function()
         if job.thread then pcall(task.cancel, job.thread) end
     end
     table.clear(ShiftWebhook.threads)
+    ShiftWebhook.despawnEnabled = false
+    pcall(ShiftWebhook.detachDespawn)
     if ShiftWebhook.errorConnection then ShiftWebhook.errorConnection:Disconnect(); ShiftWebhook.errorConnection = nil end
     ShiftWebhook.current = nil; ShiftWebhook.url = ""
     board.cache = nil; board.date = nil
@@ -4097,6 +4181,8 @@ ConfigStore.bind("webhookPingMode", {"Disconnect webhook"}, function() return ta
     end, function(value) return ShiftWebhook.pingSelection(value)~=nil end)
 ConfigStore.control("disconnectNotification", false, disconnectToggle, function() return ShiftWebhook.disconnectEnabled end,
     function(value) disconnectToggle.callback(value) end, ConfigStore.boolean)
+ConfigStore.control("accidentalDespawnNotification", false, despawnToggle, function() return ShiftWebhook.despawnEnabled end,
+    function(value) despawnToggle.callback(value) end, ConfigStore.boolean)
 for _, key in ipairs({ "operator", "train", "route" }) do
     local setting = key
     ConfigStore.bind("farm_" .. setting, "", function() return AutoFarm[setting] or "" end, function(value)
