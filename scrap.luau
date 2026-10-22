@@ -1577,6 +1577,7 @@ local function resetTrain(mover)
 end
 local function disable(reason)
     state.enabled = false; state.generation += 1
+    state.drivingFault = nil
     state.approach = nil
     state.stopTarget = nil
     state.stopOffset = DEFAULT_STOP_OFFSET; state.undershoot = nil; state.loadingAttempt = nil
@@ -1604,7 +1605,7 @@ local function powerChoices(mover)
     return { electric, diesel, battery }
 end
 -- SHIFT WEBHOOK HELPERS: credentials remain in the user's local webhook setting.
-local ShiftWebhook = { enabled=false,disconnectEnabled=false,pingTarget="",url="",current=nil,threads={},summarySeen=false }
+local ShiftWebhook = { enabled=false,disconnectEnabled=false,pingTarget="",pingMode={"Disconnect webhook"},url="",current=nil,threads={},summarySeen=false }
 function ShiftWebhook.clean(value,limit)
     local text=tostring(value or "Unknown"):gsub("[`\r\n]"," "):gsub("@","＠")
     local length=utf8.len(text)
@@ -1990,7 +1991,6 @@ function ShiftWebhook.render(report,first,last,page,pages)
 end
 -- END SHIFT PNG RENDERER
 
-ShiftWebhook.status=webhookTab:CreateText({name="Report status",text="Disabled"})
 function ShiftWebhook.setStatus(text)
     if state.alive then setLiveText(ShiftWebhook.status,text) end
 end
@@ -2022,7 +2022,8 @@ end
 function ShiftWebhook.multipart(report,identity)
     local httpService=game:GetService("HttpService")
     local boundary="SCRShift"..httpService:GenerateGUID(false):gsub("%-","")
-    local payload={content="",embeds={},allowed_mentions={parse={}},attachments={}}
+    local id=not report.messageId and ShiftWebhook.pingId("live") or nil
+    local payload={content=id and ("<@"..id..">") or "",embeds={},allowed_mentions={parse={},users=id and {id} or {}},attachments={}}
     if not report.messageId then payload.username=identity.username; payload.avatar_url=identity.avatar_url end
     local chunks={}
     local pages=math.max(1,math.ceil(#report.stops/20))
@@ -2203,8 +2204,33 @@ function ShiftWebhook.mentionId(value)
     local id=text:match("^<@!?(%d+)>$") or text:match("^(%d+)$")
     return id and #id>=17 and #id<=20 and id or nil
 end
+function ShiftWebhook.pingSelection(value)
+    -- Migrate the previous single-choice config to independent selections.
+    if value=="Both" then return {"Live webhook","Disconnect webhook"} end
+    if value=="None" then return {} end
+    if value=="Live webhook" or value=="Disconnect webhook" then return {value} end
+    if type(value)~="table" then return nil end
+    local selected={}
+    for key,option in pairs(value) do
+        if type(key)~="number" or key%1~=0 or key<1 or key>#value
+            or (option~="Live webhook" and option~="Disconnect webhook") or selected[option] then return nil end
+        selected[option]=true
+    end
+    local result={}
+    for _,option in ipairs({"Live webhook","Disconnect webhook"}) do
+        if selected[option] then table.insert(result,option) end
+    end
+    return result
+end
+function ShiftWebhook.pingId(kind)
+    local option=kind=="live" and "Live webhook" or kind=="disconnect" and "Disconnect webhook" or nil
+    if option and table.find(ShiftWebhook.pingMode,option) then
+        return ShiftWebhook.mentionId(ShiftWebhook.pingTarget)
+    end
+    return nil
+end
 function ShiftWebhook.disconnectPayload(identity)
-    local id=ShiftWebhook.mentionId(ShiftWebhook.pingTarget)
+    local id=ShiftWebhook.pingId("disconnect")
     local name=ShiftWebhook.clean(game:GetService("Players").LocalPlayer.Name,80)
     return {username=identity.username,avatar_url=identity.avatar_url,content=id and ("<@"..id..">") or "",
         allowed_mentions={parse={},users=id and {id} or {}},embeds={{title="SCR Autopilot",
@@ -2343,11 +2369,28 @@ function ShiftWebhook.update()
     -- still update in memory, and are included at the next arrival or final update.
     if changed then ShiftWebhook.queue(report) end
 end
+webhookTab:CreateSection({name="Settings"})
+ShiftWebhook.status=webhookTab:CreateText({name="Report status",text="Disabled"})
 local webhookInput=webhookTab:CreateInput({name="Discord webhook link",placeholder="https://discord.com/api/webhooks/...",
     value="",forgetState=true,clearOnFocus=false,callback=function(value)
         ShiftWebhook.url=tostring(value):match("^%s*(.-)%s*$") or ""
         ShiftWebhook.setStatus(ShiftWebhook.validUrl(ShiftWebhook.url) and "Webhook ready." or "Enter a valid Discord webhook link.")
     end})
+local discordPingInput=webhookTab:CreateInput({name="Ping Discord user ID (optional)",placeholder="User ID here",
+    value="",forgetState=true,clearOnFocus=false,callback=function(value)
+        ShiftWebhook.pingTarget=tostring(value):match("^%s*(.-)%s*$") or ""
+        if ShiftWebhook.pingTarget~="" and not ShiftWebhook.mentionId(ShiftWebhook.pingTarget) then
+            ShiftWebhook.setStatus("To ping a user, paste their Discord User ID or <@ID>, not their username.")
+        end
+    end})
+local webhookPingMode=webhookTab:CreateDropdown({name="Ping for",options={"Live webhook","Disconnect webhook"},
+    multiSelect=true,value={"Disconnect webhook"},forgetState=true,placeholder="No pings",
+    callback=function(value) ShiftWebhook.pingMode=ShiftWebhook.pingSelection(value) or {} end})
+webhookTab:CreateButton({name="Test webhook",callback=function()
+    local player=game:GetService("Players").LocalPlayer
+    ShiftWebhook.queue({route="TEST",class="—",driver=player.Name,phase="stopped",stops={},duration="—"})
+end})
+webhookTab:CreateSection({name="Live webhook"})
 local reportToggle=webhookTab:CreateToggle({name="Send live shift report",value=false,forgetState=true,
     description="Create one image at job creation, replace it on station arrival, and finish it on completion or disconnection.",callback=function(value)
         ShiftWebhook.enabled=value
@@ -2361,6 +2404,7 @@ local reportToggle=webhookTab:CreateToggle({name="Send live shift report",value=
         end
         ShiftWebhook.watchDisconnect()
     end})
+webhookTab:CreateSection({name="Disconnect webhook"})
 local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",value=false,forgetState=true,
     description="Send a separate red notification on disconnection, including when no shift is active.",callback=function(value)
         ShiftWebhook.disconnectEnabled=value
@@ -2369,17 +2413,6 @@ local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",val
         ShiftWebhook.setStatus(value and "Disconnection notifications enabled."
             or (ShiftWebhook.enabled and "Live shift reports enabled." or "Disabled"))
     end})
-local discordPingInput=webhookTab:CreateInput({name="Ping Discord user ID (optional)",placeholder="User ID here",
-    value="",forgetState=true,clearOnFocus=false,callback=function(value)
-        ShiftWebhook.pingTarget=tostring(value):match("^%s*(.-)%s*$") or ""
-        if ShiftWebhook.pingTarget~="" and not ShiftWebhook.mentionId(ShiftWebhook.pingTarget) then
-            ShiftWebhook.setStatus("To ping a user, paste their Discord User ID or <@ID>, not their username.")
-        end
-    end})
-webhookTab:CreateButton({name="Test webhook",callback=function()
-    local player=game:GetService("Players").LocalPlayer
-    ShiftWebhook.queue({route="TEST",class="—",driver=player.Name,phase="stopped",stops={},duration="—"})
-end})
 -- END SHIFT WEBHOOK HELPERS
 
 local function preferredPower(mover)
@@ -3120,13 +3153,8 @@ local function nextSignalIsRed(mover)
 end
 
 local function syncAutopilotAvailability(mover)
-    if not state.alive or not master then return end
-    setthreadidentity(8)
-    if mover or state.enabled or AutoFarm.enabled then
-        if master:IsLocked() then master:Unlock() end
-    else
-        if not master:IsLocked() then master:Lock("Waiting for a loaded vehicle and its controller.") end
-    end
+    if not state.alive then return end
+    -- Vehicle availability affects operating status, never the user's ON/OFF choice.
     if not mover and state.mover then
         state.generation += 1
         resetTrain(nil)
@@ -3312,8 +3340,7 @@ local function handleShiftSummary()
         if not state.alive or not state.enabled or state.generation ~= generation then return end
         if name == "QuitToMenu" then
             state.shiftTransition = nil
-            if AutoFarm.enabled then setStatus("Auto Farm - waiting for replacement train")
-            else disable("Disabled - returned to menu") end
+            setStatus("Autopilot armed - waiting for train")
         elseif not summary.Parent or not summary.Visible then
             state.stopSignal = nil; state.approach = nil; state.lastDesired = nil; state.doorCycle = nil
             resetStopOffset(); state.stopTarget = nil
@@ -3328,7 +3355,8 @@ end
 
 local function step()
     if handleShiftSummary() then return end
-    local mover, model = loadedMover()
+    local loaded, mover, model = pcall(loadedMover)
+    if not loaded then mover, model = nil, nil end
     if not mover then
         if state.mover then state.generation += 1; resetTrain(nil) end
         if state.shiftTransition and os.clock() - state.shiftTransition < 30 then
@@ -3438,24 +3466,18 @@ local function step()
 end
 
 master = tab:CreateToggle({ name = "Autopilot", value = false, forgetState = true,
-    description = "Enable automatic driving after your vehicle is ready.", callback = function(enabled)
+    description = "Enable automatic driving, or wait for a train when none is loaded.", callback = function(enabled)
     if not state.alive then return end
     if not enabled then disable(); return end
+    state.drivingFault = nil
+    state.generation += 1; state.enabled = true
+    local generation = state.generation
     local ok, mover = pcall(loadedMover)
-    if not ok or not mover then
-        if AutoFarm.enabled then
-            state.generation += 1; state.enabled = true
-            setStatus("Auto Farm - waiting for train")
-            return
-        end
-        disable("Disabled - vehicle not loaded")
-        syncAutopilotAvailability(nil)
-        notify("Vehicle is not loaded or its controller is unavailable. Autopilot has been turned off.")
-        return
-    end
-    resetTrain(mover); state.generation += 1; state.enabled = true; setStatus("Starting")
+    if not state.alive or not state.enabled or state.generation ~= generation then return end
+    if not ok then mover = nil end
+    resetTrain(mover)
+    setStatus(mover and "Starting" or "Autopilot armed - waiting for train")
 end })
-master:Lock("Waiting for a loaded vehicle and its controller.")
 master:MoveToTop()
 autopilotSection:MoveToTop()
 local maximumSpeedControl = tab:CreateSlider({ name = "Maximum speed", range = { 5, 125 }, increment = 1, value = config.maxSpeed, suffix = " mph",
@@ -3585,12 +3607,7 @@ function AutoFarm.setEnabled(enabled)
     AutoFarm.epoch += 1
     AutoFarm.enabled = enabled and state.alive
     AutoFarm.retryAt = 0
-    if AutoFarm.enabled then
-        if master:IsLocked() then master:Unlock() end
-        master:Set(true, true)
-        master.callback(true)
-    else
-        disable()
+    if not AutoFarm.enabled then
         task.defer(function()
             setthreadidentity(8)
             if not AutoFarm.enabled then pcall(AutoFarm.cancelQueue) end
@@ -3751,7 +3768,7 @@ function AutoFarm.changeSelection()
 end
 tab:CreateSection({ name = "Auto Farm" })
 AutoFarm.masterControl = tab:CreateToggle({ name = "Master switch", value = false, forgetState = true,
-    description = "Spawn the selected train, enable Autopilot and replace it after despawning.",
+    description = "Spawn the selected train and replace it after despawning. Autopilot is controlled separately.",
     callback = AutoFarm.setEnabled })
 AutoFarm.operatorControl = tab:CreateDropdown({ name = "Operator", options = {}, forgetState = true,
     placeholder = "Choose an operator", callback = function(value)
@@ -3880,7 +3897,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
             notify("SPAD manual controls unavailable: " .. tostring(err))
         end
     end
-    if not state.enabled or state.busy then return end
+    if not state.enabled or state.busy or state.drivingFault then return end
     state.busy = true; state.busySince = now
     local generation = state.generation
     state.stepThread = task.defer(function()
@@ -3894,7 +3911,12 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         setLiveText(health, string.format("Updates: %d | Last update: %s\nPending: %s", state.ticks, os.date("%H:%M:%S"),
             #pending > 0 and table.concat(pending, ", ") or "None"))
         if not ok then
-            disable("Fault - " .. tostring(err)); notify("Autopilot stopped: " .. tostring(err))
+            -- Pause work without changing the toggle; OFF/ON explicitly retries the controller.
+            state.drivingFault = tostring(err)
+            state.generation += 1
+            releasePowerHold()
+            setStatus("Autopilot paused - " .. state.drivingFault .. " | Toggle OFF/ON to retry")
+            notify("Autopilot paused. Toggle OFF/ON to retry: " .. state.drivingFault)
         end
     end)
 end)
@@ -4067,6 +4089,12 @@ ConfigStore.control("shiftReports", false, reportToggle, function() return Shift
 ConfigStore.control("disconnectPing", "", discordPingInput, function() return ShiftWebhook.pingTarget end,
     function(value) discordPingInput.callback(value) end,
     function(value) return type(value)=="string" and #value<=80 and (value=="" or ShiftWebhook.mentionId(value)~=nil) end)
+ConfigStore.bind("webhookPingMode", {"Disconnect webhook"}, function() return table.clone(ShiftWebhook.pingMode) end,
+    function(value)
+        local selected=ShiftWebhook.pingSelection(value) or {"Disconnect webhook"}
+        webhookPingMode:Set(selected,true)
+        webhookPingMode.callback(selected)
+    end, function(value) return ShiftWebhook.pingSelection(value)~=nil end)
 ConfigStore.control("disconnectNotification", false, disconnectToggle, function() return ShiftWebhook.disconnectEnabled end,
     function(value) disconnectToggle.callback(value) end, ConfigStore.boolean)
 for _, key in ipairs({ "operator", "train", "route" }) do
