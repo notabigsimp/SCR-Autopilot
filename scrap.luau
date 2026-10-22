@@ -33,22 +33,108 @@ local shutdown = Instance.new("BindableEvent")
 shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "Adaptive driving", sidebarLayout = false, showName = "SCR Autopilot" })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot" })
 local tab = window:CreateTab({ name = "Auto Farm", icon = 125546259422820 })
 local webhookTab = window:CreateTab({ name = "Webhook", icon = 99655312194824 })
 local misc = window:CreateTab({ name = "Misc", icon = 77809595764614 })
 local diagnostics = window:CreateTab({ name = "Diagnostics", icon = 97570727772308 })
+local changelog = window:CreateTab({ name = "Changelog", icon = 99301521321801 })
+-- CHANGELOG: release cards use the normal Rayfield theme and tab scrolling.
+do
+    local panel = changelog:CreateGroup({ direction = "column" })
+    panel.main.Size = UDim2.new(1, -20, 0, 0)
+    panel.main.BackgroundTransparency = 0.35
+    window:Create("UICorner", { CornerRadius = UDim.new(0, 14), Parent = panel.main })
+    window:Create("UIStroke", { Thickness = 1, Transparency = 0.65, Parent = panel.main }, { Color = "SurfaceStroke" })
+    window:Create("UIPadding", {
+        PaddingTop = UDim.new(0, 16), PaddingBottom = UDim.new(0, 16),
+        PaddingLeft = UDim.new(0, 16), PaddingRight = UDim.new(0, 16), Parent = panel.main,
+    })
+    panel.main.BackgroundColor3 = window.theme.StatBackground
+    window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
+    panel:CreateSection({ name = "Recent changes" })
+    local card = panel:CreateText({
+        name = "Version 1.1.0",
+        text = '<font color="#69D98B">+ </font> Train accidental despawn webhook\n'
+            .. '<font color="#69D98B">+ </font> This changelog section\n'
+            .. '<font color="#69D98B">+ </font> Tab icons\n'
+            .. '<font color="#69D98B">+ </font> Bypass speed limit toggle\n'
+            .. '<font color="#E8BC64">~ </font> General UI improvements',
+    })
+    card.main.Size = UDim2.new(1, 0, 0, 0)
+    card.body.LineHeight = 1.45
+    -- Keep the release badge in its own column at the right of the title.
+    card.title.Size = UDim2.new(1, -56, 0, 0)
+    local latest = window:Create("Frame", {
+        Name = "LatestBadge", Size = UDim2.fromOffset(50, 22),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        LayoutOrder = 2, Parent = card.titleRow,
+    })
+    local green = Color3.fromRGB(34, 197, 94)
+    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = latest })
+    window:Create("UIStroke", { Color = green, Thickness = 1, Transparency = 0.1, Parent = latest })
+    window:Create("TextLabel", {
+        Name = "Latest", Text = "Latest", Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1, TextColor3 = green, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+        Parent = latest,
+    }, { FontFace = "Font" })
+end
+-- END CHANGELOG
 local autopilotSection = tab:CreateSection({ name = "Autopilot" })
 local status = tab:CreateText({ name = "Operating status", text = "Disabled" })
 local speedRow = tab:CreateGroup({ direction = "row" })
-local currentSpeedStat = speedRow:CreateStat({ name = "Current speed", value = 0, suffix = " mph", numberEasing = false })
-local desiredSpeedStat = speedRow:CreateStat({ name = "Desired speed", value = 0, suffix = " mph", numberEasing = false })
-local speedLimitStat = speedRow:CreateStat({ name = "Speed limit", value = 0, suffix = " mph", numberEasing = false })
-local telemetry = tab:CreateText({ name = "Signal and stop target", text = "Waiting for a train. Speed cards show 0 while data is unavailable." })
+-- Plain themed speed tiles: no native Stat, accent gradients, glows, or strokes.
+local function createSpeedTile(name, decimals)
+    local slot = speedRow:CreateGroup({ direction = "column" })
+    slot.main.AutomaticSize = Enum.AutomaticSize.None
+    slot.main.Size = UDim2.fromOffset(0, 88)
+    slot.layout:Destroy()
+    local tile = { main = window:Create("Frame", {
+        Name = name, Size = UDim2.fromScale(1, 1), BorderSizePixel = 0,
+        BackgroundTransparency = 0, ZIndex = 5, Parent = slot.main,
+    }, { BackgroundColor3 = "StatBackground" }) }
+    window:Create("UICorner", { Parent = tile.main }, { CornerRadius = "ElementCornerRadius" })
+    local heading = window:Create("TextLabel", {
+        Name = "SpeedHeading", BackgroundTransparency = 1, Text = name,
+        Position = UDim2.fromOffset(12, 12), Size = UDim2.new(1, -24, 0, 18),
+        TextSize = 12, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10, Parent = tile.main,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    local readout = window:Create("TextLabel", {
+        Name = "SpeedReadout", BackgroundTransparency = 1, Text = "—", RichText = true,
+        Position = UDim2.fromOffset(12, 35), Size = UDim2.new(1, -24, 0, 36),
+        TextSize = 27, TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10, Parent = tile.main,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    -- No deltas, accent flashes or digit rolling for frequently updated speed data.
+    tile.value = nil
+    function tile:Set(value)
+        self.value = value
+        local text = value == nil and "—" or string.format(decimals and "%.1f" or "%g", value)
+        text = text .. ' <font size="12">mph</font>'
+        readout.Text = self.overspeed and ('<font color="#F04A47">' .. text .. '</font>') or text
+    end
+    function tile:SetOverspeed(enabled)
+        if self.overspeed == enabled then return end
+        self.overspeed = enabled
+        self:Set(self.value)
+    end
+    tile:Set(nil)
+    return tile
+end
+local currentSpeedStat = createSpeedTile("Current Speed", true)
+local desiredSpeedStat = createSpeedTile("Desired Speed", true)
+local speedLimitStat = createSpeedTile("Speed Limit", false)
+speedRow.layout.Padding = UDim.new(0, 8)
+-- Nested column groups expand their row to full width; restore the normal element inset.
+speedRow.main.Size = UDim2.new(1, -20, 0, 0)
+local telemetry = tab:CreateText({ name = "Signal and stop target", text = "Waiting for a train. Speed cards show — while data is unavailable." })
 -- Signal/deferred callbacks need their executor GUI capabilities refreshed.
 -- Dynamic data also bypasses Gen2's locale binding.
 local function setLiveText(control, text)
     setthreadidentity(8)
+    if control.text == text and control.body.Text == text then return end
     control.text = text
     control.body.Text = text
     control.body.Visible = text ~= ""
@@ -59,7 +145,7 @@ end
 local health = diagnostics:CreateText({ name = "Runtime health", text = "Waiting for updates." })
 local drivingDetails = diagnostics:CreateText({ name = "Braking and motion data", text = "Waiting for a train." })
 local console = diagnostics:CreateConsole({ name = "Results", height = 280, follow = true, maxLines = 250 })
-local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift", mainPower = "Electric", bypassSpad = false }
+local config = { maxSpeed = 125, yellowSpeed = 45, shiftAction = "Continue Shift", mainPower = "Electric", bypassSpad = false, ignoreSpeedLimit = false }
 local INITIAL_BRAKING = 5 -- mph/s fallback until moving full-brake calibration locks
 local DEFAULT_STOP_OFFSET = 0.01
 local BUFFER_STOP_OFFSET = 0.005
@@ -72,7 +158,8 @@ local state = { enabled = false, alive = true, busy = false, generation = 0, mov
     brakeSamples = {}, brakeCalibrated = false, fullBrakeSince = nil, displayThread = nil,
     stopSignal = nil, motionSample = nil, speedChange = nil, shiftTransition = nil, approach = nil,
     responseScale = 0.6, bufferCache = nil, noseCache = nil, stopTarget = nil,
-    stopOffset = DEFAULT_STOP_OFFSET, undershoot = nil, loadingAttempt = nil, miscThread = nil }
+    stopOffset = DEFAULT_STOP_OFFSET, undershoot = nil, loadingAttempt = nil, miscThread = nil,
+    performance = { seconds = 0, stepMs = 0, peakStepMs = 0 } }
 env.SCRAutopilot = state
 local modules, driver, utility, enums, accelerationModel, autoThrottle
 local brakeCurve, zeroBrakeCurve
@@ -496,7 +583,8 @@ local function updateTrainBoard()
         trainPicker:Refresh(options)
         trainBoard.optionsKey = key
     end
-    trainPicker:Set(selected and selected.label or {}, true)
+    local selectedLabel = selected and selected.label or nil
+    if trainPicker.value[1] ~= selectedLabel then trainPicker:Set(selectedLabel or {}, true) end
     resizeTrainPickerLabels(trainDisplay.body.Parent.Parent:FindFirstChild("Train"))
     trainBoard.refreshing = false
     if not selected then trainBoard.selected = nil end
@@ -2809,7 +2897,8 @@ local function signalApproach(mover, signal, distance, now, offset)
     if now >= control.nextPrediction then
         -- Repositioning covers only a few studs: reassess every driving tick,
         -- while retaining the conservative travel margin used for normal stops.
-        control.nextPrediction = now + (offset < 0.01 and 0.05 or 0.2)
+        local finalCreep = control.correcting or (offset < 0.01 and speed <= 6)
+        control.nextPrediction = now + (finalCreep and 0.05 or 0.2)
         -- Stand-off margin plus travel until the next prediction, not just one tick.
         local margin = 0.0004 + speed * 0.2 / 3600
         local available = math.max(0, remaining - margin)
@@ -3248,16 +3337,20 @@ local function updateSpeedCards(mover)
     local missing = {}
     local function update(control, value, name)
         if type(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
-            value = 0
+            value = nil
             table.insert(missing, name)
         end
-        local rounded = math.round(value * 10) / 10
+        local rounded = value and math.round(value * 10) / 10 or nil
         if control.value ~= rounded then control:Set(rounded) end
     end
     update(currentSpeedStat, mover and mover.currentSpeed, "current speed")
-    update(desiredSpeedStat, mover and mover.targetSpeed, "desired speed")
-    update(speedLimitStat, mover and mover.speedLimit, "speed limit")
-    return #missing > 0 and ("Unavailable (shown as 0): " .. table.concat(missing, ", ")) or ""
+    update(desiredSpeedStat, mover and mover.targetSpeed, "requested speed")
+    update(speedLimitStat, mover and mover.speedLimit, "line limit")
+    local speed, limit = mover and mover.currentSpeed, mover and mover.speedLimit
+    local valid = type(speed) == "number" and type(limit) == "number"
+        and speed == speed and limit == limit and math.abs(speed) < math.huge and math.abs(limit) < math.huge
+    currentSpeedStat:SetOverspeed(valid and speed > limit or false)
+    return #missing > 0 and ("Unavailable (shown as —): " .. table.concat(missing, ", ")) or ""
 end
 
 local function updateDrivingData()
@@ -3268,7 +3361,7 @@ local function updateDrivingData()
     local unavailable = updateSpeedCards(mover)
     if not mover then
         state.motionSample = nil; state.speedChange = nil
-        setDrivingData("Waiting for a train. Speed cards show 0 while data is unavailable.")
+        setDrivingData("Waiting for a train. Speed cards show — while data is unavailable.")
         setLiveText(drivingDetails, "Waiting for a train.")
         return
     end
@@ -3296,11 +3389,12 @@ local function updateDrivingData()
         ok and number(distance, "%.4f") or "N/A", number(stationMiles, "%.4f"),
         target and (target.kind .. " / " .. target.name) or "None", number(target and target.distance, "%.4f"),
         unavailable ~= "" and ("\n" .. unavailable) or ""))
-    setLiveText(drivingDetails, string.format("Speed change: %s mph/s | Longitudinal acceleration: %s g\nNose overhang: %s studs | Brake: %s%%\nBrake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi\nModel response: %.2fx | Target: %.6f mi",
+    setLiveText(drivingDetails, string.format("Speed change: %s mph/s | Longitudinal acceleration: %s g\nNose overhang: %s studs | Brake: %s%%\nBrake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi\nModel response: %.2fx | Target: %.6f mi\nNative pause: %s | Junction: %s | Controls locked: %s",
         number(state.speedChange, "%+.2f"), number(state.speedChange and state.speedChange * 0.44704 / 9.80665, "%+.3f"),
         number(target and target.overhang, "%.1f"), number(mover.brake, "%.0f"),
         state.estimate, state.brakeCalibrated and "calibrated / locked" or string.format("fallback / %d samples", #state.brakeSamples),
-        number(prediction and prediction.predictedDistance, "%.4f"), number(prediction and prediction.errorMiles, "%+.4f"), state.responseScale, state.stopOffset))
+        number(prediction and prediction.predictedDistance, "%.4f"), number(prediction and prediction.errorMiles, "%+.4f"), state.responseScale, state.stopOffset,
+        tostring(mover.isPaused), tostring(mover.pauseJunctionId or "None"), tostring(mover.areControlsLocked or mover.areControlsSoftLocked or false)))
 end
 
 local function autoDoors(mover, model)
@@ -3481,7 +3575,7 @@ local function step()
         error("Train speed / speed limit / maxSpeed is unavailable.")
     end
     sampleBraking(mover, os.clock())
-    local desired = math.min(config.maxSpeed, maximum, limit)
+    local desired = math.min(config.maxSpeed, maximum, config.ignoreSpeedLimit and math.huge or limit)
     local stationMiles = stationDistance(model)
     local signal, distance, aspect = signalData(mover)
     if signal and aspect == nil then error("Signal state unavailable.") end
@@ -3567,11 +3661,11 @@ local maximumSpeedControl = tab:CreateSlider({ name = "Maximum speed", range = {
 local cautionSpeedControl = tab:CreateSlider({ name = "Caution/ red signal speed", range = { 5, 125 }, increment = 1, value = config.yellowSpeed, suffix = " mph",
     description = "Speed cap for Standard Caution and all red signals. Red signals still require a stop. Precaution does not restrict speed.",
     callback = function(value) config.yellowSpeed = value end })
+local ignoreSpeedLimitControl = tab:CreateToggle({ name = "Ignore speed limit", value = false, forgetState = true,
+    callback = function(value) config.ignoreSpeedLimit = value end })
 local mainPowerControl = tab:CreateDropdown({ name = "Main power source", options = { "Electric", "Diesel" }, value = config.mainPower,
-    description = "Electric > Diesel > Battery or Diesel > Electric > Battery. Checks for a better source when passenger loading starts.",
     callback = function(value) config.mainPower = value end })
 local afterShiftControl = tab:CreateDropdown({ name = "After shift", options = { "Continue Shift", "Quit To Menu", "Do Nothing" }, value = config.shiftAction,
-    description = "Continue Shift selects Next Leg when available. Quit To Menu returns to the menu and disables Autopilot. Do Nothing leaves the shift summary open for manual action.",
     callback = function(value) config.shiftAction = value end })
 -- AUTO FARM: use SCR's owned stock, route compatibility and native spawn queue.
 function AutoFarm.routeAllowed(route, train)
@@ -3910,6 +4004,8 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     displayElapsed += dt
     bypassElapsed += dt
     if not state.alive then return end
+    local performance = state.performance
+    performance.seconds += dt
     board.elapsed += dt
     TicketAssist.update(dt)
     AutoFarm.update(dt)
@@ -3930,6 +4026,16 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     if displayElapsed >= 0.25 and not state.displayThread then
         displayElapsed = 0
         state.displayThread = task.defer(function()
+            if performance.seconds >= 1 then
+                local pending = {}
+                for key, action in pairs(state.actions) do
+                    table.insert(pending, string.format("%s: %.1fs", key, os.clock() - action.started))
+                end
+                setLiveText(health, string.format("Updates: %d | Mode: %s\nDriving step: %.2f ms | Peak: %.2f ms\nPending: %s",
+                    state.ticks, state.mode, performance.stepMs, performance.peakStepMs,
+                    #pending > 0 and table.concat(pending, ", ") or "None"))
+                performance.seconds = 0
+            end
             local reportOk = pcall(ShiftWebhook.update)
             if not reportOk then ShiftWebhook.setStatus("Report data unavailable; retrying.") end
             local ok, err = pcall(updateDrivingData)
@@ -3984,14 +4090,13 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     local generation = state.generation
     state.stepThread = task.defer(function()
         if not state.alive or not state.enabled or state.generation ~= generation then state.busy = false; return end
+        local started = os.clock()
         local ok, err = pcall(step)
+        performance.stepMs = (os.clock() - started) * 1000
+        performance.peakStepMs = math.max(performance.peakStepMs, performance.stepMs)
         state.busy = false; state.stepThread = nil
         if not state.alive or state.generation ~= generation then return end
         state.lastTick = os.clock(); state.ticks += 1
-        local pending = {}
-        for key, action in pairs(state.actions) do table.insert(pending, string.format("%s: %.1fs", key, os.clock() - action.started)) end
-        setLiveText(health, string.format("Updates: %d | Last update: %s\nPending: %s", state.ticks, os.date("%H:%M:%S"),
-            #pending > 0 and table.concat(pending, ", ") or "None"))
         if not ok then
             -- Pause work without changing the toggle; OFF/ON explicitly retries the controller.
             state.drivingFault = tostring(err)
@@ -4130,6 +4235,8 @@ ConfigStore.control("maxSpeed", 125, maximumSpeedControl, function() return conf
     function(value) config.maxSpeed = value end, ConfigStore.speed)
 ConfigStore.control("yellowSpeed", 45, cautionSpeedControl, function() return config.yellowSpeed end,
     function(value) config.yellowSpeed = value end, ConfigStore.speed)
+ConfigStore.control("ignoreSpeedLimit", false, ignoreSpeedLimitControl, function() return config.ignoreSpeedLimit end,
+    function(value) config.ignoreSpeedLimit = value end, ConfigStore.boolean)
 ConfigStore.control("mainPower", "Electric", mainPowerControl, function() return config.mainPower end,
     function(value) config.mainPower = value end, ConfigStore.oneOf({ "Electric", "Diesel" }))
 ConfigStore.control("shiftAction", "Continue Shift", afterShiftControl, function() return config.shiftAction end,
