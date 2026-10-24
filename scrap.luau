@@ -32,6 +32,154 @@ for gui in pairs(staleGuis) do gui:Destroy() end
 local shutdown = Instance.new("BindableEvent")
 shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
+-- STARTUP: the Rayfield main window stays compact until initialization finishes.
+local startup = {}
+do
+    local tweenService = game:GetService("TweenService")
+    local runService = game:GetService("RunService")
+    local connections, tweens = {}, {}
+    local closed, face, title, stage, track, pulse, shownAt
+    local show, oldClipping, childVisibility
+    local loadingSize = UDim2.fromOffset(320, 134)
+    local function animate(item, info, properties)
+        local tween = tweenService:Create(item, info, properties)
+        table.insert(tweens, tween)
+        tween:Play()
+        return tween
+    end
+    function startup:close()
+        if closed then return end
+        closed = true
+        for _, tween in ipairs(tweens) do tween:Cancel() end
+        for _, connection in ipairs(connections) do connection:Disconnect() end
+        local window = self.window
+        if window and not window.unloaded then
+            if show then window.Show = show end
+            if oldClipping ~= nil then window.main.ClipsDescendants = oldClipping end
+            if face then window:DestroySubtree(face); face = nil end
+        end
+    end
+    function startup:stage(text)
+        if stage and not closed then stage.Text = text end
+    end
+    -- Gen2 has no loading-screen option. Suppress only its new startup logo.
+    local existing = {}
+    for _, root in ipairs({game:GetService("CoreGui"), playerGui}) do
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("ScreenGui") then existing[item] = true end
+        end
+        table.insert(connections, root.DescendantAdded:Connect(function(item)
+            setthreadidentity(8)
+            if item:IsA("ImageLabel") and item.Name == "Banner" and item.Size == UDim2.fromOffset(262, 60) then
+                local screen = item:FindFirstAncestorOfClass("ScreenGui")
+                if screen and not existing[screen] then item.Visible = false end
+            end
+        end))
+    end
+    table.insert(connections, shutdown.Event:Connect(function()
+        startup:close()
+        if startup.window and not startup.window.unloaded then startup.window:Unload() end
+    end))
+    function startup:attach(window)
+        self.window = window
+        if closed then window:Unload(); return false end
+        show = window.Show
+        assert(type(show) == "function" and type(window._firstShow) == "function", "Unsupported Rayfield startup API")
+        -- Hold Gen2's delayed auto-show and keyboard toggle while controls are built.
+        window.Show = function() end
+        oldClipping = window.main.ClipsDescendants
+        childVisibility = {}
+        for _, child in ipairs(window.main:GetChildren()) do
+            if child:IsA("GuiObject") then childVisibility[child] = child.Visible; child.Visible = false end
+        end
+        window.drag.drag.Visible = false
+        local function create(class, properties, theme)
+            return window:Create(class, properties, theme)
+        end
+        face = create("Frame", {
+            Name = "StartupContent", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
+            ZIndex = 20, Parent = window.main,
+        })
+        title = create("TextLabel", {
+            Position = UDim2.fromOffset(24, 22), Size = UDim2.new(1, -48, 0, 26),
+            BackgroundTransparency = 1, Text = window.name, TextSize = 20, TextTransparency = 1,
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21, Parent = face,
+        }, { FontFace = "TitleFont", TextColor3 = "TitlingColor" })
+        stage = create("TextLabel", {
+            Position = UDim2.fromOffset(24, 56), Size = UDim2.new(1, -48, 0, 20),
+            BackgroundTransparency = 1, Text = "Loading interface", TextSize = 12, TextTransparency = 1,
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21, Parent = face,
+        }, { FontFace = "Font", TextColor3 = "TitlingColor" })
+        track = create("Frame", {
+            Position = UDim2.fromOffset(24, 100), Size = UDim2.new(1, -48, 0, 3),
+            BackgroundColor3 = Color3.fromRGB(48, 48, 48), BackgroundTransparency = 1,
+            BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 21, Parent = face,
+        })
+        create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = track })
+        local indicator = create("Frame", {
+            Position = UDim2.fromScale(-0.3, 0), Size = UDim2.fromScale(0.3, 1),
+            BackgroundColor3 = Color3.fromRGB(190, 190, 190), BorderSizePixel = 0,
+            ZIndex = 22, Parent = track,
+        })
+        window.main.Size = UDim2.fromOffset(270, 0)
+        window.main.BackgroundTransparency = 1
+        window.main.ClipsDescendants = true
+        window.main.Visible = true
+        shownAt = os.clock()
+        -- Render the initial state before using the same growth motion as Gen2.
+        runService.RenderStepped:Wait()
+        runService.RenderStepped:Wait()
+        if closed or window.unloaded then return false end
+        local entrance = animate(window.main, TweenInfo.new(0.5, Enum.EasingStyle.Exponential,
+            Enum.EasingDirection.InOut), { Size = loadingSize, BackgroundTransparency = 0 })
+        entrance.Completed:Wait()
+        if closed or window.unloaded then return false end
+        local fade = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        animate(title, fade, { TextTransparency = 0 })
+        animate(stage, fade, { TextTransparency = 0.35 })
+        local contentFade = animate(track, fade, { BackgroundTransparency = 0 })
+        pulse = animate(indicator, TweenInfo.new(1.1, Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut, -1), { Position = UDim2.fromScale(1, 0) })
+        -- Begin Autopilot initialization only after the entire entrance is visible.
+        contentFade.Completed:Wait()
+        return not closed and not window.unloaded
+    end
+    function startup:finish()
+        local window = self.window
+        if closed or not window or window.unloaded then self:close(); return end
+        local remaining = 1.5 - (os.clock() - shownAt)
+        if remaining > 0 then task.wait(remaining) end
+        if closed or window.unloaded then self:close(); return end
+        -- Remove only loading content. The same main Frame remains on screen.
+        self:close()
+        for child, visible in pairs(childVisibility) do child.Visible = visible end
+        window:Show()
+    end
+    function startup:fail()
+        local window = self.window
+        if closed or not window or window.unloaded or not face then self:close(); return false end
+        for _, tween in ipairs(tweens) do tween:Cancel() end
+        track.Visible = false
+        window.main.Size = loadingSize
+        window.main.BackgroundTransparency = 0
+        title.Text = "Couldn't load Autopilot"
+        title.TextTransparency = 0
+        stage.Text = "Check the executor console for details."
+        stage.TextTransparency = 0.35
+        local close = window:Create("TextButton", {
+            Position = UDim2.fromOffset(24, 91), Size = UDim2.new(1, -48, 0, 28),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 40), BorderSizePixel = 0,
+            Text = "Close", TextSize = 12, ZIndex = 21, Parent = face,
+        }, { FontFace = "Font", TextColor3 = "TitlingColor" })
+        window:Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = close })
+        table.insert(connections, close.Activated:Connect(function()
+            startup:close()
+            if not window.unloaded then window:Unload() end
+        end))
+        return true
+    end
+end
+local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot" })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
@@ -54,6 +202,8 @@ do
     end
 end
 -- END RAYFIELD BACKGROUNDS
+if not startup:attach(window) then return end
+startup:stage("Building controls")
 local tab = window:CreateTab({ name = "Auto Farm", icon = 125546259422820 })
 local webhookTab = window:CreateTab({ name = "Webhook", icon = 99655312194824 })
 local misc = window:CreateTab({ name = "Misc", icon = 77809595764614 })
@@ -145,7 +295,7 @@ local function createSpeedTile(name, decimals)
     return tile
 end
 local currentSpeedStat = createSpeedTile("Current Speed", true)
-local desiredSpeedStat = createSpeedTile("Desired Speed", true)
+local desiredSpeedStat = createSpeedTile("Target Speed", true)
 local speedLimitStat = createSpeedTile("Speed Limit", false)
 speedRow.layout.Padding = UDim.new(0, 8)
 -- Nested column groups expand their row to full width; restore the normal element inset.
@@ -4128,8 +4278,56 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         end
     end)
 end)
+-- TERMINATION ANIMATION: runtime teardown finishes before the window closes.
+local function unloadWindow(animate)
+    if window.unloaded then return end
+    if animate ~= true or window.hidden or window.animating or not window.main.Visible then
+        window:Unload()
+        return
+    end
+    local tweenService = game:GetService("TweenService")
+    local ok, err = pcall(function()
+        -- Disconnect UI input before yielding, so no controls can restart stopped work.
+        window.animating = true
+        window._revealing = true
+        window.hidden = true
+        for _, connection in ipairs(window.connections) do connection:Disconnect() end
+        if window.drag then window.drag.drag.Visible = false end
+        local fade = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        for _, item in ipairs(window.main:GetDescendants()) do
+            local properties
+            if item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
+                properties = { TextTransparency = 1, TextStrokeTransparency = 1, BackgroundTransparency = 1 }
+            elseif item:IsA("ImageLabel") or item:IsA("ImageButton") then
+                properties = { ImageTransparency = 1, BackgroundTransparency = 1 }
+            elseif item:IsA("GuiObject") then
+                properties = { BackgroundTransparency = 1 }
+            elseif item:IsA("UIStroke") or item:IsA("UIShadow") then
+                properties = { Transparency = 1 }
+            end
+            if properties then tweenService:Create(item, fade, properties):Play() end
+        end
+        task.wait(fade.Time)
+        if window.unloaded then return end
+        for _, child in ipairs(window.main:GetChildren()) do
+            if child:IsA("GuiObject") then child.Visible = false end
+        end
+        window.main.ClipsDescendants = true
+        local targetWidth = math.max(0, window.main.AbsoluteSize.X - 50)
+        local disappear = tweenService:Create(window.main, TweenInfo.new(0.4,
+            Enum.EasingStyle.Exponential, Enum.EasingDirection.InOut), {
+                Size = UDim2.fromOffset(targetWidth, 0), BackgroundTransparency = 1,
+            })
+        disappear:Play()
+        disappear.Completed:Wait()
+    end)
+    -- An animation error must never prevent the GUI from being removed.
+    if not window.unloaded then window:Unload() end
+    if not ok then warn("SCR Autopilot closing animation failed: " .. tostring(err)) end
+end
+-- END TERMINATION ANIMATION
 local shutdownConnection
-state.destroy = function()
+state.destroy = function(animate)
     if not state.alive then return end
     -- Termination is independent of UI callbacks: teardown continues even if a widget is gone.
     state.alive = false; state.enabled = false; state.generation += 1
@@ -4169,7 +4367,7 @@ state.destroy = function()
     state.busy = false; state.mover = nil; state.doorCycle = nil; state.stationary = nil; state.sample = nil
     shutdown:Destroy()
     if env.SCRAutopilot == state then env.SCRAutopilot = nil end
-    local ok, err = pcall(function() window:Unload() end)
+    local ok, err = pcall(function() unloadWindow(animate) end)
     if not ok then warn("SCR Autopilot GUI unload failed: " .. tostring(err)) end
 end
 shutdownConnection = shutdown.Event:Connect(function() state.destroy() end)
@@ -4227,7 +4425,7 @@ local function confirmTermination()
         end
         local remaining = 2 - (os.clock() - started)
         label.Text = string.format("HOLD… %.1fs", math.max(0, remaining))
-        if remaining <= 0 then resetHold(); state.destroy() end
+        if remaining <= 0 then resetHold(); state.destroy(true) end
     end)
 end
 
@@ -4331,6 +4529,7 @@ end
 misc:CreateSection({ name = "Configuration" })
 misc:CreateButton({ name = "Save config", callback = function() ConfigStore.buttonAction(ConfigStore.save) end })
 misc:CreateButton({ name = "Reset to default", callback = function() ConfigStore.buttonAction(ConfigStore.reset) end })
+startup:stage("Restoring settings")
 pcall(updateTrainBoard)
 local resumeValues = env.SCRAutopilotResumeConfig
 env.SCRAutopilotResumeConfig = nil
@@ -4347,6 +4546,8 @@ if not configLoaded or configMessage == "Loaded config; invalid settings were re
     notify(configMessage)
 end
 log("Ready. Enable Autopilot only after the vehicle has loaded.")
+startup:stage("Ready")
+startup:finish()
 
 -- Unsupported-game warning uses the normal window without interrupting startup.
 do
@@ -4415,3 +4616,14 @@ do
         showUnsupported()
     end
 end
+
+end, function(err) return debug.traceback(tostring(err), 2) end)
+if not startupOk then
+    local running = env.SCRAutopilot
+    if running and type(running.destroy) == "function" then pcall(running.destroy) end
+    if not startup:fail() and startup.window and not startup.window.unloaded then
+        pcall(function() startup.window:Unload() end)
+    end
+    warn("SCR Autopilot startup failed: " .. tostring(startupError))
+end
+-- END STARTUP
