@@ -269,24 +269,46 @@ local function createSpeedTile(name, decimals)
     slot.main.AutomaticSize = Enum.AutomaticSize.None
     slot.main.Size = UDim2.fromOffset(0, 88)
     slot.layout:Destroy()
-    local tile = { main = window:Create("Frame", {
-        Name = name, Size = UDim2.fromScale(1, 1), BorderSizePixel = 0,
-        BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0, ZIndex = 5, Parent = slot.main,
-    }) }
+    -- A native Text control registers the tile with Rayfield's group reveal lifecycle.
+    local tile = slot:CreateText({ name = name, text = "—" })
+    local heading, readout = tile.title, tile.body
+    heading.Parent = tile.main
+    for _, child in ipairs(tile.main:GetChildren()) do
+        if child ~= heading and child ~= readout then window:DestroySubtree(child) end
+    end
+    tile.main.AutomaticSize = Enum.AutomaticSize.None
+    tile.main.Size = UDim2.fromScale(1, 1)
+    tile.main.BackgroundColor3 = Color3.new(1, 1, 1)
+    tile.main.BackgroundTransparency = 1
+    tile.main.ZIndex = 5
     window:Create("UIGradient", { Rotation = 270, Parent = tile.main }, { Color = "ElementGradient" })
     window:Create("UICorner", { Parent = tile.main }, { CornerRadius = "ElementCornerRadius" })
-    local heading = window:Create("TextLabel", {
-        Name = "SpeedHeading", BackgroundTransparency = 1, Text = name,
-        Position = UDim2.fromOffset(12, 12), Size = UDim2.new(1, -24, 0, 18),
-        TextSize = 12, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10, Parent = tile.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    local readout = window:Create("TextLabel", {
-        Name = "SpeedReadout", BackgroundTransparency = 1, Text = "—", RichText = true,
-        Position = UDim2.fromOffset(12, 35), Size = UDim2.new(1, -24, 0, 36),
-        TextSize = 27, TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10, Parent = tile.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    heading.Name = "SpeedHeading"
+    heading.AutomaticSize = Enum.AutomaticSize.None
+    heading.Position = UDim2.fromOffset(12, 12)
+    heading.Size = UDim2.new(1, -24, 0, 18)
+    heading.TextSize = 12
+    heading.TextTransparency = 1
+    heading.TextWrapped = false
+    heading.TextTruncate = Enum.TextTruncate.AtEnd
+    heading.TextColor3 = window.theme.ContentColor
+    window.themeProperties[heading].TextColor3 = "ContentColor"
+    heading.ZIndex = 10
+    readout.Name = "SpeedReadout"
+    readout.AutomaticSize = Enum.AutomaticSize.None
+    readout.Position = UDim2.fromOffset(12, 35)
+    readout.Size = UDim2.new(1, -24, 0, 36)
+    readout.TextSize = 27
+    readout.TextTransparency = 1
+    readout.TextWrapped = false
+    readout.TextTruncate = Enum.TextTruncate.AtEnd
+    readout.ZIndex = 10
+    -- Reuse Rayfield's own reveal timing while preserving the original tile styling.
+    function tile:_setShown(shown, instant)
+        self.window:_reveal(self.main, { BackgroundTransparency = shown and 0 or 1 }, instant)
+        self.window:_reveal(heading, { TextTransparency = shown and 0.3 or 1 }, instant)
+        self.window:_reveal(readout, { TextTransparency = shown and 0 or 1 }, instant)
+    end
     -- No deltas, accent flashes or digit rolling for frequently updated speed data.
     tile.value = nil
     function tile:Set(value)
@@ -301,6 +323,7 @@ local function createSpeedTile(name, decimals)
         self:Set(self.value)
     end
     tile:Set(nil)
+    tile:_setShown(not window.hidden, true)
     return tile
 end
 local currentSpeedStat = createSpeedTile("Current Speed", true)
