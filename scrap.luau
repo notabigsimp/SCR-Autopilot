@@ -1,4 +1,4 @@
--- SCR Autopilot. Direct controller calls; no simulated keyboard input.
+﻿-- SCR Autopilot. Direct controller calls; no simulated keyboard input.
 -- Integration observed in SCR v3772. Live driving/calibration still requires validation.
 -- Execution notification (user-supplied MoonVeil output).
 -- Keep its top-level return inside this function so Autopilot startup continues.
@@ -34,6 +34,26 @@ shutdown.Name = "SCRAutopilotShutdown"
 shutdown.Parent = playerGui
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot" })
+-- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
+-- Apply a solid dark surface only to window/popup backgrounds, not controls.
+do
+    local function solidBackground(frame)
+        if typeof(frame) ~= "Instance" then return end
+        frame.BackgroundColor3 = Color3.fromRGB(23, 23, 23)
+        for _, child in ipairs(frame:GetChildren()) do
+            if child:IsA("UIGradient") then child.Enabled = false end
+        end
+    end
+    solidBackground(window.main)
+    if window.bottomFade then window.bottomFade.Visible = false end
+    local createPopup = window.Popup
+    window.Popup = function(self, ...)
+        local popup = createPopup(self, ...)
+        if popup then solidBackground(popup.card) end
+        return popup
+    end
+end
+-- END RAYFIELD BACKGROUNDS
 local tab = window:CreateTab({ name = "Auto Farm", icon = 125546259422820 })
 local webhookTab = window:CreateTab({ name = "Webhook", icon = 99655312194824 })
 local misc = window:CreateTab({ name = "Misc", icon = 77809595764614 })
@@ -84,7 +104,7 @@ end
 local autopilotSection = tab:CreateSection({ name = "Autopilot" })
 local status = tab:CreateText({ name = "Operating status", text = "Disabled" })
 local speedRow = tab:CreateGroup({ direction = "row" })
--- Plain themed speed tiles: no native Stat, accent gradients, glows, or strokes.
+-- Normal element backgrounds; no native Stat, accent effects, glows, or strokes.
 local function createSpeedTile(name, decimals)
     local slot = speedRow:CreateGroup({ direction = "column" })
     slot.main.AutomaticSize = Enum.AutomaticSize.None
@@ -92,8 +112,9 @@ local function createSpeedTile(name, decimals)
     slot.layout:Destroy()
     local tile = { main = window:Create("Frame", {
         Name = name, Size = UDim2.fromScale(1, 1), BorderSizePixel = 0,
-        BackgroundTransparency = 0, ZIndex = 5, Parent = slot.main,
-    }, { BackgroundColor3 = "StatBackground" }) }
+        BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0, ZIndex = 5, Parent = slot.main,
+    }) }
+    window:Create("UIGradient", { Rotation = 270, Parent = tile.main }, { Color = "ElementGradient" })
     window:Create("UICorner", { Parent = tile.main }, { CornerRadius = "ElementCornerRadius" })
     local heading = window:Create("TextLabel", {
         Name = "SpeedHeading", BackgroundTransparency = 1, Text = name,
@@ -2532,7 +2553,7 @@ function ShiftWebhook.update()
     -- still update in memory, and are included at the next arrival or final update.
     if changed then ShiftWebhook.queue(report) end
 end
-webhookTab:CreateSection({name="Settings"})
+webhookTab:CreateSection({name="Config"})
 ShiftWebhook.status=webhookTab:CreateText({name="Report status",text="Disabled"})
 local webhookInput=webhookTab:CreateInput({name="Discord webhook link",placeholder="https://discord.com/api/webhooks/...",
     value="",forgetState=true,clearOnFocus=false,callback=function(value)
@@ -2569,7 +2590,7 @@ local reportToggle=webhookTab:CreateToggle({name="Send live shift report",value=
     end})
 webhookTab:CreateSection({name="Disconnect webhook"})
 local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",value=false,forgetState=true,
-    description="Send a separate red notification on disconnection, including when no shift is active.",callback=function(value)
+    callback=function(value)
         ShiftWebhook.disconnectEnabled=value
         if not value then ShiftWebhook.cancelJobs("disconnect") end
         ShiftWebhook.watchDisconnect()
@@ -2579,7 +2600,6 @@ local disconnectToggle=webhookTab:CreateToggle({name="Send on disconnection",val
 webhookTab:CreateSection({name="Accidental despawn webhook"})
 local despawnToggle
 despawnToggle=webhookTab:CreateToggle({name="Send on accidental despawn",value=false,forgetState=true,
-    description="Notify only when SCR removes your train with a red despawn-reason warning. Normal despawns and shift completion do not notify.",
     callback=function(value)
         if not ShiftWebhook.setDespawnEnabled(value) and despawnToggle then despawnToggle:Set(false,true) end
     end})
@@ -2897,7 +2917,7 @@ local function signalApproach(mover, signal, distance, now, offset)
     if now >= control.nextPrediction then
         -- Repositioning covers only a few studs: reassess every driving tick,
         -- while retaining the conservative travel margin used for normal stops.
-        local finalCreep = control.correcting or (offset < 0.01 and speed <= 6)
+        local finalCreep = control.correcting or (control.braking and offset < 0.01 and speed <= 6)
         control.nextPrediction = now + (finalCreep and 0.05 or 0.2)
         -- Stand-off margin plus travel until the next prediction, not just one tick.
         local margin = 0.0004 + speed * 0.2 / 3600
@@ -2930,10 +2950,12 @@ local function signalApproach(mover, signal, distance, now, offset)
             return 0, true
         end
         control.zeroCommand = false
-        if control.correcting or (offset < 0.01 and speed <= 6) then
+        if finalCreep then
             -- SCR's positive target floor is 5 mph. At creep speed every gap
             -- forecast enters the same zero-speed phase, so skip the redundant
             -- bisection rather than multiplying CPU work at the faster cadence.
+            -- A distant buffer must not start a crawl while leaving a station:
+            -- normal forecasting must first establish that braking is needed.
             control.braking = true; control.gap = 6; control.cap = 5
             control.predictedDistance = distance - control.zeroMiles
             control.errorMiles = control.predictedDistance - offset
@@ -3346,10 +3368,9 @@ local function updateSpeedCards(mover)
     update(currentSpeedStat, mover and mover.currentSpeed, "current speed")
     update(desiredSpeedStat, mover and mover.targetSpeed, "requested speed")
     update(speedLimitStat, mover and mover.speedLimit, "line limit")
-    local speed, limit = mover and mover.currentSpeed, mover and mover.speedLimit
-    local valid = type(speed) == "number" and type(limit) == "number"
-        and speed == speed and limit == limit and math.abs(speed) < math.huge and math.abs(limit) < math.huge
-    currentSpeedStat:SetOverspeed(valid and speed > limit or false)
+    -- Compare the values actually shown on the cards, not hidden speed decimals.
+    local speed, limit = currentSpeedStat.value, speedLimitStat.value
+    currentSpeedStat:SetOverspeed(speed ~= nil and limit ~= nil and speed > limit or false)
     return #missing > 0 and ("Unavailable (shown as —): " .. table.concat(missing, ", ")) or ""
 end
 
