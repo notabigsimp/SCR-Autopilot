@@ -181,7 +181,7 @@ do
 end
 local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.1", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
 -- Apply a solid dark surface only to window/popup backgrounds, not controls.
 do
@@ -224,12 +224,11 @@ do
     window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
     panel:CreateSection({ name = "Recent changes" })
     local card = panel:CreateText({
-        name = "Version 1.1.0",
-        text = '<font color="#69D98B">+ </font> Train accidental despawn webhook\n'
-            .. '<font color="#69D98B">+ </font> This changelog section\n'
-            .. '<font color="#69D98B">+ </font> Tab icons\n'
-            .. '<font color="#69D98B">+ </font> Bypass speed limit toggle\n'
-            .. '<font color="#E8BC64">~ </font> General UI improvements',
+        name = "Version 1.1.1",
+        text = '<font color="#69D98B">+ </font> Loading window and aminated script termination\n'
+            .. '<font color="#69D98B">+ </font> Use small servers\n'
+            .. '<font color="#E8BC64">~ </font> Fixed issue of the train goes only 5mph after passing a station\n'
+            .. '<font color="#E8BC64">~ </font> Changed the icon of the \'pill\' to our custom one',
     })
     card.main.Size = UDim2.new(1, 0, 0, 0)
     card.body.LineHeight = 1.45
@@ -249,6 +248,16 @@ do
         TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
         Parent = latest,
     }, { FontFace = "Font" })
+    local previousCard = panel:CreateText({
+        name = "Version 1.1.0",
+        text = '<font color="#69D98B">+ </font> Train accidental despawn webhook\n'
+            .. '<font color="#69D98B">+ </font> This changelog section\n'
+            .. '<font color="#69D98B">+ </font> Tab icons\n'
+            .. '<font color="#69D98B">+ </font> Bypass speed limit toggle\n'
+            .. '<font color="#E8BC64">~ </font> General UI improvements',
+    })
+    previousCard.main.Size = UDim2.new(1, 0, 0, 0)
+    previousCard.body.LineHeight = 1.45
 end
 -- END CHANGELOG
 local autopilotSection = tab:CreateSection({ name = "Autopilot" })
@@ -2718,7 +2727,7 @@ local discordPingInput=webhookTab:CreateInput({name="Ping Discord user ID (optio
         end
     end})
 local webhookPingMode=webhookTab:CreateDropdown({name="Ping for",options={"Live webhook","Disconnect webhook","Accidental despawn webhook"},
-    multiSelect=true,value={"Disconnect webhook"},forgetState=true,placeholder="No pings",
+    multiSelect=true,value={"Disconnect webhook", "Accidental despawn webhook"},forgetState=true,placeholder="No pings",
     callback=function(value) ShiftWebhook.pingMode=ShiftWebhook.pingSelection(value) or {} end})
 webhookTab:CreateButton({name="Test webhook",callback=function()
     local player=game:GetService("Players").LocalPlayer
@@ -4201,7 +4210,7 @@ AutoFarm.operatorControl = tab:CreateDropdown({ name = "Operator", options = {},
 AutoFarm.selectionRow = tab:CreateGroup({ direction = "row" })
 AutoFarm.trainColumn = AutoFarm.selectionRow:CreateGroup({ direction = "column" })
 AutoFarm.routeColumn = AutoFarm.selectionRow:CreateGroup({ direction = "column" })
-AutoFarm.trainControl = AutoFarm.trainColumn:CreateDropdown({ name = "Train Class", options = {}, forgetState = true,
+AutoFarm.trainControl = AutoFarm.trainColumn:CreateDropdown({ name = "Train class", options = {}, forgetState = true,
     placeholder = "Choose a train class", callback = function(value)
         if AutoFarm.refreshing or not state.alive then return end
         setthreadidentity(8)
@@ -4217,7 +4226,7 @@ AutoFarm.routeControl = AutoFarm.routeColumn:CreateDropdown({ name = "Route", op
         if entry then AutoFarm.route = entry.data.routeCode; AutoFarm.changeSelection() end
     end })
 AutoFarm.rejoinRow = tab:CreateGroup({ direction = "row" })
-AutoFarm.rejoinControl = AutoFarm.rejoinRow:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
+AutoFarm.rejoinControl = AutoFarm.rejoinRow:CreateToggle({ name = "Auto rejoin", value = false, forgetState = true,
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
 AutoFarm.smallServerControl = AutoFarm.rejoinRow:CreateToggle({ name = "Use small server", value = false, forgetState = true,
     callback = function(enabled) AutoFarm.useSmallServer = enabled end })
