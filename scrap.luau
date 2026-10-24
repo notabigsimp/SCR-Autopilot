@@ -4185,6 +4185,10 @@ tab:CreateSection({ name = "Auto Farm" })
 AutoFarm.masterControl = tab:CreateToggle({ name = "Master switch", value = false, forgetState = true,
     description = "Spawn the selected train and replace it after despawning. Autopilot is controlled separately.",
     callback = AutoFarm.setEnabled })
+tab:CreateButton({ name = "Copy current route", callback = function()
+    local ok = pcall(AutoFarm.copyCurrentRoute)
+    if not ok then notify("Could not read the current route. Try again when your train is loaded.") end
+end })
 AutoFarm.operatorControl = tab:CreateDropdown({ name = "Operator", options = {}, forgetState = true,
     placeholder = "Choose an operator", callback = function(value)
         if AutoFarm.refreshing or not state.alive then return end
@@ -4194,7 +4198,10 @@ AutoFarm.operatorControl = tab:CreateDropdown({ name = "Operator", options = {},
         AutoFarm.operator, AutoFarm.train, AutoFarm.route = entry.data.slug, nil, nil
         AutoFarm.changeSelection()
     end })
-AutoFarm.trainControl = tab:CreateDropdown({ name = "Train Class", options = {}, forgetState = true,
+AutoFarm.selectionRow = tab:CreateGroup({ direction = "row" })
+AutoFarm.trainColumn = AutoFarm.selectionRow:CreateGroup({ direction = "column" })
+AutoFarm.routeColumn = AutoFarm.selectionRow:CreateGroup({ direction = "column" })
+AutoFarm.trainControl = AutoFarm.trainColumn:CreateDropdown({ name = "Train Class", options = {}, forgetState = true,
     placeholder = "Choose a train class", callback = function(value)
         if AutoFarm.refreshing or not state.alive then return end
         setthreadidentity(8)
@@ -4203,21 +4210,16 @@ AutoFarm.trainControl = tab:CreateDropdown({ name = "Train Class", options = {},
         AutoFarm.train, AutoFarm.route = entry.data.slug, nil
         AutoFarm.changeSelection()
     end })
-AutoFarm.routeControl = tab:CreateDropdown({ name = "Route", options = {}, forgetState = true,
-    placeholder = "Choose a route", description = "Choose an unlocked route compatible with the selected train.", callback = function(value)
+AutoFarm.routeControl = AutoFarm.routeColumn:CreateDropdown({ name = "Route", options = {}, forgetState = true,
+    placeholder = "Choose a route", callback = function(value)
         if AutoFarm.refreshing or not state.alive then return end
         local entry = AutoFarm.routeMap and AutoFarm.routeMap[value]
         if entry then AutoFarm.route = entry.data.routeCode; AutoFarm.changeSelection() end
     end })
-tab:CreateButton({ name = "Copy current route", callback = function()
-    local ok = pcall(AutoFarm.copyCurrentRoute)
-    if not ok then notify("Could not read the current route. Try again when your train is loaded.") end
-end })
-AutoFarm.rejoinControl = tab:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
-    description = "Rejoin after disconnecting and queue script execution when supported. Failed teleports retry every 30 seconds.",
+AutoFarm.rejoinRow = tab:CreateGroup({ direction = "row" })
+AutoFarm.rejoinControl = AutoFarm.rejoinRow:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
-AutoFarm.smallServerControl = tab:CreateToggle({ name = "Use small server", value = false, forgetState = true,
-    description = "Prefer the least-populated available public server when joining or rejoining. Join normally if the lookup fails.",
+AutoFarm.smallServerControl = AutoFarm.rejoinRow:CreateToggle({ name = "Use small server", value = false, forgetState = true,
     callback = function(enabled) AutoFarm.useSmallServer = enabled end })
 setBypassSpad = function(enabled)
         if not state.alive then return end
