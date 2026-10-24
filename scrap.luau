@@ -3890,7 +3890,7 @@ function AutoFarm.refresh()
     AutoFarm.train = trainEntry.data.slug
     for index, route in ipairs((AutoFarm.operator and routes[AutoFarm.operator]) or {}) do
         if trainEntry and AutoFarm.routeAllowed(route, trainEntry.data) then
-            local label = route.routeCode .. " · " .. route.name
+            local label = route.routeCode
             table.insert(routeOptions, label)
             AutoFarm.routeMap[label] = { data = route, index = index }
             if route.routeCode == AutoFarm.route then selectedRoute = label end
@@ -4148,6 +4148,39 @@ function AutoFarm.changeSelection()
     end)
     AutoFarm.refresh()
 end
+function AutoFarm.copyCurrentRoute()
+    if not state.alive then return end
+    local mover, model = loadedMover()
+    if not mover or not model then notify("No current driving route to copy."); return end
+    local loadModule: any = require
+    local shop = loadModule(game:GetService("ReplicatedStorage").Modules.Shop)
+    local operators, trains, routes = shop.GetOperators(), shop.GetTrains(), shop.GetRoutes()
+    local operatorName, trainSlug, trainClass, routeCode = model:GetAttribute("Operator"),
+        model:GetAttribute("TrainSlug"), model:GetAttribute("TrainClass"), model:GetAttribute("RouteCode")
+    local operator, train, route
+    for _, entry in ipairs(operators) do
+        if entry.slug == operatorName or entry.name == operatorName then operator = entry; break end
+    end
+    if operator then
+        for _, entry in ipairs(trains[operator.slug] or {}) do
+            if (trainSlug and entry.slug == trainSlug) or (not trainSlug and entry.name == trainClass) then
+                train = entry; break
+            end
+        end
+        for _, entry in ipairs(routes[operator.slug] or {}) do
+            if entry.routeCode == routeCode then route = entry; break end
+        end
+    end
+    -- Validate the complete choice before changing any dropdown selection.
+    if not operator or not train or not route or not train.isUnlocked or train.isComingSoon
+        or not AutoFarm.routeAllowed(route, train) then
+        notify("The current train and route are not available in Auto Farm."); return
+    end
+    AutoFarm.operator, AutoFarm.train, AutoFarm.route = operator.slug, train.slug, route.routeCode
+    AutoFarm.changeSelection()
+    notify("Copied current route: " .. route.routeCode .. " · " .. train.name)
+end
+
 tab:CreateSection({ name = "Auto Farm" })
 AutoFarm.masterControl = tab:CreateToggle({ name = "Master switch", value = false, forgetState = true,
     description = "Spawn the selected train and replace it after despawning. Autopilot is controlled separately.",
@@ -4176,6 +4209,10 @@ AutoFarm.routeControl = tab:CreateDropdown({ name = "Route", options = {}, forge
         local entry = AutoFarm.routeMap and AutoFarm.routeMap[value]
         if entry then AutoFarm.route = entry.data.routeCode; AutoFarm.changeSelection() end
     end })
+tab:CreateButton({ name = "Copy current route", callback = function()
+    local ok = pcall(AutoFarm.copyCurrentRoute)
+    if not ok then notify("Could not read the current route. Try again when your train is loaded.") end
+end })
 AutoFarm.rejoinControl = tab:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
     description = "Rejoin after disconnecting and queue script execution when supported. Failed teleports retry every 30 seconds.",
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
