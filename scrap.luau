@@ -1403,6 +1403,405 @@ funCamera.isRecordingShortcut = function() return window._recordingKeybind ~= ni
 funCamera:setShortcut(Enum.KeyCode.P)
 local zoomToggle = misc:CreateToggle({ name = "Unlock camera zoom", description = "Scroll to zoom out further, including SCR scene cameras.",
     value = false, forgetState = true, callback = function(value) funCamera:setZoom(value) end })
+-- BADGE ASSIST: ownership is verified with Roblox; touching a target is not success by itself.
+local BadgeUnlocker: { [string]: any } = { run = nil, entries = {
+    { name = "The Weight of the World", id = 2124547904 },
+    { name = "Crab Rave", id = 2124626480 },
+    { name = "Visited Every Station", id = 2129052412 },
+    { name = "Bird Guide", id = 222204627316850 },
+    { name = "Pier Pressure", id = 3966841140308429 },
+} }
+state.badgeUnlocker = BadgeUnlocker
+function BadgeUnlocker.check(run, changingStation)
+    assert(state.alive and BadgeUnlocker.run == run and not run.cancelled, "Badge attempt cancelled.")
+    assert(not state.enabled and not AutoFarm.enabled, "Badge attempt stopped because train automation started.")
+    if run.character and not changingStation then
+        local player = game:GetService("Players").LocalPlayer
+        local humanoid = run.character:FindFirstChildOfClass("Humanoid")
+        assert(player.Character == run.character and humanoid and humanoid.Health > 0, "Badge attempt stopped after character changed.")
+    end
+end
+function BadgeUnlocker.wait(run, seconds)
+    local finish = os.clock() + seconds
+    repeat
+        BadgeUnlocker.check(run)
+        task.wait(math.min(0.2, math.max(0, finish - os.clock())))
+    until os.clock() >= finish
+    BadgeUnlocker.check(run)
+end
+function BadgeUnlocker.owned(entry)
+    local service = game:GetService("BadgeService")
+    local player = game:GetService("Players").LocalPlayer
+    local ok, value = pcall(service.UserHasBadgeAsync, service, player.UserId, entry.id)
+    if not ok then return nil end
+    return value == true
+end
+function BadgeUnlocker.update(message)
+    setthreadidentity(8)
+    if not state.alive then return end
+    log(message)
+    notify(message)
+end
+function BadgeUnlocker.report(run, entry, result)
+    run.results[entry.name] = result
+    BadgeUnlocker.update(entry.name .. ": " .. result)
+end
+function BadgeUnlocker.prepare(run)
+    local player = game:GetService("Players").LocalPlayer
+    local loadModule: any = require
+    local root: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    if not player.Team or player.Team.Name ~= "Passengers" then
+        assert(not player.Character, "Return to the menu and select Passenger before attempting badges.")
+        loadModule(root.Gui.GuiInteraction).SelectRole("Passengers")
+        BadgeUnlocker.check(run)
+    end
+    if not player.Character then
+        local result = loadModule(root.Communication).GetFunction("SpawnPlayer"):Invoke("LlynFrontSpawn")
+        BadgeUnlocker.check(run)
+        assert(result == true, "Passenger spawn was rejected: " .. tostring(result))
+        local finish = os.clock() + 10
+        while not player.Character and os.clock() < finish do BadgeUnlocker.wait(run, 0.2) end
+        assert(player.Character, "Passenger character did not load.")
+        loadModule(root.Gui.GuiInteraction).HideMenu()
+    end
+    BadgeUnlocker.check(run)
+    run.character = player.Character
+    run.root = assert(run.character:FindFirstChild("HumanoidRootPart"), "Character root is unavailable.")
+    run.origin = run.character:GetPivot()
+end
+function BadgeUnlocker.move(run, position)
+    BadgeUnlocker.check(run)
+    local player = game:GetService("Players").LocalPlayer
+    if workspace.StreamingEnabled then pcall(player.RequestStreamAroundAsync, player, position, 3) end
+    BadgeUnlocker.check(run)
+    run.character:PivotTo(CFrame.new(position))
+    run.root.AssemblyLinearVelocity = Vector3.zero
+    run.root.AssemblyAngularVelocity = Vector3.zero
+    BadgeUnlocker.wait(run, 1)
+end
+function BadgeUnlocker.touch(run, entry, modelName, position)
+    BadgeUnlocker.move(run, position)
+    local folder = workspace:FindFirstChild("BadgeGivers")
+    local finish = os.clock() + 8
+    local model = folder and folder:FindFirstChild(modelName)
+    while not model and os.clock() < finish do
+        BadgeUnlocker.wait(run, 0.5)
+        model = folder and folder:FindFirstChild(modelName)
+    end
+    assert(model, entry.name .. " target did not stream in.")
+    local touched = false
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
+            BadgeUnlocker.check(run)
+            if type(firetouchinterest) == "function" then
+                -- Real uses 1/true for touch begin and 0/false for touch end.
+                firetouchinterest(run.root, part, true)
+                local waited, waitError = pcall(BadgeUnlocker.wait, run, 0.15)
+                pcall(firetouchinterest, run.root, part, false)
+                if not waited then error(waitError, 0) end
+            else
+                BadgeUnlocker.move(run, part.Position + Vector3.new(0, 3, 0))
+            end
+            touched = true
+        end
+    end
+    assert(touched, entry.name .. " has no loaded touch target.")
+    BadgeUnlocker.wait(run, 12) -- UserHasBadgeAsync can briefly cache the pre-attempt result.
+    BadgeUnlocker.report(run, entry, BadgeUnlocker.owned(entry) and "Unlocked" or "Attempted; award not confirmed")
+end
+function BadgeUnlocker.music(run, entry)
+    local loadModule: any = require
+    local root: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local music = loadModule(root.Music)
+    local data = loadModule(root.ClientData)
+    local communication = loadModule(root.Communication)
+    local saved = false
+    BadgeUnlocker.report(run, entry, "Saving Crab Rave in game settings")
+    for attempt = 1, 3 do
+        BadgeUnlocker.check(run)
+        music.UpdateMenuMusic("crab-rave")
+        data.PushPreferenceChanges() -- This function logs failures without returning success.
+        BadgeUnlocker.check(run)
+        local ok, preferences = communication.GetFunction("GetPreferences"):Invoke()
+        BadgeUnlocker.check(run)
+        saved = ok == true and type(preferences) == "table" and type(preferences.audio) == "table"
+            and preferences.audio.menuMusicSlug == "crab-rave"
+        if saved then break end
+        BadgeUnlocker.report(run, entry, "Settings save not confirmed (attempt " .. attempt .. "/3)")
+        if attempt < 3 then BadgeUnlocker.wait(run, 2) end
+    end
+    assert(saved, "Crab Rave settings did not save on the server; try again later.")
+    BadgeUnlocker.report(run, entry, "Settings saved; waiting for badge confirmation")
+    -- BadgeService may cache the ownership result from before the preference was saved.
+    BadgeUnlocker.wait(run, 12)
+    BadgeUnlocker.report(run, entry, BadgeUnlocker.owned(entry) and "Unlocked"
+        or "Settings saved on server; badge award not confirmed")
+end
+
+function BadgeUnlocker.stationLocations()
+    local folder = game:GetService("ReplicatedStorage"):FindFirstChild("SpawnLocations")
+    assert(folder, "Passenger spawn metadata is unavailable.")
+    local locations = {}
+    for _, station in ipairs(folder:GetChildren()) do
+        local name, points = station:FindFirstChild("PrettyName"), station:FindFirstChild("Locations")
+        if name and name:IsA("StringValue") and points then
+            local candidates = points:GetChildren()
+            table.sort(candidates, function(a, b) return a.Name < b.Name end)
+            for _, point in ipairs(candidates) do
+                local hidden = point:FindFirstChild("Hidden")
+                if point:IsA("StringValue") and point.Value ~= ""
+                    and not (hidden and hidden:IsA("BoolValue") and hidden.Value) then
+                    table.insert(locations, { name = name.Value, slug = point.Value })
+                    break
+                end
+            end
+        end
+    end
+    table.sort(locations, function(a, b) return a.name < b.name end)
+    assert(#locations > 0, "No accessible Passenger spawn locations are available.")
+    return locations
+end
+function BadgeUnlocker.stationWait(run, predicate, timeout, message)
+    local finish = os.clock() + timeout
+    repeat
+        -- Only our deliberate station respawn may replace the character.
+        -- Cancellation and train-automation guards still apply throughout.
+        BadgeUnlocker.check(run, true)
+        if predicate() then return end
+        task.wait(0.1)
+    until os.clock() >= finish
+    error(message, 0)
+end
+function BadgeUnlocker.spawnStation(run, station)
+    BadgeUnlocker.check(run, true)
+    local player = game:GetService("Players").LocalPlayer
+    assert(player.Team and player.Team.Name == "Passengers", "Station tour requires the Passenger role.")
+    local loadModule: any = require
+    local root: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local client = loadModule(root.ClientModule)
+    local gui = loadModule(root.Gui.GuiInteraction)
+    local world = loadModule(root.WorldInteraction)
+    BadgeUnlocker.stationWait(run, function() return not client.GetBusy() end, 10, "SCR is busy; Passenger spawn was not requested.")
+    if player.Character then world.DestroyCharacter() end
+    BadgeUnlocker.stationWait(run, function() return player.Character == nil end, 5, "Previous Passenger character did not despawn.")
+    -- DestroyCharacter sends a native event; allow the server to process it before SpawnPlayer.
+    local settle = os.clock() + 0.4
+    BadgeUnlocker.stationWait(run, function() return os.clock() >= settle end, 2, "Character transition timed out.")
+    local result = loadModule(root.Communication).GetFunction("SpawnPlayer"):Invoke(station.slug)
+    BadgeUnlocker.check(run, true)
+    assert(result == true, station.name .. " spawn rejected: " .. tostring(result))
+    BadgeUnlocker.stationWait(run, function()
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        return character and character:FindFirstChild("HumanoidRootPart") and humanoid and humanoid.Health > 0
+    end, 12, station.name .. " Passenger character did not load.")
+    run.replacedCharacter = true
+    run.character = player.Character
+    run.root = run.character:FindFirstChild("HumanoidRootPart")
+    gui.HideMenu()
+    BadgeUnlocker.wait(run, 3)
+end
+function BadgeUnlocker.stations(run, entry)
+    local locations = BadgeUnlocker.stationLocations()
+    local visited, failed, consecutiveFailures = 0, {}, 0
+    run.visitedStations = {}
+    for index, station in ipairs(locations) do
+        BadgeUnlocker.check(run, true)
+        setthreadidentity(8)
+        BadgeUnlocker.update(string.format("Visiting station %d/%d - %s", index, #locations, station.name))
+        local success, failure
+        for attempt = 1, 2 do
+            run.station = { name = station.name, index = index, total = #locations, attempt = attempt }
+            success, failure = pcall(BadgeUnlocker.spawnStation, run, station)
+            BadgeUnlocker.check(run, true)
+            if success then break end
+            setthreadidentity(8)
+            BadgeUnlocker.update(station.name .. " visit attempt " .. attempt .. " failed: " .. tostring(failure))
+        end
+        if success then
+            visited += 1; consecutiveFailures = 0
+            table.insert(run.visitedStations, station.name)
+            BadgeUnlocker.update(string.format("Visited station %d/%d - %s", index, #locations, station.name))
+        else
+            consecutiveFailures += 1
+            table.insert(failed, station.name)
+            if consecutiveFailures >= 3 then error("Station tour stopped after three consecutive spawn failures: " .. tostring(failure), 0) end
+        end
+    end
+    BadgeUnlocker.check(run)
+    BadgeUnlocker.wait(run, 12)
+    local result = BadgeUnlocker.owned(entry) and "Unlocked"
+        or string.format("Visited %d/%d accessible station spawns; award not confirmed (training Briefing Room may still be required)", visited, #locations)
+    if #failed > 0 then result ..= "; failed: " .. table.concat(failed, ", ") end
+    BadgeUnlocker.report(run, entry, result)
+end
+function BadgeUnlocker.birds(run, entry)
+    local loadModule: any = require
+    local root: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local shared = loadModule(root.SharedConfig).LLYN_BADGE
+    BadgeUnlocker.move(run, Vector3.new(45926.043, 9.161, -15084.813))
+    local target
+    local finish = os.clock() + 8
+    repeat
+        for _, part in ipairs(game:GetService("CollectionService"):GetTagged(shared.PART_TAG)) do
+            if part:IsA("BasePart") then target = part; break end
+        end
+        if not target then BadgeUnlocker.wait(run, 0.5) end
+    until target or os.clock() >= finish
+    assert(target, "Bird Guide target did not stream in.")
+    local ray = RaycastParams.new()
+    ray.FilterType = Enum.RaycastFilterType.Exclude
+    ray.FilterDescendantsInstances = { run.character }
+    local groundRay = RaycastParams.new()
+    groundRay.FilterType = Enum.RaycastFilterType.Exclude
+    groundRay.FilterDescendantsInstances = { run.character }
+    groundRay.RespectCanCollide = true
+    local humanoid = run.character:FindFirstChildOfClass("Humanoid")
+    local standingHeight = run.root.Size.Y / 2 + (humanoid and humanoid.HipHeight or 2) + 0.1
+    local vantage
+    for _, distance in ipairs({ 18, 28, 45 }) do
+        for _, direction in ipairs({ target.CFrame.LookVector, target.CFrame.RightVector,
+            -target.CFrame.LookVector, -target.CFrame.RightVector }) do
+            local candidate = target.Position + direction * distance
+            local floor = workspace:Raycast(candidate + Vector3.new(0, 6, 0), Vector3.new(0, -80, 0), groundRay)
+            if floor then
+                candidate = floor.Position + Vector3.new(0, standingHeight, 0)
+                local cameraPosition = candidate + Vector3.new(0, 3, 0)
+                local hit = workspace:Raycast(cameraPosition, target.Position - cameraPosition, ray)
+                if hit and hit.Instance == target then vantage = candidate; break end
+            end
+        end
+        if vantage then break end
+    end
+    assert(vantage, "Bird Guide target is obstructed from the available viewing positions.")
+    BadgeUnlocker.move(run, vantage)
+    run.zoom = funCamera.zoom
+    if run.zoom then
+        funCamera:setZoom(false)
+        setthreadidentity(8)
+        zoomToggle:Set(false, true)
+    end
+    run.freecam = funCamera.freecam
+    if run.freecam then
+        funCamera:setFreecam(false)
+        setthreadidentity(8)
+        freecamToggle:Set(false, true)
+    end
+    local camera = assert(workspace.CurrentCamera, "Camera is unavailable.")
+    run.camera = { instance = camera, kind = camera.CameraType, subject = camera.CameraSubject,
+        cframe = camera.CFrame, focus = camera.Focus }
+    camera.CameraType = Enum.CameraType.Scriptable
+    setthreadidentity(8)
+    notify("Bird Guide: watching the pigeons for 15 minutes. Press Unlock all badges again to cancel.")
+    local started, nextCheck, nextProgress = os.clock(), 0, 60
+    while os.clock() - started <= shared.WATCH_DURATION_SECONDS + 30 do
+        BadgeUnlocker.check(run)
+        assert(target.Parent and (run.root.Position - target.Position).Magnitude <= shared.MAXIMUM_DISTANCE_STUDS,
+            "Bird Guide interrupted: character left the pigeon area.")
+        camera.CFrame = CFrame.lookAt(run.root.Position + Vector3.new(0, 3, 0), target.Position)
+        camera.Focus = CFrame.new(target.Position)
+        local elapsed = os.clock() - started
+        if elapsed >= nextProgress then
+            nextProgress += 60
+            BadgeUnlocker.update(string.format("Bird Guide: %02d:%02d / %02d:00 watching pigeons",
+                math.floor(elapsed / 60), math.floor(elapsed % 60), math.floor(shared.WATCH_DURATION_SECONDS / 60)))
+        end
+        if os.clock() >= nextCheck then
+            nextCheck = os.clock() + 10
+            if game:GetService("Players").LocalPlayer:GetAttribute(shared.AWARDED_ATTRIBUTE) or BadgeUnlocker.owned(entry) then
+                BadgeUnlocker.report(run, entry, "Unlocked")
+                return
+            end
+        end
+        BadgeUnlocker.wait(run, 0.2)
+    end
+    BadgeUnlocker.report(run, entry, "Watching attempted; server award not confirmed")
+end
+function BadgeUnlocker.cleanup(run)
+    if run.cleaned then return end
+    run.cleaned = true
+    if run.camera then
+        pcall(function()
+            local saved = run.camera
+            saved.instance.CameraType = saved.kind
+            saved.instance.CameraSubject = saved.subject
+            saved.instance.CFrame = saved.cframe
+            saved.instance.Focus = saved.focus
+        end)
+    end
+    local player = game:GetService("Players").LocalPlayer
+    if run.origin and not run.replacedCharacter and player.Character == run.character and not state.enabled and not AutoFarm.enabled then
+        pcall(function() run.character:PivotTo(run.origin) end)
+    end
+    if run.zoom and state.alive then
+        pcall(function() funCamera:setZoom(true); setthreadidentity(8); zoomToggle:Set(true, true) end)
+    end
+    if run.freecam and state.alive then
+        pcall(function() funCamera:setFreecam(true); setthreadidentity(8); freecamToggle:Set(true, true) end)
+    end
+    if BadgeUnlocker.run == run then BadgeUnlocker.run = nil end
+end
+function BadgeUnlocker.start()
+    setthreadidentity(8)
+    if BadgeUnlocker.run then
+        BadgeUnlocker.run.cancelled = true
+        notify(BadgeUnlocker.run.replacedCharacter and "Cancelling badge attempts and restoring your camera."
+            or "Cancelling badge attempts and restoring your position/camera.")
+        return
+    end
+    if not state.alive then return end
+    if state.enabled or AutoFarm.enabled then notify("Turn off Autopilot and Auto Farm before attempting badges."); return end
+    local run: { [string]: any } = { results = {}, cancelled = false }
+    BadgeUnlocker.run = run
+    run.thread = task.defer(function()
+        setthreadidentity(8)
+        local ok, err = pcall(function()
+            local missing = {}
+            for _, entry in ipairs(BadgeUnlocker.entries) do
+                BadgeUnlocker.check(run)
+                if BadgeUnlocker.owned(entry) then BadgeUnlocker.report(run, entry, "Already owned")
+                else missing[entry.name] = entry end
+            end
+            if not next(missing) then return end
+            -- Settings can be saved without moving the passenger.
+            local music = missing["Crab Rave"]
+            if music then
+                local success, failure = pcall(BadgeUnlocker.music, run, music)
+                if not success then BadgeUnlocker.report(run, music, tostring(failure)) end
+                missing["Crab Rave"] = nil
+            end
+            if not next(missing) then return end
+            BadgeUnlocker.prepare(run)
+            local actions = {
+                { "The Weight of the World", function(entry) BadgeUnlocker.touch(run, entry, "yrrebStatue", Vector3.new(724.007, 58.75, 24788.623)) end },
+                { "Pier Pressure", function(entry) BadgeUnlocker.touch(run, entry, "NorthshorePier", Vector3.new(44416.664, 19.5, -25125.469)) end },
+                { "Visited Every Station", function(entry) BadgeUnlocker.stations(run, entry) end },
+                { "Bird Guide", function(entry) BadgeUnlocker.birds(run, entry) end },
+            }
+            for _, action in ipairs(actions) do
+                BadgeUnlocker.check(run)
+                local entry = missing[action[1]]
+                if entry then
+                    BadgeUnlocker.report(run, entry, "Attempting")
+                    local success, failure = pcall(action[2], entry)
+                    BadgeUnlocker.check(run)
+                    if not success then BadgeUnlocker.report(run, entry, tostring(failure)) end
+                end
+            end
+        end)
+        BadgeUnlocker.cleanup(run)
+        setthreadidentity(8)
+        if state.alive then
+            if not ok and not run.cancelled then BadgeUnlocker.update("Badge attempts stopped: " .. tostring(err))
+            else notify(run.cancelled and "Badge attempts cancelled." or "Badge attempts finished. See Diagnostics for per-badge results.") end
+        end
+        BadgeUnlocker.lastResults = run.results
+    end)
+end
+BadgeUnlocker.button = misc:CreateButton({ name = "Unlock all badges",
+    description = "Attempt five exploration badges as a Passenger. Bird Guide takes 15 minutes. Press again to cancel.",
+    callback = BadgeUnlocker.start })
+
 local function initialize()
     modules = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
     local train = modules and modules:FindFirstChild("Train")
@@ -4417,6 +4816,7 @@ state.destroy = function(animate)
     if not state.alive then return end
     -- Termination is independent of UI callbacks: teardown continues even if a widget is gone.
     state.alive = false; state.enabled = false; state.generation += 1
+    if BadgeUnlocker.run then BadgeUnlocker.run.cancelled = true; BadgeUnlocker.cleanup(BadgeUnlocker.run) end
     AutoFarm.enabled = false; AutoFarm.epoch += 1
     AutoFarm.setRejoin(false)
     pcall(AutoFarm.cancelQueue)
