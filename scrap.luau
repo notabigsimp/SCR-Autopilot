@@ -181,7 +181,7 @@ do
 end
 local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot" })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.0", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
 -- Apply a solid dark surface only to window/popup backgrounds, not controls.
 do
@@ -204,7 +204,7 @@ end
 -- END RAYFIELD BACKGROUNDS
 if not startup:attach(window) then return end
 startup:stage("Building controls")
-local tab = window:CreateTab({ name = "Auto Farm", icon = 125546259422820 })
+local tab = window:CreateTab({ name = "Auto Farm", icon = 129821264902164 })
 local webhookTab = window:CreateTab({ name = "Webhook", icon = 99655312194824 })
 local misc = window:CreateTab({ name = "Misc", icon = 77809595764614 })
 local diagnostics = window:CreateTab({ name = "Diagnostics", icon = 97570727772308 })
@@ -4094,6 +4094,41 @@ run()
     if not ok then AutoFarm.clearResume(); error(err, 0) end
     AutoFarm.resumeQueued = true
 end
+function AutoFarm.findSmallServer(placeId)
+    local ok, result = pcall(function()
+        local body = game:HttpGet(string.format(
+            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&excludeFullGames=true&limit=100", placeId))
+        return game:GetService("HttpService"):JSONDecode(body)
+    end)
+    if not ok or type(result) ~= "table" or type(result.data) ~= "table" then
+        error("Small-server list unavailable. No server was joined.", 0)
+    end
+    local best
+    for _, server in ipairs(result.data) do
+        if type(server) == "table" and type(server.id) == "string" and server.id ~= "" and server.id ~= game.JobId
+            and type(server.playing) == "number" and server.playing >= 0 and server.playing % 1 == 0
+            and type(server.maxPlayers) == "number" and server.playing < server.maxPlayers
+            and (not best or server.playing < best.playing) then
+            best = server
+        end
+    end
+    if not best then error("No available small public server found. No server was joined.", 0) end
+    return best.id
+end
+function AutoFarm.joinPlace(placeId)
+    local useSmallServer = AutoFarm.useSmallServer == true
+    local jobId
+    if useSmallServer then
+        local ok, selected = pcall(AutoFarm.findSmallServer, placeId)
+        if ok then jobId = selected end
+    end
+    -- The HTTP request can yield; honour termination or a changed preference.
+    if not state.alive or useSmallServer ~= (AutoFarm.useSmallServer == true) then return end
+    local teleport = game:GetService("TeleportService")
+    local player = game:GetService("Players").LocalPlayer
+    if jobId then teleport:TeleportToPlaceInstance(placeId, jobId, player)
+    else teleport:Teleport(placeId, player) end
+end
 function AutoFarm.reconnect()
     local queued, err = pcall(AutoFarm.queueResume)
     if not queued then AutoFarm.clearResume() end
@@ -4101,7 +4136,7 @@ function AutoFarm.reconnect()
         AutoFarm.resumeError = tostring(err)
         notify("Rejoining without automatic script execution: " .. tostring(err))
     end
-    game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+    AutoFarm.joinPlace(game.PlaceId)
 end
 function AutoFarm.changeSelection()
     AutoFarm.epoch += 1
@@ -4144,6 +4179,9 @@ AutoFarm.routeControl = tab:CreateDropdown({ name = "Route", options = {}, forge
 AutoFarm.rejoinControl = tab:CreateToggle({ name = "Auto Rejoin", value = false, forgetState = true,
     description = "Rejoin after disconnecting and queue script execution when supported. Failed teleports retry every 30 seconds.",
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
+AutoFarm.smallServerControl = tab:CreateToggle({ name = "Use small server", value = false, forgetState = true,
+    description = "Prefer the least-populated available public server when joining or rejoining. Join normally if the lookup fails.",
+    callback = function(enabled) AutoFarm.useSmallServer = enabled end })
 setBypassSpad = function(enabled)
         if not state.alive then return end
         config.bypassSpad = enabled
@@ -4517,6 +4555,8 @@ for _, key in ipairs({ "operator", "train", "route" }) do
         AutoFarm.epoch += 1
     end, function(value) return type(value) == "string" and #value <= 128 end)
 end
+ConfigStore.control("useSmallServer", false, AutoFarm.smallServerControl, function() return AutoFarm.useSmallServer == true end,
+    function(value) AutoFarm.useSmallServer = value end, ConfigStore.boolean)
 ConfigStore.control("farmRejoin", false, AutoFarm.rejoinControl, function() return AutoFarm.rejoin end,
     AutoFarm.setRejoin, ConfigStore.boolean)
 ConfigStore.control("farmMaster", false, AutoFarm.masterControl, function() return AutoFarm.enabled end,
@@ -4580,7 +4620,7 @@ do
                         .. loader .. 'local run, err = loadstring(source)\nassert(run, err)\nrun()')
                     queued = true
                 end
-                teleport:Teleport(696347899, player)
+                AutoFarm.joinPlace(696347899)
             end)
             if not ok then failed(reason) end
         end
