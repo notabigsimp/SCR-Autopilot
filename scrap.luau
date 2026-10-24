@@ -1,4 +1,4 @@
--- SCR Autopilot. Direct controller calls; no simulated keyboard input.
+﻿-- SCR Autopilot. Direct controller calls; no simulated keyboard input.
 -- Integration observed in SCR v3772. Live driving/calibration still requires validation.
 -- Execution notification (user-supplied MoonVeil output).
 -- Keep its top-level return inside this function so Autopilot startup continues.
@@ -181,7 +181,7 @@ do
 end
 local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.1", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.2", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
 -- Use solid window/popup surfaces and one shared solid tile colour.
 do
@@ -237,11 +237,9 @@ do
     window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
     panel:CreateSection({ name = "Recent changes" })
     local card = panel:CreateText({
-        name = "Version 1.1.1",
-        text = '<font color="#69D98B">+ </font> Loading window and aminated script termination\n'
-            .. '<font color="#69D98B">+ </font> Use small servers\n'
-            .. '<font color="#E8BC64">~ </font> Fixed issue of the train goes only 5mph after passing a station\n'
-            .. '<font color="#E8BC64">~ </font> Changed the icon of the \'pill\' to our custom one',
+        name = "Version 1.1.2",
+        text = '<font color="#E8BC64">~ </font> Buttons are now single-toned\n'
+            .. '<font color="#E8BC64">~ </font> Speedometers now supports loading amination',
     })
     card.main.Size = UDim2.new(1, 0, 0, 0)
     card.body.LineHeight = 1.45
@@ -261,7 +259,16 @@ do
         TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
         Parent = latest,
     }, { FontFace = "Font" })
-    local previousCard = panel:CreateText({
+    local release111 = panel:CreateText({
+        name = "Version 1.1.1",
+        text = '<font color="#69D98B">+ </font> Loading window and aminated script termination\n'
+            .. '<font color="#69D98B">+ </font> Use small servers\n'
+            .. '<font color="#E8BC64">~ </font> Fixed issue of the train goes only 5mph after passing a station\n'
+            .. '<font color="#E8BC64">~ </font> Changed the icon of the \'pill\' to our custom one',
+    })
+    release111.main.Size = UDim2.new(1, 0, 0, 0)
+    release111.body.LineHeight = 1.45
+    local release110 = panel:CreateText({
         name = "Version 1.1.0",
         text = '<font color="#69D98B">+ </font> Train accidental despawn webhook\n'
             .. '<font color="#69D98B">+ </font> This changelog section\n'
@@ -269,8 +276,8 @@ do
             .. '<font color="#69D98B">+ </font> Bypass speed limit toggle\n'
             .. '<font color="#E8BC64">~ </font> General UI improvements',
     })
-    previousCard.main.Size = UDim2.new(1, 0, 0, 0)
-    previousCard.body.LineHeight = 1.45
+    release110.main.Size = UDim2.new(1, 0, 0, 0)
+    release110.body.LineHeight = 1.45
 end
 -- END CHANGELOG
 local autopilotSection = tab:CreateSection({ name = "Autopilot" })
