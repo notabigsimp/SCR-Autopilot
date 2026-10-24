@@ -1,4 +1,4 @@
-﻿-- SCR Autopilot. Direct controller calls; no simulated keyboard input.
+-- SCR Autopilot. Direct controller calls; no simulated keyboard input.
 -- Integration observed in SCR v3772. Live driving/calibration still requires validation.
 -- Execution notification (user-supplied MoonVeil output).
 -- Keep its top-level return inside this function so Autopilot startup continues.
@@ -183,8 +183,21 @@ local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.1", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
--- Apply a solid dark surface only to window/popup backgrounds, not controls.
+-- Use solid window/popup surfaces and one shared solid tile colour.
 do
+    local elementGradient = window.theme.ElementGradient
+    if typeof(elementGradient) == "ColorSequence" then
+        local points = elementGradient.Keypoints
+        local solid = ColorSequence.new(points[#points].Value)
+        -- Newly created controls and Changelog cards inherit this theme value.
+        window.theme.ElementGradient = solid
+        -- Rayfield's own settings controls already exist inside CreateWindow.
+        for instance, properties in pairs(window.themeProperties) do
+            if instance:IsA("UIGradient") and properties.Color == "ElementGradient" then
+                instance.Color = solid
+            end
+        end
+    end
     local function solidBackground(frame)
         if typeof(frame) ~= "Instance" then return end
         frame.BackgroundColor3 = Color3.fromRGB(23, 23, 23)
