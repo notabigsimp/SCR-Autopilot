@@ -234,7 +234,8 @@ do
     panel:CreateSection({ name = "Recent changes" })
     local release113 = panel:CreateText({
         name = "Version 1.1.3",
-        text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD',
+        text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD'
+            .. '<font color="#E8BC64">~ </font> Bypass SPAD got enhanced',
     })
     release113.main.Size = UDim2.new(1, 0, 0, 0)
     release113.body.LineHeight = 1.45
@@ -2074,8 +2075,17 @@ function SpadBypass.holdJunction()
     if not hold then return end
     local mover = hold.mover
     if mover ~= SpadBypass.mover or mover.isDestroyed then SpadBypass.closeJunction(); return end
-    -- Pausing SCR stops its movement step without clearing stored speed. Clear
-    -- that momentum once held, and block native/manual/AP throttle until a route is chosen.
+    -- Capture once: subsequent hold ticks must not overwrite the original values with zeros.
+    if not hold.motion then
+        hold.motion = {}
+        for _, key in ipairs({ "currentSpeed", "targetSpeed", "throttle", "acceleration" }) do
+            local value = mover[key]
+            if type(value) == "number" and value == value and math.abs(value) < math.huge then
+                hold.motion[key] = value
+            end
+        end
+    end
+    -- Keep native/manual/AP movement stopped until the chosen route is accepted.
     mover.currentSpeed, mover.acceleration, mover.targetSpeed, mover.throttle = 0, 0, 0, 0
     mover.isPaused, mover.pauseJunctionId = true, hold.id
     SpadBypass.drag = nil
@@ -2222,6 +2232,11 @@ function SpadBypass.resumeJunction(hold, route, automatic)
     -- Only the saved native setter may release this pause, after revalidation.
     SpadBypass.junctionOriginal(mover, hold.id, verified.groups)
     if mover.isPaused then hold.message = "The game has not released this junction. Staying stopped."; return false end
+    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad
+        or SpadBypass.mover ~= mover or mover.isDestroyed then return false end
+    if hold.motion then
+        for key, value in pairs(hold.motion) do mover[key] = value end
+    end
     SpadBypass.closeJunction()
     state.lastDesired, state.sample, state.approach, state.fullBrakeSince = nil, nil, nil, nil
     return true
@@ -2230,7 +2245,7 @@ function SpadBypass.showJunction(hold)
     if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad then return end
     setthreadidentity(8)
     if hold.popup and not hold.popup._closed then hold.popup:Close() end
-    local options, content = {}, "Stopped. Choose an exit to resume from rest."
+    local options, content = {}, "Stopped. Choose an exit to resume with your previous speed and throttle."
     if not hold.routes then
         hold.page = 1
         local ok, routes, message = pcall(SpadBypass.junctionRoutes, hold.mover, hold.id)
