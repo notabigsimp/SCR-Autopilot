@@ -1933,6 +1933,116 @@ function SpadBypass.isSpad(mover)
     local brakeTime = model:GetAttribute("EmergencyBrakeTime")
     return brakeTime ~= nil and brakeTime ~= 0 and model:GetAttribute("EmergencySignalName") ~= nil
 end
+-- Keep the native section-crossing order so a rejected SPAD entry can be
+-- registered later. Platform loading and skipped stops remain server-owned.
+function SpadBypass.bindSectionRecovery(mover)
+    local original = mover.sensorCallback
+    if type(original) ~= "function" then return end
+    local journal = {}
+    SpadBypass.sectionJournal = journal
+    SpadBypass.sensorPrevious = rawget(mover, "sensorCallback")
+    SpadBypass.sensorOverride = function(sensor, forward, front)
+        local event
+        if state.alive and config.bypassSpad and SpadBypass.mover == mover
+            and sensor.sensorType == enums.SensorType.SectionMarker then
+            event = { section = sensor.extraData.sectionIds[front and (forward and "A" or "B")
+                or (forward and "B" or "A")], signal = front and forward and sensor.extraData.signalId or nil,
+                enter = front, done = false }
+            table.insert(journal, event)
+            if #journal > 128 then table.remove(journal, 1) end
+            local recovery = SpadBypass.sectionRecovery
+            if recovery and not recovery.complete then
+                if #recovery.queue < 256 then table.insert(recovery.queue, event)
+                else recovery.overflow = true end
+            end
+        end
+        local result = table.pack(pcall(original, sensor, forward, front))
+        if event then event.done = true end
+        if not result[1] then error(result[2], 0) end
+        return table.unpack(result, 2, result.n)
+    end
+    mover.sensorCallback = SpadBypass.sensorOverride
+end
+function SpadBypass.updateSectionRecovery()
+    local mover, journal = SpadBypass.mover, SpadBypass.sectionJournal
+    if not mover or not journal or not SpadBypass.isSpad(mover) then return end
+    local model = mover.skeletonModel.Parent
+    local emergency = emergencyState()
+    if emergency.currentState ~= enums.EmergencyState.SignalAtDanger or emergency.releaseInProgress then return end
+    local signalName = model:GetAttribute("EmergencySignalName")
+    local signals = workspace:FindFirstChild("Signals")
+    local signal = signals and signals:FindFirstChild(signalName)
+    if not signal then return end
+    local time = model:GetAttribute("EmergencyBrakeTime")
+    local recovery = SpadBypass.sectionRecovery
+    if not recovery or recovery.time ~= time or recovery.signal ~= signalName then
+        local start
+        for index = #journal, 1, -1 do
+            if journal[index].enter and journal[index].signal == signal:GetAttribute("SignalId") then start = index; break end
+        end
+        if not start then return end -- No observed crossing to replay; do not guess section IDs.
+        recovery = { time = time, signal = signalName, queue = {}, entered = {}, nextAttempt = 0 }
+        for index = start, #journal do table.insert(recovery.queue, journal[index]) end
+        SpadBypass.sectionRecovery = recovery
+    end
+    if recovery.complete or recovery.overflow or recovery.busy or os.clock() < recovery.nextAttempt then return end
+    local aspect = signal:GetAttribute("State")
+    if aspect ~= enums.SignalState.Proceed and aspect ~= enums.SignalState.Precaution and aspect ~= enums.SignalState.Caution then return end
+    recovery.nextAttempt, recovery.busy = os.clock() + 3, true
+    local function active()
+        return state.alive and config.bypassSpad and SpadBypass.mover == mover and not mover.isDestroyed
+            and SpadBypass.sectionRecovery == recovery and model:GetAttribute("EmergencyBrakeTime") == time
+            and model:GetAttribute("EmergencySignalName") == signalName
+    end
+    task.defer(function()
+        local ok, failure = pcall(function()
+            local communication = require(modules:FindFirstChild("Communication"))
+            -- Bound each batch; RPC waits never block the driving heartbeat.
+            for _ = 1, 8 do
+                if not active() then return end
+                local event = recovery.queue[1]
+                if not event then
+                    recovery.complete = true
+                    log("SPAD section registration recovered; station handling remains controlled by the server.")
+                    return
+                end
+                if not event.done then return end
+                if event.enter or recovery.entered[event.section] then
+                    local result
+                    if event.enter then result = communication.GetFunction("EnterSection"):Invoke(event.section, event.signal)
+                    else result = communication.GetFunction("ExitSection"):Invoke(event.section) end
+                    if not active() then return end
+                    local response = type(result) == "table" and result.sectionResponse or result
+                    if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then return end
+                    if event.enter and type(result) == "table" and result.stationName and result.platformName then
+                        local stations = game:GetService("ReplicatedStorage"):FindFirstChild("Stations")
+                        local station = stations and stations:FindFirstChild(result.stationName)
+                        local platforms = station and station:FindFirstChild("Platforms")
+                        local platform = platforms and platforms:FindFirstChild(result.platformName)
+                        local occupied = platform and platform:FindFirstChild("OccupiedTrain")
+                        if not occupied or occupied.Value ~= model then return end
+                    end
+                    if event.enter then
+                        recovery.entered[event.section] = true
+                        if type(result) == "table" then
+                            for _, junction in ipairs(result.junctionMap or {}) do
+                                mover:SetJunctionSetting(junction.junctionId, junction.nodeGroups)
+                            end
+                        end
+                    else recovery.entered[event.section] = nil end
+                end
+                -- Only release sections re-entered by this recovery, after a
+                -- recorded REAR crossing. Never claim another train's platform locally.
+                table.remove(recovery.queue, 1)
+            end
+        end)
+        recovery.busy = false
+        if not ok and active() and recovery.lastError ~= tostring(failure) then
+            recovery.lastError = tostring(failure)
+            log("SPAD section recovery waiting: " .. tostring(failure))
+        end
+    end)
+end
 function SpadBypass.clearManualInput()
     SpadBypass.drag = nil
     for _, connection in ipairs(SpadBypass.inputConnections or {}) do connection:Disconnect() end
@@ -2005,6 +2115,11 @@ function SpadBypass.detach(reapply)
     local mover, original = SpadBypass.mover, SpadBypass.original
     if not mover then return end
     SpadBypass.closeJunction()
+    if SpadBypass.sensorOverride and rawget(mover, "sensorCallback") == SpadBypass.sensorOverride then
+        rawset(mover, "sensorCallback", SpadBypass.sensorPrevious)
+    end
+    SpadBypass.sensorOverride, SpadBypass.sensorPrevious = nil, nil
+    SpadBypass.sectionJournal, SpadBypass.sectionRecovery = nil, nil
     if SpadBypass.junctionOverride and rawget(mover, "SetJunctionSetting") == SpadBypass.junctionOverride then
         rawset(mover, "SetJunctionSetting", SpadBypass.junctionPrevious)
     end
@@ -2028,6 +2143,7 @@ function SpadBypass.sync(mover)
     SpadBypass.mover, SpadBypass.original = mover, original
     SpadBypass.previous, SpadBypass.override = rawget(mover, "ApplyEmergencyBrake"), override
     mover.ApplyEmergencyBrake = override
+    SpadBypass.bindSectionRecovery(mover)
     local setter = mover.SetJunctionSetting
     if type(setter) == "function" then
         SpadBypass.junctionOriginal, SpadBypass.junctionPrevious = setter, rawget(mover, "SetJunctionSetting")
@@ -4825,6 +4941,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
         local ok, err = pcall(function()
             SpadBypass.sync(loadedMover())
             SpadBypass.updateJunction()
+            SpadBypass.updateSectionRecovery()
         end)
         if not ok then
             config.bypassSpad = false
