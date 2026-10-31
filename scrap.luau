@@ -234,8 +234,9 @@ do
     panel:CreateSection({ name = "Recent changes" })
     local release113 = panel:CreateText({
         name = "Version 1.1.3",
-        text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD'
-            .. '<font color="#E8BC64">~ </font> Bypass SPAD got enhanced',
+        text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD\n'
+            .. '<font color="#E8BC64">~ </font> Bypass SPAD got enhanced\n'
+            .. '<font color="#E8BC64">+ </font> Choose next junction exit, at misc tab',
     })
     release113.main.Size = UDim2.new(1, 0, 0, 0)
     release113.body.LineHeight = 1.45
@@ -402,6 +403,7 @@ local AutoFarm: { [string]: any } = { enabled = false, elapsed = 0, epoch = 0, r
     rejoin = false, rejoinAt = 0 }
 state.autoFarm = AutoFarm
 local bypassSpadToggle, setBypassSpad, recallSpadJunction
+local chooseJunctionToggle, setChooseJunction
 local callbackCache = setmetatable({}, { __mode = "k" })
 local emergencyCache = nil
 
@@ -1398,6 +1400,8 @@ TicketAssist.toggle = misc:CreateToggle({ name = "Ticket check assist", value = 
     description = "After you open a passenger with E, check their ticket/card and issue the matching fare. Guard and RPO only.",
     callback = function(enabled) TicketAssist.setEnabled(enabled) end })
 TicketAssist.syncAvailability()
+chooseJunctionToggle = misc:CreateToggle({ name = "Choose next junction exit ⚠️", value = false, forgetState = true,
+    callback = function(enabled) setChooseJunction(enabled) end })
 bypassSpadToggle = misc:CreateToggle({ name = "Bypass SPAD ⚠️", value = false, forgetState = true,
     description = "Prevent SPAD from applying the train's emergency brake, including during manual driving.",
     callback = function(enabled) setBypassSpad(enabled) end })
@@ -1927,6 +1931,19 @@ end
 -- Intercept the mover call before it zeros speed; polling after SPAD is too late.
 -- Keep the override local to our train and restore its previous instance method.
 local SpadBypass: { [string]: any } = {}
+function SpadBypass.needed()
+    if config.bypassSpad or SpadBypass.chooseArmed or (SpadBypass.junction and SpadBypass.junction.requested) then return true end
+    for _, plan in pairs(SpadBypass.junctionPlans or {}) do if plan.requested then return true end end
+    return false
+end
+function SpadBypass.choiceActive(hold)
+    return state.alive and (config.bypassSpad or hold.requested)
+end
+function SpadBypass.resetChoice()
+    SpadBypass.chooseArmed = false
+    setthreadidentity(8)
+    chooseJunctionToggle:Set(false, true)
+end
 function SpadBypass.isSpad(mover)
     local model = mover and mover.skeletonModel and mover.skeletonModel.Parent
     if not model or mover.isDestroyed then return false end
@@ -2114,12 +2131,17 @@ function SpadBypass.detach(reapply)
     SpadBypass.clearManualInput()
     local mover, original = SpadBypass.mover, SpadBypass.original
     if not mover then return end
+    local hold = SpadBypass.junction
+    if hold and hold.requested and hold.previousGroups and not mover.isDestroyed and SpadBypass.junctionOriginal then
+        SpadBypass.junctionOriginal(mover, hold.id, hold.previousGroups)
+    end
     SpadBypass.closeJunction()
     if SpadBypass.sensorOverride and rawget(mover, "sensorCallback") == SpadBypass.sensorOverride then
         rawset(mover, "sensorCallback", SpadBypass.sensorPrevious)
     end
     SpadBypass.sensorOverride, SpadBypass.sensorPrevious = nil, nil
     SpadBypass.sectionJournal, SpadBypass.sectionRecovery = nil, nil
+    SpadBypass.junctionPlans = nil
     if SpadBypass.junctionOverride and rawget(mover, "SetJunctionSetting") == SpadBypass.junctionOverride then
         rawset(mover, "SetJunctionSetting", SpadBypass.junctionPrevious)
     end
@@ -2131,9 +2153,10 @@ function SpadBypass.detach(reapply)
     if reapply and SpadBypass.isSpad(mover) then original(mover) end
 end
 function SpadBypass.sync(mover)
+    if not SpadBypass.needed() then SpadBypass.detach(true); return end
     if mover == SpadBypass.mover then return end
     SpadBypass.detach(false)
-    if not config.bypassSpad or not mover then return end
+    if not SpadBypass.needed() or not mover then return end
     local original = mover.ApplyEmergencyBrake
     if type(original) ~= "function" then error("SPAD brake controller unavailable.") end
     local override = function(self, ...)
@@ -2143,19 +2166,27 @@ function SpadBypass.sync(mover)
     SpadBypass.mover, SpadBypass.original = mover, original
     SpadBypass.previous, SpadBypass.override = rawget(mover, "ApplyEmergencyBrake"), override
     mover.ApplyEmergencyBrake = override
+    SpadBypass.junctionPlans = {}
     SpadBypass.bindSectionRecovery(mover)
     local setter = mover.SetJunctionSetting
     if type(setter) == "function" then
         SpadBypass.junctionOriginal, SpadBypass.junctionPrevious = setter, rawget(mover, "SetJunctionSetting")
         SpadBypass.junctionOverride = function(self, id, groups)
-            if self == mover and state.alive and config.bypassSpad then
-                if not SpadBypass.junction and self.isPaused and self.pauseJunctionId == id and SpadBypass.isSpad(self) then
+            if self == mover and state.alive and SpadBypass.needed() then
+                local plan = (SpadBypass.junctionPlans or {})[id]
+                if not SpadBypass.junction and self.isPaused and self.pauseJunctionId == id
+                    and (plan or (config.bypassSpad and SpadBypass.isSpad(self))) then
                     if SpadBypass.beginJunction(self, id) then return end
                 end
                 local hold = SpadBypass.junction
                 if hold and hold.mover == self and hold.id == id then
                     hold.serverGroups = table.clone(groups)
                     return -- A late server setting must not resume an undecided train.
+                end
+                plan = (SpadBypass.junctionPlans or {})[id]
+                if plan then
+                    plan.defaultGroups = table.clone(groups)
+                    return setter(self, id, plan.groups)
                 end
             end
             return setter(self, id, groups)
@@ -2164,7 +2195,7 @@ function SpadBypass.sync(mover)
     end
     SpadBypass.bindManualInput()
     -- Enabling during an existing SPAD permits driving again, without inventing a speed.
-    if SpadBypass.isSpad(mover) and not mover.skeletonModel.Parent:GetAttribute("IsLoading") then
+    if config.bypassSpad and SpadBypass.isSpad(mover) and not mover.skeletonModel.Parent:GetAttribute("IsLoading") then
         mover:UnlockControls()
     end
 end
@@ -2174,11 +2205,30 @@ function SpadBypass.closeJunction()
     if hold and hold.popup then hold.popup:Close() end
 end
 function SpadBypass.beginJunction(mover, id)
-    local hold = { mover = mover, id = id, page = 1 }
+    local plan = (SpadBypass.junctionPlans or {})[id]
+    local hold = { mover = mover, id = id, page = 1, requested = plan and plan.requested }
     SpadBypass.junction = hold
     -- Resolve a sole complete exit before clearing any stored speed/throttle.
     -- Ambiguous or unavailable track data still requires a stopped choice.
     local ok, routes = pcall(SpadBypass.junctionRoutes, mover, id)
+    if ok and plan then
+        local continuation, compatible, count = nil, nil, 0
+        for _, route in ipairs(routes) do
+            if plan.exitKey and route.exitKey == plan.exitKey then continuation = route; break end
+            local samePath = true
+            for _, group in ipairs(route.groups) do
+                if not table.find(plan.groups, group) then samePath = false; break end
+            end
+            if samePath then compatible = route; count += 1 end
+        end
+        -- The next junction's server setting can change the trace's endpoint.
+        -- A unique remaining path inside the committed groups is still our exit.
+        continuation = continuation or (count == 1 and compatible or nil)
+        if continuation then
+            local resumed, result = pcall(SpadBypass.resumeJunction, hold, continuation, "continue")
+            if resumed and result then return true end
+        end
+    end
     if ok and #routes == 1 then
         local resumed, result = pcall(SpadBypass.resumeJunction, hold, routes[1], true)
         if resumed and result then return true end
@@ -2206,11 +2256,8 @@ function SpadBypass.holdJunction()
     mover.isPaused, mover.pauseJunctionId = true, hold.id
     SpadBypass.drag = nil
 end
-function SpadBypass.junctionRoutes(mover, id)
-    -- Use SCR's own node selector to trace complete alternatives. A node group
-    -- can be only part of a branch, so a single group is not assumed a route.
-    local selectNode, groups
-    local searchDistance = require(game.ReplicatedStorage.Modules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
+function SpadBypass.nodeSelector(mover)
+    local selectNode
     local inspected = {}
     local function findSelector(fn, depth)
         if selectNode or depth > 3 or type(fn) ~= "function" or inspected[fn] then return end
@@ -2223,6 +2270,11 @@ function SpadBypass.junctionRoutes(mover, id)
         end
     end
     findSelector(mover.Initialise, 1)
+    return selectNode
+end
+function SpadBypass.junctionGroups(mover, id)
+    if type(mover.Initialise) ~= "function" then return end
+    local groups
     for _, value in pairs(debug.getupvalues(mover.Initialise)) do
         if type(value) == "table" and type(value[id]) == "table" then
             for _, nodes in pairs(value[id]) do
@@ -2233,13 +2285,99 @@ function SpadBypass.junctionRoutes(mover, id)
             end
         end
     end
+    return groups
+end
+function SpadBypass.occupiedGroups(mover, id, groups)
+    local result = table.clone(groups)
+    for _, carriage in ipairs(mover.carriages or {}) do
+        for _, bogie in ipairs(carriage.bogies) do
+            for _, node in pairs({ bogie.prevNode, bogie.currentNode }) do
+                if node.junctionId == id and node.nodeGroupId and not table.find(result, node.nodeGroupId) then
+                    table.insert(result, node.nodeGroupId)
+                end
+            end
+        end
+    end
+    return result
+end
+function SpadBypass.rememberJunction(mover, hold, route, groups)
+    SpadBypass.junctionPlans = SpadBypass.junctionPlans or {}
+    local previous = SpadBypass.junctionPlans[hold.id]
+    SpadBypass.junctionPlans[hold.id] = { groups = table.clone(groups), exitKey = route.exitKey,
+        requested = hold.requested or (previous and previous.requested), entered = previous and previous.entered,
+        defaultGroups = hold.serverGroups or hold.previousGroups or (previous and previous.defaultGroups),
+        trackGroups = SpadBypass.junctionGroups(mover, hold.id) }
+end
+function SpadBypass.pruneJunctionPlans(mover)
+    local trainModules: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local loadModule: any = require
+    local distance = loadModule(trainModules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
+    for id, plan in pairs(SpadBypass.junctionPlans or {}) do
+        if plan.trackGroups then
+            local nearby = false
+            for _, carriage in ipairs(mover.carriages) do
+                for _, bogie in ipairs(carriage.bogies) do
+                    if (bogie.currentNode and bogie.currentNode.junctionId == id)
+                        or (bogie.prevNode and bogie.prevNode.junctionId == id) then plan.entered = true; nearby = true end
+                    for _, nodes in pairs(plan.trackGroups) do
+                        for _, node in ipairs(nodes) do
+                            if (node.position - bogie.position).Magnitude <= distance then nearby = true; break end
+                        end
+                        if nearby then break end
+                    end
+                end
+            end
+            if plan.entered and not nearby then SpadBypass.junctionPlans[id] = nil end
+        end
+    end
+end
+function SpadBypass.traceJunction(mover, id, entry, allowed, selectNode, groups, searchDistance)
+    local settings = table.clone(mover.junctionSettings)
+    settings[id] = allowed
+    local from, current, excluded = entry.from, entry.current, table.clone(entry.excluded)
+    local used, complete, exitNode = {}, false, nil
+    for _, node in pairs({ entry.current, entry.excluded[2] }) do
+        if node.junctionId == id and node.nodeGroupId then used[node.nodeGroupId] = true end
+    end
+    for _ = 1, 512 do
+        local nextNode, junctionId = selectNode(from, current.position, settings, current.junctionId, excluded)
+        if not nextNode then
+            complete = next(used) ~= nil and junctionId ~= nil and junctionId ~= id
+            if complete then exitNode = current end
+            break
+        end
+        if nextNode.junctionId and nextNode.junctionId ~= id then
+            complete = next(used) ~= nil; exitNode = nextNode; break
+        end
+        if not nextNode.junctionId and next(used) then
+            local closest = math.huge
+            for _, nodes in pairs(groups) do
+                for _, node in ipairs(nodes) do closest = math.min(closest, (node.position - nextNode.position).Magnitude) end
+            end
+            -- Untagged nodes can connect two groups of the SAME junction.
+            -- Do not declare a route complete at the first untagged node.
+            if closest > searchDistance then complete = true; exitNode = nextNode; break end
+        end
+        if table.find(excluded, nextNode) then break end
+        if nextNode.junctionId == id then used[nextNode.nodeGroupId] = true end
+        table.insert(excluded, nextNode)
+        from, current = current.position, nextNode
+    end
+    return complete and exitNode or nil
+end
+function SpadBypass.junctionRoutes(mover, id, entryOverride)
+    local selectNode, groups = SpadBypass.nodeSelector(mover), SpadBypass.junctionGroups(mover, id)
+    local trainModules: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local loadModule: any = require
+    local searchDistance = loadModule(trainModules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
     if not selectNode or not groups then return {}, "Track data unavailable" end
     local ids = {}
     for group in pairs(groups) do table.insert(ids, group) end
     table.sort(ids)
     if #ids > 8 then return {}, "Too many branches to verify" end
-    local entry
+    local entry = entryOverride
     for _, carriage in ipairs(mover.carriages) do
+        if entry then break end
         for _, bogie in ipairs(carriage.bogies) do
             local current = bogie.currentNode
             if current then
@@ -2261,37 +2399,12 @@ function SpadBypass.junctionRoutes(mover, id)
     for mask = 1, 2 ^ #ids - 1 do
         local allowed = {}
         for i, group in ipairs(ids) do if bit32.band(mask, 2 ^ (i - 1)) ~= 0 then table.insert(allowed, group) end end
-        local settings = table.clone(mover.junctionSettings)
-        settings[id] = allowed
-        local from, current, excluded = entry.from, entry.current, table.clone(entry.excluded)
-        local used, complete, exitNode = {}, false, nil
-        for _ = 1, 512 do
-            local nextNode, junctionId = selectNode(from, current.position, settings, current.junctionId, excluded)
-            if not nextNode then
-                complete = next(used) ~= nil and junctionId ~= nil and junctionId ~= id
-                if complete then exitNode = current end
-                break
-            end
-            if nextNode.junctionId and nextNode.junctionId ~= id then
-                complete = next(used) ~= nil; exitNode = nextNode; break
-            end
-            if not nextNode.junctionId and next(used) then
-                local closest = math.huge
-                for _, nodes in pairs(groups) do
-                    for _, node in ipairs(nodes) do closest = math.min(closest, (node.position - nextNode.position).Magnitude) end
-                end
-                -- Untagged nodes can connect two groups of the SAME junction.
-                -- Do not declare a route complete at the first untagged node.
-                if closest > searchDistance then complete = true; exitNode = nextNode; break end
-            end
-            if table.find(excluded, nextNode) then break end
-            if nextNode.junctionId == id then used[nextNode.nodeGroupId] = true end
-            table.insert(excluded, nextNode)
-            from, current = current.position, nextNode
-        end
-        if complete and exitNode then
-            local actual, labels = {}, {}
-            for _, group in ipairs(ids) do if used[group] then table.insert(actual, group); table.insert(labels, tostring(group)) end end
+        local exitNode = SpadBypass.traceJunction(mover, id, entry, allowed, selectNode, groups, searchDistance)
+        if exitNode then
+            -- Keep the exact setting tested by the native selector. Groups on
+            -- the approach can also enable an unwanted outgoing branch.
+            local actual, labels = table.clone(allowed), {}
+            for _, group in ipairs(actual) do table.insert(labels, tostring(group)) end
             local key = table.concat(labels, ",")
             -- All track combinations reaching the same outgoing node are one
             -- exit choice. The internal group list is retained only for driving.
@@ -2308,7 +2421,7 @@ function SpadBypass.junctionRoutes(mover, id)
                     turn = math.atan2(flatForward.Unit:Cross(flatOutgoing.Unit).Y, flatForward.Unit:Dot(flatOutgoing.Unit))
                     side = flatForward.Unit:Cross(flatOutgoing).Y
                 end
-                known = { groups = actual, key = key, exitKey = exitKey, position = position, turn = turn, side = side }
+                known = { groups = actual, key = key, exitKey = exitKey, position = position, turn = turn, side = side, entry = entry }
                 exits[exitKey] = known
                 table.insert(result, known)
             elseif #actual < #known.groups then
@@ -2327,62 +2440,129 @@ function SpadBypass.junctionRoutes(mover, id)
     return result, #result == 0 and "No complete route verified" or nil
 end
 function SpadBypass.resumeJunction(hold, route, automatic)
-    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad
+    if SpadBypass.junction ~= hold or not SpadBypass.choiceActive(hold)
         or SpadBypass.mover ~= hold.mover or hold.mover.isDestroyed then return false end
     local mover, emergency = hold.mover, emergencyState()
+    if hold.position and (mover:GetFrontBogie().position - hold.position).Magnitude > 5 then
+        hold.message = "Train position changed. Staying stopped."; return false
+    end
     if mover.skeletonModel.Parent:GetAttribute("IsLoading") or emergency.releaseInProgress
         or (emergency.currentState ~= enums.EmergencyState.None and emergency.currentState ~= enums.EmergencyState.SignalAtDanger)
         or mover.areControlsLocked or mover.areControlsSoftLocked then
         hold.message = "Train controls unavailable. Stay stopped and try again."; return false
     end
-    local routes = SpadBypass.junctionRoutes(mover, hold.id)
-    if automatic and #routes ~= 1 then
+    local routes = route.useDefault and {} or SpadBypass.junctionRoutes(mover, hold.id, hold.entry)
+    if automatic == true and #routes ~= 1 then
         hold.routes = nil; hold.message = "Route changed. Choose again."; return false
     end
     local verified
+    if route.useDefault then
+        local groups = hold.serverGroups or hold.previousGroups
+        if type(groups) ~= "table" or #groups == 0 then
+            hold.message = "Default route unavailable. Choose an exit or retry."; return false
+        end
+        verified = { groups = table.clone(groups), useDefault = true }
+    end
     for _, candidate in ipairs(routes) do
         if candidate.exitKey == route.exitKey and route.exitKey ~= nil then verified = candidate; break end
     end
     if not verified then hold.routes = nil; hold.message = "Route changed. Choose again."; return false end
     if not automatic then SpadBypass.holdJunction() end
     -- Only the saved native setter may release this pause, after revalidation.
-    SpadBypass.junctionOriginal(mover, hold.id, verified.groups)
+    local groups = table.clone(verified.groups)
+    if not verified.useDefault then
+        -- A one-shot choice is made before entering the junction. Do not add
+        -- prefetched default-branch nodes: they can select the old exit again.
+        local expanded = hold.requested and table.clone(groups) or SpadBypass.occupiedGroups(mover, hold.id, groups)
+        local plan = (SpadBypass.junctionPlans or {})[hold.id]
+        if plan then
+            local samePath = true
+            for _, group in ipairs(groups) do if not table.find(plan.groups, group) then samePath = false; break end end
+            if samePath then
+                for _, group in ipairs(plan.groups) do if not table.find(expanded, group) then table.insert(expanded, group) end end
+            end
+        end
+        if #expanded > #groups and verified.entry then
+            local trackGroups = SpadBypass.junctionGroups(mover, hold.id)
+            local selectNode = SpadBypass.nodeSelector(mover)
+            local trainModules: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+            local loadModule: any = require
+            local distance = loadModule(trainModules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
+            local exit = trackGroups and selectNode and SpadBypass.traceJunction(mover, hold.id, verified.entry,
+                expanded, selectNode, trackGroups, distance)
+            if exit and string.format("%.2f/%.2f/%.2f", exit.position.X, exit.position.Y, exit.position.Z) == verified.exitKey then
+                groups = expanded
+            end
+        end
+    end
+    SpadBypass.junctionOriginal(mover, hold.id, groups)
     if mover.isPaused then hold.message = "The game has not released this junction. Staying stopped."; return false end
-    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad
+    if SpadBypass.junction ~= hold or not SpadBypass.choiceActive(hold)
         or SpadBypass.mover ~= mover or mover.isDestroyed then return false end
     if hold.motion then
         for key, value in pairs(hold.motion) do mover[key] = value end
     end
+    SpadBypass.rememberJunction(mover, hold, verified, groups)
     SpadBypass.closeJunction()
     state.lastDesired, state.sample, state.approach, state.fullBrakeSince = nil, nil, nil, nil
     return true
 end
+function SpadBypass.defaultJunctionExit(hold)
+    if not hold.requested then return end
+    local groups = hold.serverGroups or hold.previousGroups
+    local entry = hold.entry or (hold.routes[1] and hold.routes[1].entry)
+    if type(groups) ~= "table" or #groups == 0 or not entry then return end
+    local selectNode, trackGroups = SpadBypass.nodeSelector(hold.mover), SpadBypass.junctionGroups(hold.mover, hold.id)
+    if not selectNode or not trackGroups then return end
+    local trainModules: any = game:GetService("ReplicatedStorage"):FindFirstChild("Modules")
+    local loadModule: any = require
+    local distance = loadModule(trainModules.Train.TrainUtility).MAX_NODE_SEARCH_DISTANCE_STUDS
+    local exit = SpadBypass.traceJunction(hold.mover, hold.id, entry, groups, selectNode, trackGroups, distance)
+    if not exit then return end
+    local key = string.format("%.2f/%.2f/%.2f", exit.position.X, exit.position.Y, exit.position.Z)
+    for _, route in ipairs(hold.routes) do if route.exitKey == key then return route end end
+    return
+end
 function SpadBypass.showJunction(hold)
-    if SpadBypass.junction ~= hold or not state.alive or not config.bypassSpad then return end
+    if SpadBypass.junction ~= hold or not SpadBypass.choiceActive(hold) then return end
     setthreadidentity(8)
     if hold.popup and not hold.popup._closed then hold.popup:Close() end
     local options, content = {}, "Stopped. Choose an exit to resume with your previous speed and throttle."
     if not hold.routes then
         hold.page = 1
-        local ok, routes, message = pcall(SpadBypass.junctionRoutes, hold.mover, hold.id)
+        local ok, routes, message = pcall(SpadBypass.junctionRoutes, hold.mover, hold.id, hold.entry)
         hold.routes = ok and routes or {}
         if ok then hold.message = message else hold.message = "Track data unavailable" end
     end
-    local first = (hold.page - 1) * 2 + 1
-    for index = first, math.min(first + 1, #hold.routes) do
-        local route = hold.routes[index]
-        content ..= "\n" .. route.name
-        table.insert(options, { text = route.name, callback = function()
+    local routes = table.clone(hold.routes)
+    local ok, default = pcall(SpadBypass.defaultJunctionExit, hold)
+    if not ok then default = nil end
+    local function addExit(route, isDefault)
+        local label = route.name .. (isDefault and " (default)" or "")
+        content ..= "\n" .. label
+        table.insert(options, { text = label, callback = function()
             task.defer(function()
-                local ok, resumed = pcall(SpadBypass.resumeJunction, hold, route)
+                local selection = isDefault and { useDefault = true } or route
+                local ok, resumed = pcall(SpadBypass.resumeJunction, hold, selection)
                 if not ok then hold.message = "Unable to verify route. Staying stopped." end
                 if not ok or not resumed then SpadBypass.showJunction(hold) end
             end)
         end })
     end
-    if #hold.routes > 2 then
+    if default then
+        for index, route in ipairs(routes) do
+            if route == default then table.remove(routes, index); break end
+        end
+        addExit(default, true)
+    end
+    local pageSize = default and 1 or 2
+    local pages = math.max(1, math.ceil(#routes / pageSize))
+    hold.page = math.clamp(hold.page or 1, 1, pages)
+    local first = (hold.page - 1) * pageSize + 1
+    for index = first, math.min(first + pageSize - 1, #routes) do addExit(routes[index], false) end
+    if #routes > pageSize then
         table.insert(options, { text = "More exits", callback = function()
-            hold.page = hold.page % math.ceil(#hold.routes / 2) + 1
+            hold.page = hold.page % pages + 1
             task.defer(SpadBypass.showJunction, hold)
         end })
     elseif #hold.routes == 0 then
@@ -2395,9 +2575,11 @@ end
 function SpadBypass.updateJunction()
     local mover = SpadBypass.mover
     if not mover then return end
+    SpadBypass.pruneJunctionPlans(mover)
     local hold = SpadBypass.junction
     if hold and hold.mover ~= mover then SpadBypass.closeJunction(); hold = nil end
-    if not hold and mover.isPaused and mover.pauseJunctionId and SpadBypass.isSpad(mover) then
+    if not hold and mover.isPaused and mover.pauseJunctionId and
+        ((config.bypassSpad and SpadBypass.isSpad(mover)) or (SpadBypass.junctionPlans or {})[mover.pauseJunctionId]) then
         SpadBypass.beginJunction(mover, mover.pauseJunctionId)
         hold = SpadBypass.junction
     end
@@ -2405,6 +2587,57 @@ function SpadBypass.updateJunction()
         hold.shown = true
         task.defer(SpadBypass.showJunction, hold)
     end
+end
+-- A one-shot choice watches the front bogie before it enters a junction,
+-- including junctions already configured by a green-signal server response.
+function SpadBypass.nextChoiceApproach(mover)
+    local selectNode = SpadBypass.nodeSelector(mover)
+    if not selectNode then return end
+    local bogie, direction = mover:GetFrontBogie()
+    if not bogie or not bogie.currentNode then return end
+    local current, previous = bogie.currentNode, bogie.prevNode
+    local from = previous and previous.position or bogie.position - direction * 10
+    local excluded = { current }
+    if previous then table.insert(excluded, previous) end
+    local origin, distance = current.junctionId, (current.position - bogie.position).Magnitude
+    for _ = 1, 128 do
+        local nextNode, unresolved = selectNode(from, current.position, mover.junctionSettings, current.junctionId, excluded)
+        local id = nextNode and nextNode.junctionId or unresolved
+        if id and id ~= origin and not (SpadBypass.chooseIgnored or {})[id] then
+            if distance <= 80 then return id, { from = from, current = current, excluded = table.clone(excluded) } end
+            return
+        end
+        if not nextNode or table.find(excluded, nextNode) then return end
+        distance += (nextNode.position - current.position).Magnitude
+        if distance > 80 then return end
+        table.insert(excluded, nextNode)
+        from, current = current.position, nextNode
+    end
+    return
+end
+function SpadBypass.updateChoice(dt)
+    if not SpadBypass.chooseArmed or SpadBypass.junction then return end
+    SpadBypass.chooseElapsed = (SpadBypass.chooseElapsed or 0) + dt
+    if SpadBypass.chooseElapsed < 0.1 then return end
+    SpadBypass.chooseElapsed = 0
+    local mover = SpadBypass.mover
+    if not mover or mover.isDestroyed or mover.skeletonModel.Parent:GetAttribute("IsLoading") then return end
+    local id, entry = SpadBypass.nextChoiceApproach(mover)
+    if not id then return end
+    local routes = SpadBypass.junctionRoutes(mover, id, entry)
+    if #routes <= 1 then
+        if #routes == 1 then SpadBypass.chooseIgnored[id] = true end
+        return
+    end
+    local bogie = mover:GetFrontBogie()
+    local previous = mover.junctionSettings[id]
+    local hold = { mover = mover, id = id, page = 1, requested = true, entry = entry,
+        position = bogie.position, routes = routes, shown = true,
+        previousGroups = previous and table.clone(previous) }
+    SpadBypass.junction = hold
+    SpadBypass.holdJunction()
+    SpadBypass.resetChoice()
+    task.defer(SpadBypass.showJunction, hold)
 end
 local function readyAction(key, interval)
     local now = os.clock()
@@ -4337,7 +4570,7 @@ local function step()
     end
     state.shiftTransition = nil
     if mover ~= state.mover then
-        if config.bypassSpad then SpadBypass.sync(mover) end
+        if SpadBypass.needed() then SpadBypass.sync(mover) end
         resetTrain(mover)
     end
     if SpadBypass.junction and SpadBypass.junction.mover == mover then
@@ -4849,11 +5082,20 @@ AutoFarm.rejoinControl = AutoFarm.rejoinRow:CreateToggle({ name = "Auto rejoin",
     callback = function(enabled) AutoFarm.setRejoin(enabled) end })
 AutoFarm.smallServerControl = AutoFarm.rejoinRow:CreateToggle({ name = "Use small server", value = false, forgetState = true,
     callback = function(enabled) AutoFarm.useSmallServer = enabled end })
+setChooseJunction = function(enabled)
+    if not state.alive then return end
+    SpadBypass.chooseArmed, SpadBypass.chooseIgnored, SpadBypass.chooseElapsed = enabled, {}, 0
+    local ok, err = pcall(function() SpadBypass.sync(loadedMover()) end)
+    if not ok then
+        SpadBypass.resetChoice()
+        notify("Junction choice unavailable: " .. tostring(err))
+    end
+end
 setBypassSpad = function(enabled)
         if not state.alive then return end
         config.bypassSpad = enabled
         local ok, err = pcall(function()
-            if enabled then SpadBypass.sync(loadedMover()) else SpadBypass.detach(true) end
+            SpadBypass.sync(loadedMover())
         end)
         if not ok then
             config.bypassSpad = false
@@ -4936,22 +5178,24 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     if elapsed < 0.05 then return end
     local manualDt = elapsed
     elapsed = 0
-    if config.bypassSpad and bypassElapsed >= 0.5 then
+    if (SpadBypass.needed() or SpadBypass.mover) and bypassElapsed >= 0.5 then
         bypassElapsed = 0
         local ok, err = pcall(function()
             SpadBypass.sync(loadedMover())
             SpadBypass.updateJunction()
-            SpadBypass.updateSectionRecovery()
+            if config.bypassSpad then SpadBypass.updateSectionRecovery() end
         end)
         if not ok then
             config.bypassSpad = false
             pcall(SpadBypass.detach, true)
             bypassSpadToggle:Set(false, true)
-            notify("SPAD bypass disabled: " .. tostring(err))
+            SpadBypass.resetChoice()
+            notify("SPAD bypass / junction choice disabled: " .. tostring(err))
         end
     end
-    if config.bypassSpad then
+    if SpadBypass.needed() then
         local ok, err = pcall(function()
+            SpadBypass.updateChoice(manualDt)
             SpadBypass.holdJunction()
             SpadBypass.updateManualControls(manualDt)
         end)
@@ -4959,7 +5203,8 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
             config.bypassSpad = false
             pcall(SpadBypass.detach, true)
             bypassSpadToggle:Set(false, true)
-            notify("SPAD manual controls unavailable: " .. tostring(err))
+            SpadBypass.resetChoice()
+            notify("SPAD / junction controls unavailable: " .. tostring(err))
         end
     end
     if not state.enabled or state.busy or state.drivingFault then return end
