@@ -1942,17 +1942,24 @@ local function canReleaseEmergency(emergency, model)
     end
     local ok, ready = pcall(function()
         local date = require(modules:FindFirstChild("Date"))
-        local releaseTime, now = driver.GetEmergencyReleaseTime(), date.GetTime()
-        return type(releaseTime) == "number" and type(now) == "number" and now >= releaseTime
+        local brakeTime = model:GetAttribute("EmergencyBrakeTime")
+        local waitSeconds = utility.EMERGENCY_BRAKE_WAIT_SECONDS
+        local additional = emergency.additionalWaitSeconds or 0
+        local now = date.GetTime()
+        return type(brakeTime) == "number" and type(waitSeconds) == "number"
+            and type(additional) == "number" and type(now) == "number"
+            and now >= brakeTime + waitSeconds + additional
     end)
-    if not ok or not ready then return false, "SPAD - waiting for release countdown" end
+    if not ok then return false, "SPAD - release timing unavailable" end
+    if not ready then return false, "SPAD - waiting for release countdown" end
     return true, "SPAD - signal clear; waiting for permitted release"
 end
 -- Intercept the mover call before it zeros speed; polling after SPAD is too late.
 -- Keep the override local to our train and restore its previous instance method.
 local SpadBypass: { [string]: any } = {}
 function SpadBypass.needed()
-    if config.bypassSpad or SpadBypass.chooseArmed or (SpadBypass.junction and SpadBypass.junction.requested) then return true end
+    if config.bypassSpad or SpadBypass.chooseArmed
+        or (SpadBypass.junction and SpadBypass.junction.requested) then return true end
     for _, plan in pairs(SpadBypass.junctionPlans or {}) do if plan.requested then return true end end
     return false
 end
@@ -2161,7 +2168,7 @@ function SpadBypass.detach(reapply)
     end
     SpadBypass.sensorOverride, SpadBypass.sensorPrevious = nil, nil
     SpadBypass.sectionJournal, SpadBypass.sectionRecovery = nil, nil
-    SpadBypass.junctionPlans = nil
+    SpadBypass.junctionPlans, SpadBypass.choiceSession = nil, nil
     if SpadBypass.junctionOverride and rawget(mover, "SetJunctionSetting") == SpadBypass.junctionOverride then
         rawset(mover, "SetJunctionSetting", SpadBypass.junctionPrevious)
     end
@@ -2200,7 +2207,17 @@ function SpadBypass.sync(mover)
                 end
                 local hold = SpadBypass.junction
                 if hold and hold.mover == self and hold.id == id then
+                    local changed = not hold.serverGroups or #hold.serverGroups ~= #groups
+                    if not changed then
+                        for index, group in ipairs(groups) do
+                            if hold.serverGroups[index] ~= group then changed = true; break end
+                        end
+                    end
                     hold.serverGroups = table.clone(groups)
+                    if changed and hold.shown then
+                        hold.routes, hold.page = nil, 1
+                        task.defer(SpadBypass.showJunction, hold)
+                    end
                     return -- A late server setting must not resume an undecided train.
                 end
                 plan = (SpadBypass.junctionPlans or {})[id]
@@ -2224,9 +2241,12 @@ function SpadBypass.closeJunction()
     SpadBypass.junction = nil
     if hold and hold.popup then hold.popup:Close() end
 end
-function SpadBypass.beginJunction(mover, id)
+function SpadBypass.beginJunction(mover, id, requested)
     local plan = (SpadBypass.junctionPlans or {})[id]
-    local hold = { mover = mover, id = id, page = 1, requested = plan and plan.requested }
+    local previous = mover.junctionSettings and mover.junctionSettings[id]
+    local hold = { mover = mover, id = id, page = 1,
+        requested = requested or (plan and plan.requested),
+        previousGroups = previous and table.clone(previous) }
     SpadBypass.junction = hold
     -- Resolve a sole complete exit before clearing any stored speed/throttle.
     -- Ambiguous or unavailable track data still requires a stopped choice.
@@ -2396,9 +2416,12 @@ function SpadBypass.junctionRoutes(mover, id, entryOverride)
     table.sort(ids)
     if #ids > 8 then return {}, "Too many branches to verify" end
     local entry = entryOverride
-    for _, carriage in ipairs(mover.carriages) do
+    local backwards = mover.isInitialDirection == false
+    for offset = 0, #mover.carriages - 1 do
         if entry then break end
-        for _, bogie in ipairs(carriage.bogies) do
+        local carriage = mover.carriages[backwards and (#mover.carriages - offset) or (offset + 1)]
+        for index = 1, #carriage.bogies do
+            local bogie = carriage.bogies[backwards and (#carriage.bogies - index + 1) or index]
             local current = bogie.currentNode
             if current then
                 local previous = bogie.prevNode
@@ -2557,6 +2580,9 @@ function SpadBypass.showJunction(hold)
     local routes = table.clone(hold.routes)
     local ok, default = pcall(SpadBypass.defaultJunctionExit, hold)
     if not ok then default = nil end
+    if hold.requested and not hold.serverGroups and not hold.previousGroups then
+        content ..= "\nDefault route has not been received from the server yet."
+    end
     local function addExit(route, isDefault)
         local label = route.name .. (isDefault and " (default)" or "")
         content ..= "\n" .. label
@@ -2599,7 +2625,8 @@ function SpadBypass.updateJunction()
     local hold = SpadBypass.junction
     if hold and hold.mover ~= mover then SpadBypass.closeJunction(); hold = nil end
     if not hold and mover.isPaused and mover.pauseJunctionId and
-        ((config.bypassSpad and SpadBypass.isSpad(mover)) or (SpadBypass.junctionPlans or {})[mover.pauseJunctionId]) then
+        ((config.bypassSpad and SpadBypass.isSpad(mover))
+            or (SpadBypass.junctionPlans or {})[mover.pauseJunctionId]) then
         SpadBypass.beginJunction(mover, mover.pauseJunctionId)
         hold = SpadBypass.junction
     end
@@ -2620,11 +2647,17 @@ function SpadBypass.nextChoiceApproach(mover)
     local excluded = { current }
     if previous then table.insert(excluded, previous) end
     local origin, distance = current.junctionId, (current.position - bogie.position).Magnitude
+    -- currentNode is a target ahead of the bogie. Its junction tag does not
+    -- mean the train has already entered that junction.
+    if origin and previous and previous.junctionId ~= origin and not (SpadBypass.chooseIgnored or {})[origin] then
+        return origin, { from = previous.position - direction * 10,
+            current = previous, excluded = { previous } }, distance
+    end
     for _ = 1, 128 do
         local nextNode, unresolved = selectNode(from, current.position, mover.junctionSettings, current.junctionId, excluded)
         local id = nextNode and nextNode.junctionId or unresolved
         if id and id ~= origin and not (SpadBypass.chooseIgnored or {})[id] then
-            if distance <= 80 then return id, { from = from, current = current, excluded = table.clone(excluded) } end
+            if distance <= 80 then return id, { from = from, current = current, excluded = table.clone(excluded) }, distance end
             return
         end
         if not nextNode or table.find(excluded, nextNode) then return end
@@ -2642,8 +2675,15 @@ function SpadBypass.updateChoice(dt)
     SpadBypass.chooseElapsed = 0
     local mover = SpadBypass.mover
     if not mover or mover.isDestroyed or mover.skeletonModel.Parent:GetAttribute("IsLoading") then return end
-    local id, entry = SpadBypass.nextChoiceApproach(mover)
+    if mover.isPaused and mover.pauseJunctionId then
+        SpadBypass.beginJunction(mover, mover.pauseJunctionId, true)
+        SpadBypass.resetChoice()
+        return
+    end
+    local id, entry, distance = SpadBypass.nextChoiceApproach(mover)
     if not id then return end
+    -- Do not stop well before the section marker that supplies the default.
+    if not mover.junctionSettings[id] and distance and distance > 20 then return end
     local routes = SpadBypass.junctionRoutes(mover, id, entry)
     if #routes <= 1 then
         if #routes == 1 then SpadBypass.chooseIgnored[id] = true end
