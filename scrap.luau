@@ -420,6 +420,8 @@ local emergencyCache = nil
 
 local function log(message)
     if not state.alive then return end
+    -- Deferred driving callbacks must refresh UI capabilities before console access.
+    setthreadidentity(8)
     console:Append(string.format("[%s] %s", os.date("%H:%M:%S"), message))
 end
 local function setStatus(message)
@@ -3864,7 +3866,109 @@ local function predictStoppingMiles(mover, gap, scale, incline, count)
     return math.huge -- horizon exhausted; do not invent a stopping position
 end
 
-local function signalApproach(mover, signal, distance, now, offset)
+-- BEGIN STOP PLANNER: pure forecasts; never calls a mover method or remote.
+local StopPlanner = {}
+function StopPlanner.finite(n)
+    return type(n) == "number" and n == n and math.abs(n) < math.huge
+end
+function StopPlanner.prepare(mover, count)
+    local cached = StopPlanner.cache
+    if cached and cached.mover == mover and cached.maximum == mover.maxSpeed and cached.count == count
+        and cached.engine == mover.engineState and cached.power == mover.hasPower then return cached end
+    local desired
+    for _, value in pairs(getupvalues(autoThrottle.DetermineThrottleAndBrake)) do
+        if type(value) == "function" and debug.info(value, "n") == "getDesiredAcceleration" then desired = value; break end
+    end
+    assert(desired, "Native acceleration-demand curve unavailable")
+    cached = { mover = mover, maximum = mover.maxSpeed, count = count, engine = mover.engineState,
+        power = mover.hasPower, demand = {}, zero = {}, positive = {}, drive = {} }
+    -- Demand is acceleration, not net acceleration sampled at an arbitrary train speed.
+    for i = 0, 400 do cached.demand[i + 1] = -desired(40, 40 - i * 0.05) / 4 end
+    for i = 0, 200 do
+        cached.zero[i + 1] = desired(i * 0.05, 0)
+        cached.positive[i + 1] = desired(i * 0.05, i * 0.05 + 5)
+    end
+    for i = 0, math.ceil(mover.maxSpeed * 2) do
+        local speed = i * 0.5
+        local ratio = speed / mover.maxSpeed
+        local drag = -(ratio * ratio * 0.8 + ratio * 0.2)
+        cached.drive[i + 1] = accelerationModel.CalculateAcceleration(100, 0, speed, mover.maxSpeed,
+            count, 0, mover.engineState, mover.hasPower) - drag
+    end
+    for _, values in ipairs({cached.demand, cached.zero, cached.positive, cached.drive}) do
+        for _, value in ipairs(values) do assert(StopPlanner.finite(value), "Invalid native stopping model") end
+    end
+    StopPlanner.cache = cached -- One train/power configuration, not an accumulating cache.
+    return cached
+end
+function StopPlanner.snapshot(mover, incline, count, dt)
+    assert(mover.controlMode == nil or mover.controlMode == enums.DriveControlMode.Simple, "Simple driving controls required")
+    for _, value in ipairs({mover.currentSpeed, mover.maxSpeed, mover.throttle or 0, mover.brake or 0, incline, dt}) do
+        assert(StopPlanner.finite(value), "Invalid stopping snapshot")
+    end
+    assert(mover.maxSpeed > 0 and mover.currentSpeed >= 0 and dt > 0 and dt <= 0.1, "Invalid stopping snapshot")
+    return { speed = mover.currentSpeed, throttle = mover.throttle or 0, brake = mover.brake or 0,
+        maximum = mover.maxSpeed, incline = incline, count = count, dt = dt,
+        powered = mover.engineState ~= enums.EngineState.Off and mover.hasPower ~= false, curves = StopPlanner.prepare(mover, count) }
+end
+function StopPlanner.acceleration(snapshot, speed, throttle, brake)
+    local ratio = speed / snapshot.maximum
+    local passive = -(ratio * ratio * 0.8 + ratio * 0.2) - math.sin(snapshot.incline) * 10
+    return throttle / 100 * curveValue(snapshot.curves.drive, speed, 0.5) - brake / 100 * 4.5 + passive
+end
+function StopPlanner.controls(snapshot, speed, throttle, brake, target, dt)
+    local demand
+    if target == 0 and speed <= 1 then
+        demand = -30
+    else
+        local desired
+        if target == 0 and speed <= 10 then
+            desired = curveValue(snapshot.curves.zero, speed, 0.05)
+        elseif target > speed and speed <= 10 then
+            desired = curveValue(snapshot.curves.positive, speed, 0.05)
+        else
+            local shape = curveValue(snapshot.curves.demand, math.abs(target - speed), 0.05)
+            desired = target < speed and -4 * shape or target > speed and 3 * shape or 0
+        end
+        -- SCR subtracts CalculateBrake from CalculateThrottle; reproduce both terms.
+        local ratio = speed / snapshot.maximum
+        local drag = -(ratio * ratio * 0.8 + ratio * 0.2)
+        local passive = drag - math.sin(snapshot.incline) * 10
+        local drive = curveValue(snapshot.curves.drive, speed, 0.5)
+        local throttleDemand = snapshot.powered and drive > 0 and math.clamp((desired - passive) / drive * 100, 0, 100) or 0
+        local brakeDemand = math.clamp((desired - passive) / -4.5 * 100, 0, 100)
+        demand = throttleDemand - brakeDemand
+    end
+    demand = math.clamp(demand, throttle - brake - dt * 50, throttle - brake + dt * 50)
+    return math.max(0, demand), math.max(0, -demand)
+end
+function StopPlanner.advance(snapshot, speed, throttle, brake, target, dt)
+    local acceleration = StopPlanner.acceleration(snapshot, speed, throttle, brake)
+    speed = math.clamp(speed + acceleration * dt, 0, snapshot.maximum)
+    throttle, brake = StopPlanner.controls(snapshot, speed, throttle, brake, target, dt)
+    -- SCR moves the bogies using the updated speed, not trapezoidal integration.
+    return speed, throttle, brake, speed * dt / 3600
+end
+function StopPlanner.predict(snapshot, firstTarget, commandSeconds)
+    local speed, throttle, brake = snapshot.speed, snapshot.throttle, snapshot.brake
+    local travelled, time = 0, 0
+    firstTarget, commandSeconds = firstTarget or 0, commandSeconds or 0
+    -- One candidate command interval, followed by zero until physical rest.
+    for _ = 1, math.ceil(90 / snapshot.dt) do
+        if speed <= 0 and time >= commandSeconds then return travelled, time end
+        local dt = snapshot.dt
+        if time < commandSeconds then dt = math.min(dt, commandSeconds - time) end
+        local target = time < commandSeconds and firstTarget or 0
+        local stepDistance
+        speed, throttle, brake, stepDistance = StopPlanner.advance(snapshot, speed, throttle, brake, target, dt)
+        travelled += stepDistance; time += dt
+        if not StopPlanner.finite(travelled) then return math.huge, time end
+    end
+    return math.huge, time -- No invented endpoint when a train cannot stop.
+end
+-- END STOP PLANNER
+
+local function legacySignalApproach(mover, signal, distance, now, offset)
     offset = offset or 0.01
     local speed = mover.currentSpeed
     local incline, count = approachIncline(mover)
@@ -4018,6 +4122,133 @@ local function signalApproach(mover, signal, distance, now, offset)
     if control.degraded then return control.cap, false end
     if control.correcting then return 5, false end
     return control.braking and math.max(5, speed - control.gap) or control.cap, false
+end
+
+local function signalApproach(mover, signal, distance, now, offset)
+    offset = offset or DEFAULT_STOP_OFFSET
+    local speed = mover.currentSpeed
+    local incline, count = approachIncline(mover)
+    local dt = state.physicsDt or 1 / 60
+    local valid, snapshot = pcall(StopPlanner.snapshot, mover, incline, count, dt)
+    local function fallback()
+        if not state.approach or not state.approach.legacy then state.approach = nil end
+        local cap, stop = legacySignalApproach(mover, signal, distance, now, offset)
+        if state.approach then state.approach.legacy = true; state.approach.degraded = true end
+        return cap, stop
+    end
+    if not StopPlanner.finite(distance) or not StopPlanner.finite(speed) then
+        state.approach = nil -- Unknown geometry/state is never a completed station stop.
+        return 0, true
+    end
+    if not valid then return fallback() end
+    local control = state.approach
+    if not control or control.legacy or control.signal ~= signal or control.offset ~= offset or control.mover ~= mover
+        or control.initial ~= mover.isInitialDirection or control.curves ~= snapshot.curves then
+        control = {signal = signal, mover = mover, initial = mover.isInitialDirection, offset = offset,
+            curves = snapshot.curves, cap = math.huge, gap = 0, scale = 1, nextPrediction = 0, lastTime = now,
+            uncertaintyMiles = 0.0005, residualMiles = 0, finalSeconds = 0, correctionAttempts = 0}
+        state.approach = control
+    end
+    local tickDt = now - control.lastTime
+    control.lastTime = now
+    if control.forecastIncline and math.abs(incline - control.forecastIncline) > 0.005 then
+        control.nextPrediction = 0; control.lastEndpoint = nil; control.residualMiles = 0
+    end
+    control.forecastIncline = incline
+    if tickDt > 0.25 then return fallback() end
+    if control.braking and speed <= 10 then control.finalSeconds += math.max(0, tickDt) end
+    local remaining = distance - offset
+    if remaining <= 0 or control.holding then control.holding = true; return 0, true end
+    if control.correctionBlocked then return 0, true end
+    if control.correcting then
+        if remaining < (control.correctionProgress or remaining) - 0.0002 then
+            control.correctionProgress = remaining; control.correctionProgressTime = now
+        end
+        if now - control.correctionStarted >= 15 or now - control.correctionProgressTime >= 3 then
+            control.correcting = false; control.correctionBlocked = true; control.cap = 0
+            return 0, true
+        end
+    end
+    if control.zeroCommand and speed == 0 then
+        local front = mover:GetFrontBogie()
+        if not front or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0 then
+            control.resting = nil; return 0, true
+        end
+        if not control.resting or (front.position - control.resting.position).Magnitude > 0.001 then
+            control.resting = {position = front.position, time = now}; return 0, true
+        end
+        if now - control.resting.time < 0.5 then return 0, true end
+        if remaining <= 0.00075 then
+            control.holding = true
+            if not control.logged then
+                control.logged = true
+                log(string.format("Stop: error %+.6f mi | Final <=10 mph %.2fs | Corrections %d",
+                    remaining, control.finalSeconds, control.correctionAttempts))
+            end
+            return 0, true
+        end
+        if remaining > 0.02 or control.correctionAttempts >= 3 then
+            control.correctionBlocked = true; control.cap = 0; return 0, true
+        end
+        control.correcting = true; control.zeroCommand = false; control.resting = nil
+        control.correctionAttempts += 1; control.correctionStarted = control.correctionStarted or now
+        control.correctionProgress, control.correctionProgressTime = remaining, now
+        control.nextPrediction = 0
+    elseif speed > 0 then control.resting = nil end
+    if now >= control.nextPrediction then
+        local commandSeconds = math.max(0.05, tickDt, math.ceil((0.05 - 1e-9) / dt) * dt)
+        local zeroMiles = StopPlanner.predict(snapshot, 0, 0)
+        if not StopPlanner.finite(zeroMiles) then return fallback() end
+        -- A zero-command endpoint should stay fixed as the train travels toward it.
+        -- Learn bounded positional uncertainty; never scale the entire physics model.
+        local endpoint = distance - zeroMiles
+        if control.lastEndpoint and control.zeroCommand and control.lastIncline
+            and math.abs(incline - control.lastIncline) < 0.002 then
+            local residual = math.abs(endpoint - control.lastEndpoint)
+            if residual < 0.01 then
+                control.residualMiles += 0.2 * (residual - control.residualMiles)
+            end
+        end
+        control.lastEndpoint, control.lastIncline = endpoint, incline
+        control.uncertaintyMiles = math.clamp(0.0005 + 2 * control.residualMiles, 0.0005, 0.002)
+        if control.residualMiles > 0.001 then return fallback() end
+        control.zeroMiles = zeroMiles
+        local available = math.max(0, remaining - control.uncertaintyMiles)
+        -- Cruise until a zero command is needed within the next prediction interval.
+        if not control.braking and not control.correcting and zeroMiles + speed * 0.2 / 3600 < available then
+            control.cap = math.huge; control.nextPrediction = now + 0.2
+            control.zeroCommand = false
+        else
+            control.braking = true; control.nextPrediction = now + 0.05
+            control.cap = 0
+            local chosenMiles = zeroMiles
+            if zeroMiles < available then
+                local upper = math.max(5, speed)
+                local coastMiles = StopPlanner.predict(snapshot, upper, commandSeconds)
+                if not StopPlanner.finite(coastMiles) then return fallback() end
+                if coastMiles <= available then
+                    control.cap, chosenMiles = upper, coastMiles
+                elseif upper > 5 then
+                    -- At most two refinements beyond the zero forecast, warm-started.
+                    local candidate = control.lastCap and control.lastCap >= 5 and control.lastCap < upper
+                        and control.lastCap or math.max(5, upper * 0.5)
+                    local candidateMiles = StopPlanner.predict(snapshot, candidate, commandSeconds)
+                    if not StopPlanner.finite(candidateMiles) then return fallback() end
+                    if candidateMiles <= available then control.cap, chosenMiles = candidate, candidateMiles end
+                end
+            end
+            control.lastCap = control.cap
+            control.zeroCommand = control.cap == 0
+            control.gap = math.max(0, speed - control.cap)
+            control.predictedDistance, control.errorMiles = distance - chosenMiles, remaining - chosenMiles
+        end
+    end
+    -- Between forecasts, recheck the cached immediate-stop envelope at driving cadence.
+    if control.zeroMiles and control.zeroMiles >= remaining - control.uncertaintyMiles then
+        control.cap = 0; control.zeroCommand = true
+    end
+    if control.cap == 0 then return 0, true end
+    return control.cap, false
 end
 
 local function stationDistance(model)
@@ -4435,11 +4666,11 @@ local function updateDrivingData()
         ok and number(distance, "%.4f") or "N/A", number(stationMiles, "%.4f"),
         target and (target.kind .. " / " .. target.name) or "None", number(target and target.distance, "%.4f"),
         unavailable ~= "" and ("\n" .. unavailable) or ""))
-    setLiveText(drivingDetails, string.format("Speed change: %s mph/s | Longitudinal acceleration: %s g\nNose overhang: %s studs | Brake: %s%%\nBrake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi\nModel response: %.2fx | Target: %.6f mi\nNative pause: %s | Junction: %s | Controls locked: %s",
+    setLiveText(drivingDetails, string.format("Speed change: %s mph/s | Longitudinal acceleration: %s g\nNose overhang: %s studs | Brake: %s%%\nBrake estimate: %.2f mph/s (%s)\nPredicted stop offset: %s mi | Error: %s mi\nPrediction uncertainty: %s mi | Target: %.6f mi\nNative pause: %s | Junction: %s | Controls locked: %s",
         number(state.speedChange, "%+.2f"), number(state.speedChange and state.speedChange * 0.44704 / 9.80665, "%+.3f"),
         number(target and target.overhang, "%.1f"), number(mover.brake, "%.0f"),
         state.estimate, state.brakeCalibrated and "calibrated / locked" or string.format("fallback / %d samples", #state.brakeSamples),
-        number(prediction and prediction.predictedDistance, "%.4f"), number(prediction and prediction.errorMiles, "%+.4f"), state.responseScale, state.stopOffset,
+        number(prediction and prediction.predictedDistance, "%.4f"), number(prediction and prediction.errorMiles, "%+.4f"), number(approach and approach.uncertaintyMiles, "%.6f"), state.stopOffset,
         tostring(mover.isPaused), tostring(mover.pauseJunctionId or "None"), tostring(mover.areControlsLocked or mover.areControlsSoftLocked or false)))
 end
 
@@ -5141,6 +5372,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     bypassElapsed += dt
     if not state.alive then return end
     local performance = state.performance
+    if dt > 0 and dt <= 0.1 then state.physicsDt = dt end
     performance.seconds += dt
     board.elapsed += dt
     TicketAssist.update(dt)
