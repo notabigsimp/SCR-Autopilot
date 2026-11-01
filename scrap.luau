@@ -232,7 +232,9 @@ do
     panel:CreateSection({ name = "Recent changes" })
     local release114 = panel:CreateText({
         name = "Version 1.1.4",
-        text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed',
+        text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed'
+            .. '<font color="#E8BC64">~ </font> Fixed the Autopilot from not being able to release emergency brake'
+            .. '<font color="#E8BC64">~ </font> Better stopping at station',
     })
     release114.main.Size = UDim2.new(1, 0, 0, 0)
     release114.body.LineHeight = 1.45
@@ -2214,7 +2216,13 @@ function SpadBypass.sync(mover)
                         end
                     end
                     hold.serverGroups = table.clone(groups)
-                    if changed and hold.shown then
+                    if hold.recovery and #groups > 0 then
+                        task.defer(function()
+                            if SpadBypass.junction == hold then
+                                pcall(SpadBypass.resumeJunction, hold, { useDefault = true }, "default")
+                            end
+                        end)
+                    elseif changed and hold.shown then
                         hold.routes, hold.page = nil, 1
                         task.defer(SpadBypass.showJunction, hold)
                     end
@@ -2618,12 +2626,39 @@ function SpadBypass.showJunction(hold)
     -- Dismissing leaves the train stopped; the Autopilot tab can reopen this popup.
     hold.popup = window:Popup({ title = "Junction " .. tostring(hold.id), content = content, dismissable = true, options = options })
 end
+function SpadBypass.recoverUnconfiguredJunction(mover)
+    local id = mover.pauseJunctionId
+    if not state.alive or not mover.isPaused or not id or SpadBypass.junction then return false end
+    local setting = mover.junctionSettings[id]
+    if setting and #setting > 0 then return false end
+    local followingChoice = false
+    for _, plan in pairs(SpadBypass.junctionPlans or {}) do
+        if plan.requested and plan.entered then followingChoice = true; break end
+    end
+    if not followingChoice then return false end
+    -- A diversion can reach an adjacent merge absent from the server's original
+    -- route map. Use its sole exit, or ask only while no native default exists.
+    local ok, routes = pcall(SpadBypass.junctionRoutes, mover, id)
+    if not ok or #routes == 0 then return false end
+    local hold = { mover = mover, id = id, requested = true, recovery = true, page = 1 }
+    SpadBypass.junction = hold
+    if #routes > 1 then
+        hold.routes, hold.shown = routes, true
+        SpadBypass.holdJunction()
+        task.defer(SpadBypass.showJunction, hold)
+        return true
+    end
+    local resumed, result = pcall(SpadBypass.resumeJunction, hold, routes[1], true)
+    if SpadBypass.junction == hold then SpadBypass.closeJunction() end
+    return resumed and result == true
+end
 function SpadBypass.updateJunction()
     local mover = SpadBypass.mover
     if not mover then return end
     SpadBypass.pruneJunctionPlans(mover)
     local hold = SpadBypass.junction
     if hold and hold.mover ~= mover then SpadBypass.closeJunction(); hold = nil end
+    if not hold and SpadBypass.recoverUnconfiguredJunction(mover) then return end
     if not hold and mover.isPaused and mover.pauseJunctionId and
         ((config.bypassSpad and SpadBypass.isSpad(mover))
             or (SpadBypass.junctionPlans or {})[mover.pauseJunctionId]) then
