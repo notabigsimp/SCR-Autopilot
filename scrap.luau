@@ -2013,6 +2013,8 @@ end
 function SpadBypass.updateSectionRecovery()
     local mover, journal = SpadBypass.mover, SpadBypass.sectionJournal
     if not mover or not journal or not SpadBypass.isSpad(mover) then return end
+    local platformBinding = PlatformRecovery.binding
+    if platformBinding and platformBinding.context and platformBinding.context.busy then return end
     local model = mover.skeletonModel.Parent
     local emergency = emergencyState()
     if emergency.currentState ~= enums.EmergencyState.SignalAtDanger or emergency.releaseInProgress then return end
@@ -2761,9 +2763,48 @@ function PlatformRecovery.detach()
     if not binding then return end
     PlatformRecovery.cancel(binding, "train changed or script unloaded")
     PlatformRecovery.binding = nil
+    PlatformRecovery.unbindReplies(binding)
     if rawget(binding.mover, "sensorCallback") == binding.wrapper then
         rawset(binding.mover, "sensorCallback", binding.previous)
     end
+end
+-- Observe replies only inside this train's native sensor callback. RPCs made
+-- by recovery (or other scripts/coroutines) must not become native evidence.
+function PlatformRecovery.bindReplies(binding)
+    local loadModule: any = require
+    local communication = loadModule(modules:FindFirstChild("Communication"))
+    binding.calls, binding.replies = {}, {}
+    for _, name in ipairs({ "EnterSection", "ExitSection" }) do
+        local remote = communication.GetFunction(name)
+        local original, previous = remote.Invoke, rawget(remote, "Invoke")
+        local wrapper
+        wrapper = function(self, ...)
+            local call = binding.calls[coroutine.running()]
+            local event = call and call.event
+            local section = select(1, ...)
+            local observed, matched = pcall(function()
+                return self == remote and PlatformRecovery.binding == binding and state.alive
+                    and event and event.enter == (name == "EnterSection") and section == event.section
+                    and event.identity == PlatformRecovery.identity(binding.mover)
+            end)
+            local result = table.pack(pcall(original, self, ...))
+            if observed and matched and PlatformRecovery.binding == binding and event.identity == binding.identity then
+                local reply = { ok = result[1], completedAt = os.clock(), values = table.pack(table.unpack(result, 2, result.n)) }
+                reply.response = result[1] and (type(result[2]) == "table" and result[2].sectionResponse or result[2]) or nil
+                event.native = reply
+            end
+            if not result[1] then error(result[2], 0) end
+            return table.unpack(result, 2, result.n)
+        end
+        binding.replies[name] = { remote = remote, wrapper = wrapper, previous = previous }
+        rawset(remote, "Invoke", wrapper)
+    end
+end
+function PlatformRecovery.unbindReplies(binding)
+    for _, hook in pairs(binding.replies or {}) do
+        if rawget(hook.remote, "Invoke") == hook.wrapper then rawset(hook.remote, "Invoke", hook.previous) end
+    end
+    binding.replies = nil
 end
 function PlatformRecovery.sensors(mover)
     local result, seen = {}, {}
@@ -2833,8 +2874,8 @@ function PlatformRecovery.platformSection(binding, platform)
     end
     return found
 end
-function PlatformRecovery.platformAt(binding, sensor, section)
-    local announced = binding.announced
+function PlatformRecovery.platformAt(binding, sensor, section, announcement)
+    local announced = announcement or binding.announced
     if not announced then return nil end
     local stations = game:GetService("ReplicatedStorage"):FindFirstChild("Stations")
     local station = stations and stations:FindFirstChild(announced.station)
@@ -2842,6 +2883,25 @@ function PlatformRecovery.platformAt(binding, sensor, section)
     local platform = platforms and platforms:FindFirstChild("P" .. announced.platform)
     if platform and PlatformRecovery.platformSection(binding, platform) == section then return platform, announced.station end
     return nil
+end
+function PlatformRecovery.refreshSensors(binding)
+    if #binding.sensors > 0 and not binding.announced then return end
+    if os.clock() < (binding.nextSensorRefresh or 0) then return end
+    binding.nextSensorRefresh = os.clock() + 3
+    local sensors = PlatformRecovery.sensors(binding.mover)
+    if #sensors == 0 then return end
+    binding.sensors = sensors
+    for i = #binding.journal, 1, -1 do
+        local event = binding.journal[i]
+        local announcement = event.announcement
+        -- Older live recorders retained the current unconsumed announcement.
+        -- Only use it for the latest entered section, never historical guesses.
+        if not announcement and event.enter and event.section == binding.section then announcement = binding.announced end
+        if event.enter and not event.platform and announcement then
+            event.platform, event.station = PlatformRecovery.platformAt(binding, { position = event.position }, event.section, announcement)
+            if event.platform and event.section == binding.section then binding.announced = nil end
+        end
+    end
 end
 function PlatformRecovery.record(binding, sensor, forward, front)
     if binding ~= PlatformRecovery.binding or not state.alive then return end
@@ -2857,9 +2917,10 @@ function PlatformRecovery.record(binding, sensor, forward, front)
     local ids = sensor.extraData.sectionIds
     local event = { section = ids[front and (forward and "A" or "B") or (forward and "B" or "A")],
         signal = front and forward and sensor.extraData.signalId or nil, enter = front, forward = forward,
-        position = sensor.position, identity = identity, done = false }
+        position = sensor.position, identity = identity, observed = binding.replies ~= nil, done = false }
     if front then
         binding.section = event.section
+        event.announcement = binding.announced and table.clone(binding.announced)
         event.platform, event.station = PlatformRecovery.platformAt(binding, sensor, event.section)
         if event.platform then binding.announced = nil end
     end
@@ -2884,6 +2945,7 @@ function PlatformRecovery.sync(mover)
             PlatformRecovery.cancel(binding, "route, leg, direction or next stop changed")
             binding.identity, binding.journal, binding.context, binding.announced, binding.section = identity, {}, nil, nil, nil
         end
+        PlatformRecovery.refreshSensors(binding)
         return
     end
     local original = mover.sensorCallback
@@ -2891,10 +2953,15 @@ function PlatformRecovery.sync(mover)
     binding = { mover = mover, model = mover.skeletonModel.Parent, identity = PlatformRecovery.identity(mover), journal = {},
         original = original, previous = rawget(mover, "sensorCallback"), sensors = PlatformRecovery.sensors(mover) }
     PlatformRecovery.binding = binding
+    PlatformRecovery.bindReplies(binding)
     binding.wrapper = function(sensor, forward, front)
         -- Observation failures must never suppress the game's native sensor callback.
         local ok, event = pcall(PlatformRecovery.record, binding, sensor, forward, front)
+        local thread = coroutine.running()
+        local previousCall = binding.calls[thread]
+        if ok and event then binding.calls[thread] = { event = event } end
         local result = table.pack(pcall(original, sensor, forward, front))
+        binding.calls[thread] = previousCall
         if ok and event then event.done = true end
         if not ok then
             PlatformRecovery.cancel(binding, "sensor observation failed")
@@ -2912,11 +2979,15 @@ function PlatformRecovery.noteChoice(mover, hold, route, automatic)
     local binding = PlatformRecovery.binding
     if not binding or binding.mover ~= mover or binding.fault then return end
     if binding.context and not binding.context.finished then return end
-    local anchor
+    local anchor, rejected
     for i = #binding.journal, 1, -1 do
         local event = binding.journal[i]
-        if event.enter and event.signal and event.identity == binding.identity then anchor = i; break end
+        if event.enter and event.signal and event.identity == binding.identity then
+            if event.native and event.native.ok and event.native.response == enums.SectionResponse.Accepted then anchor = i; break end
+            if not rejected and event.native and event.native.ok and event.native.response == enums.SectionResponse.Rejected then rejected = i end
+        end
     end
+    anchor = anchor or rejected
     local events = {}
     if anchor then for i = anchor, #binding.journal do table.insert(events, binding.journal[i]) end end
     binding.context = { events = events, completeHistory = anchor ~= nil, identity = binding.identity, junction = hold.id,
@@ -2975,10 +3046,6 @@ function PlatformRecovery.confirmed(binding, context, event)
     local number = event.platform.Name:sub(2)
     local occupied = event.platform:FindFirstChild("OccupiedTrain")
     if tostring(model:GetAttribute("PlatformNumber")) ~= number or not occupied or occupied.Value ~= model then return false end
-    local platforms = event.platform.Parent
-    local old = context.assigned and platforms:FindFirstChild("P" .. tostring(context.assigned))
-    local allocation = old and old:FindFirstChild("AllocatedTrain")
-    if old ~= event.platform and allocation and allocation.Value == model then return false end
     -- Native door-unlock eligibility uses assignment + occupancy and a stopped
     -- train. DoorSide/OnPlatform may only update after StartLoading; requiring
     -- them here would incorrectly retry an already successful registration.
@@ -2993,67 +3060,6 @@ end
 function PlatformRecovery.active(binding, context)
     return state.alive and PlatformRecovery.binding == binding and binding.context == context and not context.finished
         and not binding.mover.isDestroyed and PlatformRecovery.identity(binding.mover) == context.identity
-end
--- Cancel an obsolete, unoccupied reservation belonging to this train only.
--- This is reservation cancellation, not a fabricated rear crossing.
-function PlatformRecovery.clearOldReservation(binding, context, target, communication)
-    local old = context.assigned and target.platform.Parent:FindFirstChild("P" .. tostring(context.assigned))
-    if not old or old == target.platform then return true end
-    local allocation, occupied, passing = old:FindFirstChild("AllocatedTrain"), old:FindFirstChild("OccupiedTrain"), old:FindFirstChild("PassingTrain")
-    if not allocation or allocation.Value ~= binding.model then return true end
-    local targetOwner = target.platform:FindFirstChild("OccupiedTrain")
-    if not targetOwner or targetOwner.Value ~= binding.model then return true end
-    if not occupied or occupied.Value or not passing or passing.Value then
-        PlatformRecovery.stop(context, "old platform is occupied or has a passing train; reservation left untouched")
-        return false
-    end
-    if not context.cleanupCandidates then
-        local position = old:FindFirstChild("Position")
-        local active, visited, candidates, seen = {}, {}, {}, {}
-        for _, event in ipairs(context.events) do
-            visited[event.section] = true
-            active[event.section] = event.enter or nil
-        end
-        local mapped = PlatformRecovery.platformSection(binding, old)
-        if mapped then
-            if not active[mapped] and mapped ~= target.section then table.insert(candidates, mapped) end
-        else
-        for _, sensor in ipairs(binding.sensors) do
-            if position and (position.Value - sensor.position).Magnitude < 1 then
-                for _, section in pairs(sensor.extraData.sectionIds) do
-                    if not seen[section] and not active[section] and section ~= target.section then
-                        seen[section] = true
-                        table.insert(candidates, section)
-                    end
-                end
-            end
-        end
-        end
-        -- Prefer the unused default branch over shared approach sections.
-        table.sort(candidates, function(a, b)
-            if visited[a] ~= visited[b] then return not visited[a] end
-            return a < b
-        end)
-        if #candidates > 2 then
-            PlatformRecovery.stop(context, "old platform section mapping is ambiguous; reservation left untouched")
-            return false
-        end
-        context.cleanupCandidates, context.cleanupIndex = candidates, 1
-    end
-    local section = context.cleanupCandidates[context.cleanupIndex]
-    if not section then
-        PlatformRecovery.stop(context, "server retained the old reservation after verified cancellation requests")
-        return false
-    end
-    context.cleanupIndex += 1
-    local response = communication.GetFunction("ExitSection"):Invoke(section)
-    if not PlatformRecovery.active(binding, context) then return false end
-    context.cleanupResults = context.cleanupResults or {}
-    table.insert(context.cleanupResults, { section = section, response = response })
-    if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then
-        PlatformRecovery.stop(context, "old reservation cancellation returned " .. tostring(response))
-    end
-    return false -- Read replicated ownership on the next batch; never infer success from the response.
 end
 function PlatformRecovery.permitted(signalId)
     local signals = workspace:FindFirstChild("Signals")
@@ -3080,48 +3086,114 @@ function PlatformRecovery.waitForPlatform(binding, context, target)
     end
     return false
 end
+function PlatformRecovery.acknowledged(event)
+    local reply = event.native
+    return reply and reply.ok and (reply.response == enums.SectionResponse.Accepted or reply.response == enums.SectionResponse.NotSignalled)
+end
+function PlatformRecovery.buildReplay(context, target)
+    local queue, entered, paired, pending, queuedEntries = {}, {}, {}, {}, {}
+    local cutoff
+    for i, event in ipairs(context.events) do
+        if event == target then cutoff = i; break end
+    end
+    if not cutoff then return nil, "arrival history is incomplete" end
+    for i = 1, #context.events do
+        local event = context.events[i]
+        if i > cutoff and event.enter then continue end
+        if not event.done then return nil, "native request pending", true end
+        if not event.observed then return nil, "native replies were not recorded; a fresh approach is required" end
+        if event.enter then pending[event.section] = event
+        else
+            local entry = pending[event.section]
+            if entry and PlatformRecovery.acknowledged(entry) and PlatformRecovery.acknowledged(event) then
+                paired[entry], paired[event] = true, true
+            end
+            pending[event.section] = nil
+        end
+    end
+    local anchor = context.events[1]
+    if not anchor.native or not anchor.native.ok then return nil, "no server reply for the signalled checkpoint; a fresh approach is required" end
+    if anchor.native.response ~= enums.SectionResponse.Accepted and anchor.native.response ~= enums.SectionResponse.Rejected then
+        return nil, "no accepted or explicitly rejected signalled checkpoint was recorded"
+    end
+    context.checkpointAccepted = anchor.native.response == enums.SectionResponse.Accepted
+    for i = 1, cutoff do
+        local event = context.events[i]
+        local reply = event.native
+        if reply and reply.ok and reply.response == enums.SectionResponse.Unknown then return nil, "server reported an unknown section" end
+        if event.enter then
+            local accepted = reply and reply.ok and reply.response == enums.SectionResponse.Accepted
+            if accepted then entered[event.section] = true
+            elseif not paired[event] then
+                table.insert(queue, event)
+                queuedEntries[event.section] = true
+            end
+        else
+            if queuedEntries[event.section] then
+                table.insert(queue, event)
+                queuedEntries[event.section] = nil
+            elseif paired[event] then entered[event.section] = nil
+            elseif not PlatformRecovery.acknowledged(event) then table.insert(queue, event)
+            else entered[event.section] = nil end
+        end
+    end
+    -- An approach rear crossing can occur after the front reaches the platform.
+    -- Include that recorded exit for a corrected entry, without replaying any
+    -- subsequent front/departure entries or inventing a rear crossing.
+    for i = cutoff + 1, #context.events do
+        local event = context.events[i]
+        if not event.enter and queuedEntries[event.section] then
+            table.insert(queue, event)
+            queuedEntries[event.section] = nil
+        end
+    end
+    return queue, nil, false, entered
+end
 function PlatformRecovery.update()
     local binding = PlatformRecovery.binding
     local context = binding and binding.context
     if not context or context.finished or context.busy or binding.fault then return end
     if not PlatformRecovery.active(binding, context) then PlatformRecovery.cancel(binding, "train state changed"); return end
-    -- Never run two section-replay queues against the same train.
-    if SpadBypass.isSpad(binding.mover) then return end
+    if SpadBypass.isSpad(binding.mover) or (SpadBypass.sectionRecovery and SpadBypass.sectionRecovery.busy) then return end
     local target = PlatformRecovery.target(binding, context)
     if not target then return end
-    local actual = target.platform.Name:sub(2)
-    if not context.started and tostring(binding.model:GetAttribute("PlatformNumber")) == actual then
-        context.finished = true; return
-    end
-    if not context.completeHistory then PlatformRecovery.stop(context, "no recorded signalled entry before the diversion"); return end
-    if PlatformRecovery.waitForPlatform(binding, context, target) then return end
-    if not PlatformRecovery.validated then
-        PlatformRecovery.report(context, "validation", "Platform mismatch recorded; automatic recovery is awaiting live validation.")
-        return
-    end
-    if PlatformRecovery.confirmed(binding, context, target) and context.index > #context.events then
+    if PlatformRecovery.confirmed(binding, context, target) then
         context.finished = true
-        PlatformRecovery.report(context, "success", "Platform recovery confirmed: " .. target.station .. " " .. target.platform.Name .. ".")
+        PlatformRecovery.report(context, "success", "Platform registration confirmed: " .. target.station .. " " .. target.platform.Name .. ". Normal door handling restored.")
+        local old = context.assigned and target.platform.Parent:FindFirstChild("P" .. tostring(context.assigned))
+        local allocation = old and old:FindFirstChild("AllocatedTrain")
+        if old ~= target.platform and allocation and allocation.Value == binding.model then
+            PlatformRecovery.report(context, "reservation", "Previous platform reservation remains with the server; normal loading is available.")
+        end
         return
     end
-    local anchor = context.events[1]
-    if not anchor.done or (not context.anchorAccepted and not PlatformRecovery.permitted(anchor.signal)) then return end
-    if os.clock() < context.nextAttempt then return end
-    context.started = true
-    PlatformRecovery.report(context, "started", "Platform recovery started for " .. target.station .. " " .. target.platform.Name .. ".")
-    if context.waitUntil then
-        if os.clock() < context.waitUntil then return end
-        context.waitUntil = nil
-        local occupied = target.platform:FindFirstChild("OccupiedTrain")
-        if occupied and occupied.Value == binding.model then
-            PlatformRecovery.stop(context, "platform occupancy registered, but assignment or previous reservation remains inconsistent; refusing to replay the approach again")
+    if not context.completeHistory then PlatformRecovery.stop(context, "no acknowledged approach checkpoint; record a fresh approach"); return end
+    if PlatformRecovery.waitForPlatform(binding, context, target) then return end
+    if target.native and os.clock() - target.native.completedAt < 2 then return end
+    if not context.queue or ((context.attempts or 0) == 0 and context.queueEventCount ~= #context.events) then
+        local queue, reason, waiting, entered = PlatformRecovery.buildReplay(context, target)
+        if not queue then
+            if not waiting then PlatformRecovery.stop(context, reason) end
             return
         end
-        if context.attempts >= 3 then PlatformRecovery.stop(context, "server did not confirm platform assignment and doors after three attempts"); return end
-        context.index, context.entered, context.attemptStarted, context.anchorAccepted = 1, {}, false, false
+        context.queue, context.initialEntered, context.entered, context.index = queue, entered, table.clone(entered), 1
+        context.queueEventCount = #context.events
+        if #queue == 0 then PlatformRecovery.stop(context, "server acknowledged this arrival but did not register the platform; no missing crossing to replay"); return end
     end
-    local targetEntryIndex
-    for i, event in ipairs(context.events) do if event == target then targetEntryIndex = i; break end end
+    if not PlatformRecovery.validated then
+        PlatformRecovery.report(context, "validation", "Unregistered diverted arrival identified; correction is awaiting live validation.")
+        return
+    end
+    if os.clock() < context.nextAttempt then return end
+    if context.waitUntil then
+        if os.clock() < context.waitUntil then return end
+        local occupied = target.platform:FindFirstChild("OccupiedTrain")
+        if occupied and occupied.Value == binding.model then PlatformRecovery.stop(context, "occupancy registered but assignment is inconsistent; refusing to re-enter the approach"); return end
+        if context.attempts >= 3 then PlatformRecovery.stop(context, "server did not register the diverted platform after three corrections"); return end
+        context.index, context.entered, context.attemptStarted, context.waitUntil = 1, table.clone(context.initialEntered), false, nil
+    end
+    context.started = true
+    PlatformRecovery.report(context, "started", "Correcting diverted section registration for " .. target.station .. " " .. target.platform.Name .. ".")
     context.nextAttempt, context.busy = os.clock() + 3, true
     task.defer(function()
         local ok, failure = pcall(function()
@@ -3129,30 +3201,17 @@ function PlatformRecovery.update()
             local communication = loadModule(modules:FindFirstChild("Communication"))
             for _ = 1, 8 do
                 if not PlatformRecovery.active(binding, context) then return end
-                local currentTarget = PlatformRecovery.target(binding, context)
-                if not currentTarget or currentTarget.platform ~= target.platform or SpadBypass.isSpad(binding.mover) then
-                    PlatformRecovery.stop(context, "train or platform changed during recovery"); return
-                end
+                local current = PlatformRecovery.target(binding, context)
+                if not current or current.platform ~= target.platform or SpadBypass.isSpad(binding.mover) then PlatformRecovery.stop(context, "train or platform changed during correction"); return end
                 if PlatformRecovery.waitForPlatform(binding, context, target) then return end
-                local event = context.events[context.index]
-                if not event then
-                    if PlatformRecovery.clearOldReservation(binding, context, target, communication) then context.waitUntil = os.clock() + 2 end
+                local event = context.queue[context.index]
+                if not event then context.waitUntil = os.clock() + 2; return end
+                if event.enter and event.signal and not PlatformRecovery.permitted(event.signal) then
+                    PlatformRecovery.report(context, "signal", "Platform correction waiting for permission at signal " .. tostring(event.signal) .. ".")
                     return
                 end
-                -- Recover the arrival, not departures already crossed natively.
-                -- Re-entering a later signalled section can allocate another platform.
-                if event.enter and targetEntryIndex and context.index > targetEntryIndex then
-                    context.cutoffIndex = context.index
-                    context.index = #context.events + 1
-                    if PlatformRecovery.clearOldReservation(binding, context, target, communication) then context.waitUntil = os.clock() + 2 end
-                    return
-                end
-                if not event.done or (not context.anchorAccepted and not PlatformRecovery.permitted(anchor.signal)) then return end
                 if event.enter or context.entered[event.section] then
-                    if not context.attemptStarted then
-                        context.attempts += 1
-                        context.attemptStarted = true
-                    end
+                    if not context.attemptStarted then context.attempts += 1; context.attemptStarted = true end
                     local result
                     if event.enter then result = communication.GetFunction("EnterSection"):Invoke(event.section, event.signal)
                     else result = communication.GetFunction("ExitSection"):Invoke(event.section) end
@@ -3163,13 +3222,10 @@ function PlatformRecovery.update()
                     if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then
                         PlatformRecovery.stop(context, "section " .. tostring(event.section) .. " returned " .. tostring(response)); return
                     end
-                    if event == anchor and response == enums.SectionResponse.Accepted then context.anchorAccepted = true end
                     if event.enter then
                         context.entered[event.section] = true
                         if type(result) == "table" then
-                            for _, junction in ipairs(result.junctionMap or {}) do
-                                binding.mover:SetJunctionSetting(junction.junctionId, junction.nodeGroups)
-                            end
+                            for _, junction in ipairs(result.junctionMap or {}) do binding.mover:SetJunctionSetting(junction.junctionId, junction.nodeGroups) end
                         end
                     else context.entered[event.section] = nil end
                 end
