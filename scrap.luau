@@ -175,7 +175,7 @@ do
 end
 local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.3", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.4", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
 -- Use solid window/popup surfaces and one shared solid tile colour.
 do
@@ -230,6 +230,28 @@ do
     panel.main.BackgroundColor3 = window.theme.StatBackground
     window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
     panel:CreateSection({ name = "Recent changes" })
+    local release114 = panel:CreateText({
+        name = "Version 1.1.4",
+        text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed',
+    })
+    release114.main.Size = UDim2.new(1, 0, 0, 0)
+    release114.body.LineHeight = 1.45
+    -- Keep the release badge in its own column at the right of the title.
+    release114.title.Size = UDim2.new(1, -56, 0, 0)
+    local latest = window:Create("Frame", {
+        Name = "LatestBadge", Size = UDim2.fromOffset(50, 22),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        LayoutOrder = 2, Parent = release114.titleRow,
+    })
+    local green = Color3.fromRGB(34, 197, 94)
+    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = latest })
+    window:Create("UIStroke", { Color = green, Thickness = 1, Transparency = 0.1, Parent = latest })
+    window:Create("TextLabel", {
+        Name = "Latest", Text = "Latest", Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1, TextColor3 = green, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+        Parent = latest,
+    }, { FontFace = "Font" })
     local release113 = panel:CreateText({
         name = "Version 1.1.3",
         text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD\n'
@@ -245,15 +267,6 @@ do
         BackgroundTransparency = 1, BorderSizePixel = 0,
         LayoutOrder = 2, Parent = release113.titleRow,
     })
-    local green = Color3.fromRGB(34, 197, 94)
-    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = latest })
-    window:Create("UIStroke", { Color = green, Thickness = 1, Transparency = 0.1, Parent = latest })
-    window:Create("TextLabel", {
-        Name = "Latest", Text = "Latest", Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1, TextColor3 = green, TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
-        Parent = latest,
-    }, { FontFace = "Font" })
     local release112 = panel:CreateText({
         name = "Version 1.1.2",
         text = '<font color="#E8BC64">~ </font> Buttons are now single-toned\n'
@@ -4617,7 +4630,7 @@ local function step()
     local signal, distance, aspect = signalData(mover)
     if signal and aspect == nil then error("Signal state unavailable.") end
     local signalKind, danger, caution = signalPolicy(signal, aspect)
-    if caution or danger then
+    if not config.ignoreSpeedLimit and (caution or danger) then
         desired = math.min(desired, config.yellowSpeed)
     end
     local reason = signal and "Cruising" or "Cruising - no next signal"
