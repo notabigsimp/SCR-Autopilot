@@ -234,7 +234,7 @@ do
         name = "Version 1.1.4",
         text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed'
             .. '<font color="#E8BC64">~ </font> Fixed the Autopilot from not being able to release emergency brake'
-            .. '<font color="#E8BC64">~ </font> Better stopping at station',
+            .. '<font color="#E8BC64">~ </font> Stopping at station and platforms now speed up by up to 50% ',
     })
     release114.main.Size = UDim2.new(1, 0, 0, 0)
     release114.body.LineHeight = 1.45
@@ -1958,6 +1958,7 @@ local function canReleaseEmergency(emergency, model)
 end
 -- Intercept the mover call before it zeros speed; polling after SPAD is too late.
 -- Keep the override local to our train and restore its previous instance method.
+local PlatformRecovery: { [string]: any } = { validated = false }
 local SpadBypass: { [string]: any } = {}
 function SpadBypass.needed()
     if config.bypassSpad or SpadBypass.chooseArmed
@@ -2554,6 +2555,7 @@ function SpadBypass.resumeJunction(hold, route, automatic)
         for key, value in pairs(hold.motion) do mover[key] = value end
     end
     SpadBypass.rememberJunction(mover, hold, verified, groups)
+    PlatformRecovery.noteChoice(mover, hold, verified, automatic)
     SpadBypass.closeJunction()
     state.lastDesired, state.sample, state.approach, state.fullBrakeSince = nil, nil, nil, nil
     return true
@@ -2734,6 +2736,451 @@ function SpadBypass.updateChoice(dt)
     SpadBypass.resetChoice()
     task.defer(SpadBypass.showJunction, hold)
 end
+-- Passive observation is always enabled. RPC recovery stays gated until live validation.
+function PlatformRecovery.report(context, key, message)
+    context.notices = context.notices or {}
+    if context.notices[key] then return end
+    context.notices[key] = true
+    log(message)
+    notify(message)
+end
+function PlatformRecovery.identity(mover)
+    local model = mover.skeletonModel.Parent
+    return table.concat({ tostring(model:GetAttribute("RouteCode")), tostring(model:GetAttribute("LegSequence")),
+        tostring(model:GetAttribute("LegDirection")), tostring(mover.isInitialDirection), tostring(model:GetAttribute("NextStop")) }, "/")
+end
+function PlatformRecovery.cancel(binding, reason)
+    local context = binding and binding.context
+    if context and not context.finished then
+        context.finished = true
+        if context.started then PlatformRecovery.report(context, "stopped", "Platform recovery stopped: " .. reason) end
+    end
+end
+function PlatformRecovery.detach()
+    local binding = PlatformRecovery.binding
+    if not binding then return end
+    PlatformRecovery.cancel(binding, "train changed or script unloaded")
+    PlatformRecovery.binding = nil
+    if rawget(binding.mover, "sensorCallback") == binding.wrapper then
+        rawset(binding.mover, "sensorCallback", binding.previous)
+    end
+end
+function PlatformRecovery.sensors(mover)
+    local result, seen = {}, {}
+    local function visit(value, depth)
+        if type(value) ~= "table" or seen[value] or depth > 4 then return end
+        seen[value] = true
+        if value.sensorType then
+            if value.sensorType == enums.SensorType.SectionMarker then table.insert(result, value) end
+            return
+        end
+        for _, child in pairs(value) do if type(child) == "table" then visit(child, depth + 1) end end
+    end
+    for _, value in pairs(debug.getupvalues(mover.Initialise)) do visit(value, 0) end
+    return result
+end
+function PlatformRecovery.platformSection(binding, platform)
+    local position, reference = platform:FindFirstChild("Position"), platform:FindFirstChild("PlatformSignal")
+    local signals = workspace:FindFirstChild("Signals")
+    local signal = reference and (typeof(reference.Value) == "Instance" and reference.Value
+        or signals and signals:FindFirstChild(tostring(reference.Value)))
+    local stop = signal and signal:GetAttribute("MarkerPosition")
+    if not position or not stop then return nil end
+    local signalMarker
+    for _, marker in ipairs(binding.sensors) do
+        if marker.extraData.signalId == signal:GetAttribute("SignalId") then
+            if signalMarker then return nil end
+            signalMarker = marker
+        end
+    end
+    if signalMarker then
+        local short = signalMarker.extraData.sectionIds.B
+        local platformSection
+        for _, boundary in ipairs(binding.sensors) do
+            local ids = boundary.extraData.sectionIds
+            local offset = boundary.position - signalMarker.position
+            if boundary ~= signalMarker and (ids.A == short or ids.B == short)
+                and offset.Magnitude > 1 and offset.Magnitude <= 100
+                and signalMarker.lookVector and offset:Dot(signalMarker.lookVector) < 0 then
+                local section = ids.A == short and ids.B or ids.A
+                if platformSection and platformSection ~= section then return nil end
+                platformSection = section
+            end
+        end
+        return platformSection
+    end
+    local candidates, found = {}, nil
+    for _, marker in ipairs(binding.sensors) do
+        if (marker.position - position.Value).Magnitude < 1 then
+            for _, section in pairs(marker.extraData.sectionIds) do candidates[section] = true end
+        end
+    end
+    for section in pairs(candidates) do
+        local far, ambiguous
+        for _, marker in ipairs(binding.sensors) do
+            local ids = marker.extraData.sectionIds
+            if (ids.A == section or ids.B == section) and (marker.position - position.Value).Magnitude > 20 then
+                if far and (far - marker.position).Magnitude > 1 then ambiguous = true end
+                far = marker.position
+            end
+        end
+        -- A platform's far boundary ends just before its own exit signal.
+        -- The shared entry marker's approach section points away from that signal.
+        if far and not ambiguous and (far - stop).Magnitude <= 100 then
+            if found then return nil end
+            found = section
+        end
+    end
+    return found
+end
+function PlatformRecovery.platformAt(binding, sensor, section)
+    local announced = binding.announced
+    if not announced then return nil end
+    local stations = game:GetService("ReplicatedStorage"):FindFirstChild("Stations")
+    local station = stations and stations:FindFirstChild(announced.station)
+    local platforms = station and station:FindFirstChild("Platforms")
+    local platform = platforms and platforms:FindFirstChild("P" .. announced.platform)
+    if platform and PlatformRecovery.platformSection(binding, platform) == section then return platform, announced.station end
+    return nil
+end
+function PlatformRecovery.record(binding, sensor, forward, front)
+    if binding ~= PlatformRecovery.binding or not state.alive then return end
+    local identity = PlatformRecovery.identity(binding.mover)
+    if identity ~= binding.identity then
+        PlatformRecovery.cancel(binding, "route, leg, direction or next stop changed")
+        binding.identity, binding.journal, binding.context, binding.announced = identity, {}, nil, nil
+    end
+    if sensor.sensorType == enums.SensorType.AnnounceSensor and forward and front then
+        binding.announced = { station = sensor.extraData.stationName, platform = tostring(sensor.extraData.platformNumber) }
+    end
+    if sensor.sensorType ~= enums.SensorType.SectionMarker then return end
+    local ids = sensor.extraData.sectionIds
+    local event = { section = ids[front and (forward and "A" or "B") or (forward and "B" or "A")],
+        signal = front and forward and sensor.extraData.signalId or nil, enter = front, forward = forward,
+        position = sensor.position, identity = identity, done = false }
+    if front then
+        binding.section = event.section
+        event.platform, event.station = PlatformRecovery.platformAt(binding, sensor, event.section)
+        if event.platform then binding.announced = nil end
+    end
+    table.insert(binding.journal, event)
+    if #binding.journal > 256 then table.remove(binding.journal, 1) end
+    local context = binding.context
+    if context and not context.finished then
+        if #context.events >= 256 then
+            context.finished = true
+            PlatformRecovery.report(context, "stopped", "Platform recovery stopped: crossing history overflow.")
+        else table.insert(context.events, event) end
+    end
+    return event
+end
+function PlatformRecovery.sync(mover)
+    local binding = PlatformRecovery.binding
+    if binding and (binding.mover ~= mover or mover.isDestroyed) then PlatformRecovery.detach(); binding = nil end
+    if not mover then return end
+    if binding then
+        local identity = PlatformRecovery.identity(mover)
+        if binding.identity ~= identity then
+            PlatformRecovery.cancel(binding, "route, leg, direction or next stop changed")
+            binding.identity, binding.journal, binding.context, binding.announced, binding.section = identity, {}, nil, nil, nil
+        end
+        return
+    end
+    local original = mover.sensorCallback
+    if type(original) ~= "function" then return end
+    binding = { mover = mover, model = mover.skeletonModel.Parent, identity = PlatformRecovery.identity(mover), journal = {},
+        original = original, previous = rawget(mover, "sensorCallback"), sensors = PlatformRecovery.sensors(mover) }
+    PlatformRecovery.binding = binding
+    binding.wrapper = function(sensor, forward, front)
+        -- Observation failures must never suppress the game's native sensor callback.
+        local ok, event = pcall(PlatformRecovery.record, binding, sensor, forward, front)
+        local result = table.pack(pcall(original, sensor, forward, front))
+        if ok and event then event.done = true end
+        if not ok then
+            PlatformRecovery.cancel(binding, "sensor observation failed")
+            binding.fault = true
+        end
+        if not result[1] then error(result[2], 0) end
+        return table.unpack(result, 2, result.n)
+    end
+    mover.sensorCallback = binding.wrapper
+end
+function PlatformRecovery.noteChoice(mover, hold, route, automatic)
+    if automatic or not hold.requested or route.useDefault then return end
+    local ok, default = pcall(SpadBypass.defaultJunctionExit, hold)
+    if ok and default and default.exitKey == route.exitKey then return end
+    local binding = PlatformRecovery.binding
+    if not binding or binding.mover ~= mover or binding.fault then return end
+    if binding.context and not binding.context.finished then return end
+    local anchor
+    for i = #binding.journal, 1, -1 do
+        local event = binding.journal[i]
+        if event.enter and event.signal and event.identity == binding.identity then anchor = i; break end
+    end
+    local events = {}
+    if anchor then for i = anchor, #binding.journal do table.insert(events, binding.journal[i]) end end
+    binding.context = { events = events, completeHistory = anchor ~= nil, identity = binding.identity, junction = hold.id,
+        assigned = binding.model:GetAttribute("PlatformNumber"), station = binding.model:GetAttribute("NextStop"),
+        notices = {}, index = 1, attempts = 0, entered = {}, nextAttempt = 0 }
+end
+function PlatformRecovery.inside(binding, event)
+    local ends = {}
+    for _, sensor in ipairs(binding.sensors) do
+        local ids = sensor.extraData.sectionIds
+        if ids.A == event.section or ids.B == event.section then
+            local distinct = true
+            for _, point in ipairs(ends) do if (point - sensor.position).Magnitude < 1 then distinct = false; break end end
+            if distinct then table.insert(ends, sensor.position) end
+        end
+    end
+    -- Branching/curved/ambiguous bounds are deliberately not inferred from proximity.
+    if #ends ~= 2 then return false end
+    local delta = ends[2] - ends[1]
+    if delta.Magnitude < 20 then return false end
+    local direction = delta.Unit
+    local overlaps = false
+    for _, carriage in ipairs(binding.mover.carriages) do
+        for _, bogie in ipairs(carriage.bogies) do
+            local along = (bogie.position - ends[1]):Dot(direction)
+            if (bogie.position - (ends[1] + direction * along)).Magnitude > 1.5 then return false end
+            if along >= 0 and along <= delta.Magnitude then overlaps = true end
+        end
+    end
+    return overlaps
+end
+function PlatformRecovery.target(binding, context)
+    for i = #context.events, 1, -1 do
+        local event = context.events[i]
+        if event.enter and event.platform and event.station == context.station
+            and event.station == binding.model:GetAttribute("NextStop") and PlatformRecovery.inside(binding, event) then
+            local rearCleared = false
+            for j = i + 1, #context.events do
+                local later = context.events[j]
+                if not later.enter and later.section == event.section then rearCleared = true; break end
+            end
+            if not rearCleared then return event end
+        end
+    end
+    return nil
+end
+function PlatformRecovery.available(binding, event)
+    for _, name in ipairs({ "AllocatedTrain", "OccupiedTrain", "PassingTrain" }) do
+        local value = event.platform:FindFirstChild(name)
+        if not value or (value.Value and value.Value ~= binding.model) then return false end
+    end
+    return true
+end
+function PlatformRecovery.confirmed(binding, context, event)
+    local model = binding.model
+    local number = event.platform.Name:sub(2)
+    local occupied = event.platform:FindFirstChild("OccupiedTrain")
+    if tostring(model:GetAttribute("PlatformNumber")) ~= number or not occupied or occupied.Value ~= model then return false end
+    local platforms = event.platform.Parent
+    local old = context.assigned and platforms:FindFirstChild("P" .. tostring(context.assigned))
+    local allocation = old and old:FindFirstChild("AllocatedTrain")
+    if old ~= event.platform and allocation and allocation.Value == model then return false end
+    -- Native door-unlock eligibility uses assignment + occupancy and a stopped
+    -- train. DoorSide/OnPlatform may only update after StartLoading; requiring
+    -- them here would incorrectly retry an already successful registration.
+    local mover = binding.mover
+    return (mover.currentSpeed or 0) <= 0 and (mover.throttle or 0) <= 0
+        and (mover.acceleration or 0) <= 0
+end
+function PlatformRecovery.stop(context, reason)
+    context.finished = true
+    PlatformRecovery.report(context, "stopped", "Platform recovery stopped: " .. reason)
+end
+function PlatformRecovery.active(binding, context)
+    return state.alive and PlatformRecovery.binding == binding and binding.context == context and not context.finished
+        and not binding.mover.isDestroyed and PlatformRecovery.identity(binding.mover) == context.identity
+end
+-- Cancel an obsolete, unoccupied reservation belonging to this train only.
+-- This is reservation cancellation, not a fabricated rear crossing.
+function PlatformRecovery.clearOldReservation(binding, context, target, communication)
+    local old = context.assigned and target.platform.Parent:FindFirstChild("P" .. tostring(context.assigned))
+    if not old or old == target.platform then return true end
+    local allocation, occupied, passing = old:FindFirstChild("AllocatedTrain"), old:FindFirstChild("OccupiedTrain"), old:FindFirstChild("PassingTrain")
+    if not allocation or allocation.Value ~= binding.model then return true end
+    local targetOwner = target.platform:FindFirstChild("OccupiedTrain")
+    if not targetOwner or targetOwner.Value ~= binding.model then return true end
+    if not occupied or occupied.Value or not passing or passing.Value then
+        PlatformRecovery.stop(context, "old platform is occupied or has a passing train; reservation left untouched")
+        return false
+    end
+    if not context.cleanupCandidates then
+        local position = old:FindFirstChild("Position")
+        local active, visited, candidates, seen = {}, {}, {}, {}
+        for _, event in ipairs(context.events) do
+            visited[event.section] = true
+            active[event.section] = event.enter or nil
+        end
+        local mapped = PlatformRecovery.platformSection(binding, old)
+        if mapped then
+            if not active[mapped] and mapped ~= target.section then table.insert(candidates, mapped) end
+        else
+        for _, sensor in ipairs(binding.sensors) do
+            if position and (position.Value - sensor.position).Magnitude < 1 then
+                for _, section in pairs(sensor.extraData.sectionIds) do
+                    if not seen[section] and not active[section] and section ~= target.section then
+                        seen[section] = true
+                        table.insert(candidates, section)
+                    end
+                end
+            end
+        end
+        end
+        -- Prefer the unused default branch over shared approach sections.
+        table.sort(candidates, function(a, b)
+            if visited[a] ~= visited[b] then return not visited[a] end
+            return a < b
+        end)
+        if #candidates > 2 then
+            PlatformRecovery.stop(context, "old platform section mapping is ambiguous; reservation left untouched")
+            return false
+        end
+        context.cleanupCandidates, context.cleanupIndex = candidates, 1
+    end
+    local section = context.cleanupCandidates[context.cleanupIndex]
+    if not section then
+        PlatformRecovery.stop(context, "server retained the old reservation after verified cancellation requests")
+        return false
+    end
+    context.cleanupIndex += 1
+    local response = communication.GetFunction("ExitSection"):Invoke(section)
+    if not PlatformRecovery.active(binding, context) then return false end
+    context.cleanupResults = context.cleanupResults or {}
+    table.insert(context.cleanupResults, { section = section, response = response })
+    if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then
+        PlatformRecovery.stop(context, "old reservation cancellation returned " .. tostring(response))
+    end
+    return false -- Read replicated ownership on the next batch; never infer success from the response.
+end
+function PlatformRecovery.permitted(signalId)
+    local signals = workspace:FindFirstChild("Signals")
+    for _, signal in ipairs(signals and signals:GetChildren() or {}) do
+        if signal:GetAttribute("SignalId") == signalId then
+            local aspect = signal:GetAttribute("State")
+            return aspect == enums.SignalState.Proceed or aspect == enums.SignalState.Precaution or aspect == enums.SignalState.Caution
+        end
+    end
+    return false
+end
+function PlatformRecovery.waitForPlatform(binding, context, target)
+    if not PlatformRecovery.available(binding, target) then
+        context.blockedAt = context.blockedAt or os.clock()
+        PlatformRecovery.report(context, "occupied", "Platform recovery waiting: " .. target.platform.Name .. " is reserved or occupied by another train.")
+        return true
+    end
+    if context.blockedAt then
+        local waited = os.clock() - context.blockedAt
+        context.nextAttempt = context.nextAttempt + waited
+        if context.waitUntil then context.waitUntil += waited end
+        context.blockedAt = nil
+        PlatformRecovery.report(context, "clear", "Platform " .. target.platform.Name .. " is clear; recovery can resume when the signal permits.")
+    end
+    return false
+end
+function PlatformRecovery.update()
+    local binding = PlatformRecovery.binding
+    local context = binding and binding.context
+    if not context or context.finished or context.busy or binding.fault then return end
+    if not PlatformRecovery.active(binding, context) then PlatformRecovery.cancel(binding, "train state changed"); return end
+    -- Never run two section-replay queues against the same train.
+    if SpadBypass.isSpad(binding.mover) then return end
+    local target = PlatformRecovery.target(binding, context)
+    if not target then return end
+    local actual = target.platform.Name:sub(2)
+    if not context.started and tostring(binding.model:GetAttribute("PlatformNumber")) == actual then
+        context.finished = true; return
+    end
+    if not context.completeHistory then PlatformRecovery.stop(context, "no recorded signalled entry before the diversion"); return end
+    if PlatformRecovery.waitForPlatform(binding, context, target) then return end
+    if not PlatformRecovery.validated then
+        PlatformRecovery.report(context, "validation", "Platform mismatch recorded; automatic recovery is awaiting live validation.")
+        return
+    end
+    if PlatformRecovery.confirmed(binding, context, target) and context.index > #context.events then
+        context.finished = true
+        PlatformRecovery.report(context, "success", "Platform recovery confirmed: " .. target.station .. " " .. target.platform.Name .. ".")
+        return
+    end
+    local anchor = context.events[1]
+    if not anchor.done or (not context.anchorAccepted and not PlatformRecovery.permitted(anchor.signal)) then return end
+    if os.clock() < context.nextAttempt then return end
+    context.started = true
+    PlatformRecovery.report(context, "started", "Platform recovery started for " .. target.station .. " " .. target.platform.Name .. ".")
+    if context.waitUntil then
+        if os.clock() < context.waitUntil then return end
+        context.waitUntil = nil
+        local occupied = target.platform:FindFirstChild("OccupiedTrain")
+        if occupied and occupied.Value == binding.model then
+            PlatformRecovery.stop(context, "platform occupancy registered, but assignment or previous reservation remains inconsistent; refusing to replay the approach again")
+            return
+        end
+        if context.attempts >= 3 then PlatformRecovery.stop(context, "server did not confirm platform assignment and doors after three attempts"); return end
+        context.index, context.entered, context.attemptStarted, context.anchorAccepted = 1, {}, false, false
+    end
+    local targetEntryIndex
+    for i, event in ipairs(context.events) do if event == target then targetEntryIndex = i; break end end
+    context.nextAttempt, context.busy = os.clock() + 3, true
+    task.defer(function()
+        local ok, failure = pcall(function()
+            local loadModule: any = require
+            local communication = loadModule(modules:FindFirstChild("Communication"))
+            for _ = 1, 8 do
+                if not PlatformRecovery.active(binding, context) then return end
+                local currentTarget = PlatformRecovery.target(binding, context)
+                if not currentTarget or currentTarget.platform ~= target.platform or SpadBypass.isSpad(binding.mover) then
+                    PlatformRecovery.stop(context, "train or platform changed during recovery"); return
+                end
+                if PlatformRecovery.waitForPlatform(binding, context, target) then return end
+                local event = context.events[context.index]
+                if not event then
+                    if PlatformRecovery.clearOldReservation(binding, context, target, communication) then context.waitUntil = os.clock() + 2 end
+                    return
+                end
+                -- Recover the arrival, not departures already crossed natively.
+                -- Re-entering a later signalled section can allocate another platform.
+                if event.enter and targetEntryIndex and context.index > targetEntryIndex then
+                    context.cutoffIndex = context.index
+                    context.index = #context.events + 1
+                    if PlatformRecovery.clearOldReservation(binding, context, target, communication) then context.waitUntil = os.clock() + 2 end
+                    return
+                end
+                if not event.done or (not context.anchorAccepted and not PlatformRecovery.permitted(anchor.signal)) then return end
+                if event.enter or context.entered[event.section] then
+                    if not context.attemptStarted then
+                        context.attempts += 1
+                        context.attemptStarted = true
+                    end
+                    local result
+                    if event.enter then result = communication.GetFunction("EnterSection"):Invoke(event.section, event.signal)
+                    else result = communication.GetFunction("ExitSection"):Invoke(event.section) end
+                    if not PlatformRecovery.active(binding, context) then return end
+                    context.results = context.results or {}
+                    table.insert(context.results, { section = event.section, enter = event.enter, response = result })
+                    local response = type(result) == "table" and result.sectionResponse or result
+                    if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then
+                        PlatformRecovery.stop(context, "section " .. tostring(event.section) .. " returned " .. tostring(response)); return
+                    end
+                    if event == anchor and response == enums.SectionResponse.Accepted then context.anchorAccepted = true end
+                    if event.enter then
+                        context.entered[event.section] = true
+                        if type(result) == "table" then
+                            for _, junction in ipairs(result.junctionMap or {}) do
+                                binding.mover:SetJunctionSetting(junction.junctionId, junction.nodeGroups)
+                            end
+                        end
+                    else context.entered[event.section] = nil end
+                end
+                context.index += 1
+            end
+        end)
+        context.busy = false
+        if not ok and PlatformRecovery.active(binding, context) then PlatformRecovery.stop(context, tostring(failure)) end
+    end)
+end
+
 local function readyAction(key, interval)
     local now = os.clock()
     if now - (state.lastAction[key] or -math.huge) < interval then return false end
@@ -5503,19 +5950,32 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
     if elapsed < 0.05 then return end
     local manualDt = elapsed
     elapsed = 0
-    if (SpadBypass.needed() or SpadBypass.mover) and bypassElapsed >= 0.5 then
+    if bypassElapsed >= 0.5 then
         bypassElapsed = 0
-        local ok, err = pcall(function()
-            SpadBypass.sync(loadedMover())
-            SpadBypass.updateJunction()
-            if config.bypassSpad then SpadBypass.updateSectionRecovery() end
+        local observed, observationError = pcall(function()
+            PlatformRecovery.sync(loadedMover())
+            PlatformRecovery.update()
         end)
-        if not ok then
-            config.bypassSpad = false
-            pcall(SpadBypass.detach, true)
-            bypassSpadToggle:Set(false, true)
-            SpadBypass.resetChoice()
-            notify("SPAD bypass / junction choice disabled: " .. tostring(err))
+        if not observed then
+            PlatformRecovery.detach()
+            if not PlatformRecovery.faultReported then
+                PlatformRecovery.faultReported = true
+                notify("Platform observation unavailable: " .. tostring(observationError))
+            end
+        end
+        if SpadBypass.needed() or SpadBypass.mover then
+            local ok, err = pcall(function()
+                SpadBypass.sync(loadedMover())
+                SpadBypass.updateJunction()
+                if config.bypassSpad then SpadBypass.updateSectionRecovery() end
+            end)
+            if not ok then
+                config.bypassSpad = false
+                pcall(SpadBypass.detach, true)
+                bypassSpadToggle:Set(false, true)
+                SpadBypass.resetChoice()
+                notify("SPAD bypass / junction choice disabled: " .. tostring(err))
+            end
         end
     end
     if SpadBypass.needed() then
@@ -5614,6 +6074,7 @@ state.destroy = function(animate)
     config.bypassSpad = false
     local bypassOk, bypassErr = pcall(SpadBypass.detach, true)
     if not bypassOk then warn("SCR Autopilot SPAD bypass cleanup failed: " .. tostring(bypassErr)) end
+    pcall(PlatformRecovery.detach)
     state.mode = "Terminated"
     TicketAssist.setEnabled(false)
     stopAntiAfk()
