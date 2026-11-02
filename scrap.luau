@@ -232,9 +232,10 @@ do
     panel:CreateSection({ name = "Recent changes" })
     local release114 = panel:CreateText({
         name = "Version 1.1.4",
-        text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed'
-            .. '<font color="#E8BC64">~ </font> Fixed the Autopilot from not being able to release emergency brake'
-            .. '<font color="#E8BC64">~ </font> Stopping at station and platforms now speed up by up to 50% ',
+        text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed\n'
+            .. '<font color="#E8BC64">~ </font> Fixed the Autopilot from not being able to release emergency brake\n'
+            .. '<font color="#E8BC64">~ </font> Stopping at station and platforms now speed up by up to 50%\n'
+            .. '<font color="#E8BC64">~ </font> Choosing a junction exit are less likely to cause the train to stuck\n',
     })
     release114.main.Size = UDim2.new(1, 0, 0, 0)
     release114.body.LineHeight = 1.45
@@ -303,6 +304,57 @@ do
     })
     release110.main.Size = UDim2.new(1, 0, 0, 0)
     release110.body.LineHeight = 1.45
+    -- Separate the marker from the wrapping text to give every item a hanging indent.
+    local function indentRelease(card)
+        if card.text == "" then return end
+        local content = window:Create("Frame", {
+            Name = "ChangelogItems", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1, BorderSizePixel = 0, LayoutOrder = 2, Parent = card.main,
+        })
+        window:Create("UIListLayout", {
+            -- Separate entries while keeping wrapped lines at normal line height.
+            SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), Parent = content,
+        })
+        local labels, item, count = {}, nil, 0
+        for line in card.text:gmatch("[^\n]+") do
+            local marker, text = line:match("^(<font[^>]*>.-</font>)%s*(.*)$")
+            if not marker and item then
+                -- An explicit line break within an item keeps the same text-column indent.
+                item.Text = item.Text .. "\n" .. line
+            else
+                count += 1
+                local row = window:Create("Frame", {
+                    Name = "ChangelogItem", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1, BorderSizePixel = 0, LayoutOrder = count, Parent = content,
+                })
+                local indent = marker and 20 or 0
+                local function label(name, value, x, width, wrapped)
+                    local result = window:Create("TextLabel", {
+                        Name = name, Text = value, Position = UDim2.fromOffset(x, 0), Size = width,
+                        AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, BorderSizePixel = 0,
+                        TextSize = card.body.TextSize, LineHeight = 1, RichText = true,
+                        TextWrapped = wrapped, TextXAlignment = Enum.TextXAlignment.Left,
+                        TextYAlignment = Enum.TextYAlignment.Top, TextTransparency = 1, Parent = row,
+                    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+                    table.insert(labels, result)
+                    return result
+                end
+                if marker then label("Marker", marker, 0, UDim2.fromOffset(indent, 0), false) end
+                item = label("Content", text or line, indent, UDim2.new(1, -indent, 0, 0), true)
+            end
+        end
+        card.body.Visible = false
+        local setShown = card._setShown
+        function card:_setShown(shown, instant)
+            setShown(self, shown, instant)
+            for _, label in ipairs(labels) do
+                window:_reveal(label, { TextTransparency = shown and 0.45 or 1 }, instant)
+            end
+        end
+    end
+    for _, card in ipairs({ release114, release113, release112, release111, release110 }) do
+        indentRelease(card)
+    end
 end
 -- END CHANGELOG
 local autopilotSection = tab:CreateSection({ name = "Autopilot" })
@@ -1958,7 +2010,7 @@ local function canReleaseEmergency(emergency, model)
 end
 -- Intercept the mover call before it zeros speed; polling after SPAD is too late.
 -- Keep the override local to our train and restore its previous instance method.
-local PlatformRecovery: { [string]: any } = { validated = false }
+local PlatformRecovery: { [string]: any } = { validated = false, claimOccupancy = true }
 local SpadBypass: { [string]: any } = {}
 function SpadBypass.needed()
     if config.bypassSpad or SpadBypass.chooseArmed
@@ -2911,13 +2963,15 @@ function PlatformRecovery.record(binding, sensor, forward, front)
         binding.identity, binding.journal, binding.context, binding.announced = identity, {}, nil, nil
     end
     if sensor.sensorType == enums.SensorType.AnnounceSensor and forward and front then
-        binding.announced = { station = sensor.extraData.stationName, platform = tostring(sensor.extraData.platformNumber) }
+        binding.announced = { station = sensor.extraData.stationName, platform = tostring(sensor.extraData.platformNumber),
+            id = sensor.id }
     end
     if sensor.sensorType ~= enums.SensorType.SectionMarker then return end
     local ids = sensor.extraData.sectionIds
     local event = { section = ids[front and (forward and "A" or "B") or (forward and "B" or "A")],
         signal = front and forward and sensor.extraData.signalId or nil, enter = front, forward = forward,
-        position = sensor.position, identity = identity, observed = binding.replies ~= nil, done = false }
+        position = sensor.position, identity = identity, observed = binding.replies ~= nil, done = false,
+        assigned = tostring(binding.model:GetAttribute("PlatformNumber")) }
     if front then
         binding.section = event.section
         event.announcement = binding.announced and table.clone(binding.announced)
@@ -3149,6 +3203,88 @@ function PlatformRecovery.buildReplay(context, target)
     end
     return queue, nil, false, entered
 end
+-- Only repair occupancy after the server has committed the diverted assignment.
+-- Never enable the broader experimental section replay for this operation.
+function PlatformRecovery.claimArrival(binding, context, target)
+    local model, mover = binding.model, binding.mover
+    local number = target.platform.Name:sub(2)
+    if tostring(context.assigned) == number then return end
+    if tostring(model:GetAttribute("PlatformNumber")) ~= number then
+        PlatformRecovery.report(context, "assignment", "Diverted platform detected; waiting for the server to assign " .. target.platform.Name .. ".")
+        return
+    end
+    if context.claimDeadline then
+        if os.clock() >= context.claimDeadline then
+            PlatformRecovery.stop(context, "occupancy was not confirmed; arrival will not be registered twice")
+        end
+        return
+    end
+    local function ready()
+        if not PlatformRecovery.active(binding, context) or binding.fault or SpadBypass.isSpad(mover)
+            or (SpadBypass.sectionRecovery and SpadBypass.sectionRecovery.busy) then return false end
+        if PlatformRecovery.target(binding, context) ~= target or not PlatformRecovery.available(binding, target) then return false end
+        local allocated, occupied = target.platform:FindFirstChild("AllocatedTrain"), target.platform:FindFirstChild("OccupiedTrain")
+        if not allocated or allocated.Value ~= model or not occupied or occupied.Value then return false end
+        if tostring(model:GetAttribute("PlatformNumber")) ~= number or model:GetAttribute("CurrentStation") ~= target.station
+            or model:GetAttribute("EmergencySignalName") ~= nil or (model:GetAttribute("EmergencyBrakeTime") or 0) ~= 0 then return false end
+        if math.abs(mover.currentSpeed or 0) > 0.05 or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0 then return false end
+        for _, platform in ipairs(target.platform.Parent:GetChildren()) do
+            local other = platform:FindFirstChild("OccupiedTrain")
+            if platform ~= target.platform and other and other.Value == model then return false end
+        end
+        return true
+    end
+    if not ready() then return end
+    if not target.done or not target.native or not target.native.ok then return end
+    if os.clock() - target.native.completedAt < 2 then return end
+    -- An entry already sent under this assignment (or Accepted under any
+    -- assignment) must not be duplicated, even while replication is delayed.
+    if target.assigned == number or target.native.response == enums.SectionResponse.Accepted then
+        PlatformRecovery.stop(context, "native arrival already sent for this platform; refusing duplicate registration")
+        return
+    end
+    if target.native.response ~= enums.SectionResponse.NotSignalled or target.signal ~= nil then
+        PlatformRecovery.stop(context, "arrival is not an observed unsignalled platform entry")
+        return
+    end
+    local announcement = target.announcement
+    if not announcement or announcement.id == nil or announcement.station ~= target.station or announcement.platform ~= number then
+        PlatformRecovery.stop(context, "recorded platform approaching event is missing; make a fresh approach")
+        return
+    end
+    binding.claims = binding.claims or {}
+    local key = context.identity .. "/" .. tostring(target.section)
+    if binding.claims[key] then
+        PlatformRecovery.stop(context, "this diverted arrival has already been attempted; refusing duplicate registration")
+        return
+    end
+    -- Latch before yielding, including failures and cancellation. No automatic retries.
+    binding.claims[key], context.busy, context.started = true, true, true
+    context.claimDeadline = os.clock() + 8
+    PlatformRecovery.report(context, "started", "Registering diverted platform occupancy: " .. target.station .. " " .. target.platform.Name .. ".")
+    task.defer(function()
+        local ok, failure = pcall(function()
+            if not ready() then return end
+            local loadModule: any = require
+            local communication = loadModule(modules:FindFirstChild("Communication"))
+            communication.GetEvent("TriggerApproaching"):Fire(announcement.id)
+            task.wait(0.25)
+            if not ready() then return end
+            -- A native callback can run while the approaching event yields.
+            for _, event in ipairs(context.events) do
+                if event ~= target and event.enter and event.section == target.section then return end
+            end
+            local result = communication.GetFunction("EnterSection"):Invoke(target.section, target.signal)
+            if not PlatformRecovery.active(binding, context) then return end
+            local response = type(result) == "table" and result.sectionResponse or result
+            if response ~= enums.SectionResponse.Accepted and response ~= enums.SectionResponse.NotSignalled then
+                PlatformRecovery.stop(context, "arrival returned " .. tostring(response) .. "; no retry")
+            end
+        end)
+        context.busy = false
+        if not ok and PlatformRecovery.active(binding, context) then PlatformRecovery.stop(context, tostring(failure)) end
+    end)
+end
 function PlatformRecovery.update()
     local binding = PlatformRecovery.binding
     local context = binding and binding.context
@@ -3159,12 +3295,16 @@ function PlatformRecovery.update()
     if not target then return end
     if PlatformRecovery.confirmed(binding, context, target) then
         context.finished = true
-        PlatformRecovery.report(context, "success", "Platform registration confirmed: " .. target.station .. " " .. target.platform.Name .. ". Normal door handling restored.")
+        PlatformRecovery.report(context, "success", "Platform occupancy confirmed: " .. target.station .. " " .. target.platform.Name .. ". Passenger loading still requires server approval.")
         local old = context.assigned and target.platform.Parent:FindFirstChild("P" .. tostring(context.assigned))
         local allocation = old and old:FindFirstChild("AllocatedTrain")
         if old ~= target.platform and allocation and allocation.Value == binding.model then
-            PlatformRecovery.report(context, "reservation", "Previous platform reservation remains with the server; normal loading is available.")
+            PlatformRecovery.report(context, "reservation", "Previous platform reservation remains with the server; loading may still be blocked.")
         end
+        return
+    end
+    if PlatformRecovery.claimOccupancy then
+        PlatformRecovery.claimArrival(binding, context, target)
         return
     end
     if not context.completeHistory then PlatformRecovery.stop(context, "no acknowledged approach checkpoint; record a fresh approach"); return end
