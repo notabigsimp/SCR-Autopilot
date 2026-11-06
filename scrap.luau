@@ -1,3 +1,7 @@
+getgenv().SCRAutopilotEnabled = true
+getgenv().SCRAutopilotOperator = "Metro"
+getgenv().SCRAutopilotTrain = "Class 717"
+
 do
     local function runExecutionWebhook(...)
 -- This script was generated using MoonVeil 2.1.1 [https://moonveil.cc]
@@ -230,6 +234,28 @@ do
     panel.main.BackgroundColor3 = window.theme.StatBackground
     window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
     panel:CreateSection({ name = "Recent changes" })
+    local release115 = panel:CreateText({
+        name = "Version 1.1.4",
+        text = '<font color="#E8BC64">+ </font> Supports execution with certain configs',
+    })
+    release115.main.Size = UDim2.new(1, 0, 0, 0)
+    release115.body.LineHeight = 1.45
+    -- Keep the release badge in its own column at the right of the title.
+    release115.title.Size = UDim2.new(1, -56, 0, 0)
+    local latest = window:Create("Frame", {
+        Name = "LatestBadge", Size = UDim2.fromOffset(50, 22),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        LayoutOrder = 2, Parent = release115.titleRow,
+    })
+    local green = Color3.fromRGB(34, 197, 94)
+    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = latest })
+    window:Create("UIStroke", { Color = green, Thickness = 1, Transparency = 0.1, Parent = latest })
+    window:Create("TextLabel", {
+        Name = "Latest", Text = "Latest", Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1, TextColor3 = green, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+        Parent = latest,
+    }, { FontFace = "Font" })
     local release114 = panel:CreateText({
         name = "Version 1.1.4",
         text = '<font color="#E8BC64">~ </font> Ignore speed limit now ignore red/yellow light speed\n'
@@ -246,15 +272,6 @@ do
         BackgroundTransparency = 1, BorderSizePixel = 0,
         LayoutOrder = 2, Parent = release114.titleRow,
     })
-    local green = Color3.fromRGB(34, 197, 94)
-    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = latest })
-    window:Create("UIStroke", { Color = green, Thickness = 1, Transparency = 0.1, Parent = latest })
-    window:Create("TextLabel", {
-        Name = "Latest", Text = "Latest", Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1, TextColor3 = green, TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
-        Parent = latest,
-    }, { FontFace = "Font" })
     local release113 = panel:CreateText({
         name = "Version 1.1.3",
         text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD\n'
@@ -465,7 +482,7 @@ local modules, driver, utility, enums, accelerationModel, autoThrottle
 local brakeCurve, zeroBrakeCurve
 local master
 local AutoFarm: { [string]: any } = { enabled = false, elapsed = 0, epoch = 0, retryAt = 0,
-    rejoin = false, rejoinAt = 0 }
+    rejoin = false, rejoinAt = 0, startupPending = true }
 state.autoFarm = AutoFarm
 local bypassSpadToggle, setBypassSpad, recallSpadJunction
 local chooseJunctionToggle, setChooseJunction
@@ -5678,6 +5695,84 @@ function AutoFarm.setOptions(control, options, value, emptyMessage)
     if #options == 0 then control:Lock(emptyMessage)
     elseif control:IsLocked() then control:Unlock() end
 end
+-- Optional loader globals override saved settings without writing config.json.
+function AutoFarm.applyStartupOverrides(options)
+    local active, operator, route, train = options.active, options.operator, options.route, options.train
+    if active ~= nil and type(active) ~= "boolean" then return false, "SCRAutopilotEnabled must be true or false." end
+    if active == false then
+        -- Opt out of loader overrides; keep the config/resume state already restored.
+        return true
+    end
+    if operator ~= nil then
+        if type(operator) ~= "string" or #operator > 128 then return false, "SCRAutopilotOperator must be an operator name or slug." end
+        operator = operator:match("^%s*(.-)%s*$")
+        if operator == "" then return false, "SCRAutopilotOperator cannot be empty." end
+    end
+    if route ~= nil then
+        if type(route) ~= "string" then return false, "SCRAutopilotRoute must be a route number such as R012." end
+        route = route:match("^%s*(.-)%s*$"):upper()
+        if not route:match("^R%d%d%d$") then return false, "SCRAutopilotRoute must use the format R012." end
+    end
+    if train ~= nil then
+        if type(train) ~= "string" or #train > 128 then return false, "SCRAutopilotTrain must be a train class name or slug." end
+        train = train:match("^%s*(.-)%s*$")
+        if train == "" then return false, "SCRAutopilotTrain cannot be empty." end
+    end
+    if operator or route or train then
+        AutoFarm.startupSelection = { operator = operator, route = route, train = train }
+        AutoFarm.choice = nil
+        AutoFarm.ready = false
+        AutoFarm.catalogDirty = true
+    end
+    if active ~= nil then
+        -- The loader may set both switches; the regular master stays independent.
+        AutoFarm.masterControl:Set(active, true)
+        AutoFarm.setEnabled(active)
+        master:Set(active, true)
+        master.callback(active)
+    end
+    return true
+end
+function AutoFarm.resolveStartupSelection(operators, trains, routes)
+    local request = AutoFarm.startupSelection
+    if not request then return true end
+    local operator
+    for _, candidate in ipairs(operators) do
+        local wanted = request.operator
+        if (wanted and (candidate.slug:lower() == wanted:lower() or candidate.name:lower() == wanted:lower()))
+            or (not wanted and candidate.slug == AutoFarm.operator) then operator = candidate; break end
+    end
+    if not request.operator then operator = operator or operators[1] end
+    if not operator then return false, "Requested operator is unavailable: " .. tostring(request.operator) end
+    local wantedRoute = request.route or (operator.slug == AutoFarm.operator and AutoFarm.route or nil)
+    local stock = trains[operator.slug] or {}
+    local function trainKey(value)
+        return value:lower():gsub("^class%s*", ""):gsub("%s+", "")
+    end
+    local selectedTrain, selectedRoute
+    for _, route in ipairs(routes[operator.slug] or {}) do
+        if not wantedRoute or route.routeCode == wantedRoute then
+            -- Prefer the saved train if compatible, then the first unlocked match.
+            for _, train in ipairs(stock) do
+                local matches = not request.train or trainKey(train.slug) == trainKey(request.train)
+                    or trainKey(train.name) == trainKey(request.train)
+                if matches and train.isUnlocked and not train.isComingSoon and AutoFarm.routeAllowed(route, train)
+                    and AutoFarm.depot(train, route) then
+                    if not selectedTrain or train.slug == AutoFarm.train then selectedTrain, selectedRoute = train, route end
+                    if train.slug == AutoFarm.train then break end
+                end
+            end
+            if selectedTrain then break end
+        end
+    end
+    if not selectedTrain then
+        return false, "Waiting for an unlocked train and route: " .. operator.name .. " / " .. tostring(wantedRoute or "any route")
+            .. (request.train and (" / " .. request.train) or "")
+    end
+    AutoFarm.operator, AutoFarm.train, AutoFarm.route = operator.slug, selectedTrain.slug, selectedRoute.routeCode
+    AutoFarm.startupSelection, AutoFarm.startupRetryAt = nil, nil
+    return true
+end
 function AutoFarm.refresh()
     setthreadidentity(8)
     local loadModule: any = require
@@ -5687,6 +5782,23 @@ function AutoFarm.refresh()
     local operators, trains, routes = shop.GetOperators(), shop.GetTrains(), shop.GetRoutes()
     if type(operators) ~= "table" or type(trains) ~= "table" or type(routes) ~= "table" then return end
     AutoFarm.refreshing = true
+    local selected, selectionError = AutoFarm.resolveStartupSelection(operators, trains, routes)
+    if not selected then
+        AutoFarm.choice, AutoFarm.ready = nil, false
+        AutoFarm.startupRetryAt = os.clock() + 10
+        local names = {}
+        for _, operator in ipairs(operators) do table.insert(names, operator.name) end
+        AutoFarm.setOptions(AutoFarm.operatorControl, names, nil, selectionError)
+        AutoFarm.setOptions(AutoFarm.trainControl, {}, nil, selectionError)
+        AutoFarm.setOptions(AutoFarm.routeControl, {}, nil, selectionError)
+        AutoFarm.refreshing = false
+        if AutoFarm.startupSelection.lastError ~= selectionError then
+            AutoFarm.startupSelection.lastError = selectionError
+            log("Startup config: " .. selectionError)
+            notify("Startup config: " .. selectionError)
+        end
+        return
+    end
     local operatorOptions, trainOptions, routeOptions = {}, {}, {}
     AutoFarm.operatorMap, AutoFarm.trainMap, AutoFarm.routeMap = {}, {}, {}
     local selectedOperator, selectedTrain, selectedRoute
@@ -5814,6 +5926,7 @@ function AutoFarm.setRejoin(enabled)
 end
 function AutoFarm.work(epoch)
     if not state.alive or AutoFarm.epoch ~= epoch then return end
+    if AutoFarm.startupPending or (AutoFarm.startupSelection and os.clock() < (AutoFarm.startupRetryAt or 0)) then return end
     if AutoFarm.ready and not AutoFarm.catalogDirty and not AutoFarm.enabled then return end
     local gui, spawn, client, shop = AutoFarm.native()
     if not AutoFarm.ready or AutoFarm.catalogDirty then
@@ -5897,7 +6010,9 @@ function AutoFarm.queueResume()
     if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder(ConfigStore.folder) then
         makefolder(ConfigStore.folder)
     end
-    writefile(AutoFarm.resumePath, http:JSONEncode({ token = AutoFarm.resumeToken, values = ConfigStore.snapshot() }))
+    local pending = AutoFarm.startupSelection
+    writefile(AutoFarm.resumePath, http:JSONEncode({ token = AutoFarm.resumeToken, values = ConfigStore.snapshot(),
+        startup = pending and { operator = pending.operator, route = pending.route, train = pending.train } or nil }))
     -- Retrying a failed teleport updates the session file without stacking loaders.
     if AutoFarm.resumeQueued then return end
     local source = env.SCRAutopilotSource
@@ -5913,6 +6028,11 @@ local ok, record = pcall(function() return game:GetService("HttpService"):JSONDe
 if not ok or type(record) ~= "table" or record.token ~= token or type(record.values) ~= "table" then return end
 delfile(path)
 getgenv().SCRAutopilotResumeConfig = record.values
+if type(record.startup) == "table" then
+    getgenv().SCRAutopilotOperator = record.startup.operator
+    getgenv().SCRAutopilotRoute = record.startup.route
+    getgenv().SCRAutopilotTrain = record.startup.train
+end
 %s
 local run, err = loadstring(source)
 assert(run, err)
@@ -5967,6 +6087,8 @@ function AutoFarm.reconnect()
     AutoFarm.joinPlace(game.PlaceId)
 end
 function AutoFarm.changeSelection()
+    -- A manual dropdown choice takes over from an unresolved loader request.
+    AutoFarm.startupSelection, AutoFarm.startupRetryAt = nil, nil
     AutoFarm.epoch += 1
     AutoFarm.retryAt = 0
     local epoch = AutoFarm.epoch
@@ -6188,7 +6310,7 @@ local connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
             notify("SPAD / junction controls unavailable: " .. tostring(err))
         end
     end
-    if not state.enabled or state.busy or state.drivingFault then return end
+    if not state.enabled or state.busy or state.drivingFault or AutoFarm.startupPending then return end
     state.busy = true; state.busySince = now
     local generation = state.generation
     state.stepThread = task.defer(function()
@@ -6481,6 +6603,19 @@ if not configLoaded or configMessage == "Loaded config; invalid settings were re
     setthreadidentity(8)
     notify(configMessage)
 end
+local overridesOk, overridesError = AutoFarm.applyStartupOverrides({
+    active = env.SCRAutopilotEnabled, operator = env.SCRAutopilotOperator, route = env.SCRAutopilotRoute,
+    train = env.SCRAutopilotTrain,
+})
+if not overridesOk then
+    AutoFarm.masterControl:Set(false, true)
+    AutoFarm.setEnabled(false)
+    master:Set(false, true)
+    master.callback(false)
+    notify("Startup config rejected: " .. overridesError)
+    log("Startup config rejected: " .. overridesError)
+end
+AutoFarm.startupPending = false
 log("Ready. Enable Autopilot only after the vehicle has loaded.")
 startup:stage("Ready")
 startup:finish()
