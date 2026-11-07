@@ -3516,208 +3516,1294 @@ end
 function ShiftWebhook.delay(value)
     return string.format("+%.2f",math.max(0,value)):gsub("0+$",""):gsub("%.$","").."m"
 end
--- Raster glyphs only; no font files or renderer service required.
-ShiftWebhook.fonts = {
-sans = {
-[32] = {12,4,-2,-2,8.0000,"cccccccccccc"},
-[33] = {13,25,-2,-23,9.0000,"ccccccc41b1cc1bcc01bcc01bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcc4bcccccccccccc0232cc01b2cc1b2cc0232ccccccc8"},
-[34] = {17,25,-2,-23,13.0000,"ccccccccc4171472cc171472cc171472cc171472cc171472cc171472cc171472ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-[35] = {22,25,-2,-23,18.0000,"ccccccccccccc17817ccc02328232ccc0232871ccc071871ccc171417ccc017817cc4fffbc41fff72cc471871ccc17817ccc0178132ccc02328232cc01fffbc41fff72cc017817ccc0178232ccc0232871ccc071871ccc17817cccccccccccccccccccccccc0"},
-[36] = {21,31,-2,-26,17.0000,"cccccccccccc8131cccc4131cccc4131cccc12f61cc82ff2cc42f7272cc01b531412cc02710131ccc0b10131ccc02710131ccc02b531ccc4f231ccc41f32cccc2f32ccc812f2ccc81f7ccc4135b2ccc013101bccc01314bcc1c13101bcc2314135b2cc2ffbcc02ff32cc816f21cccc131cccc4131cccc4131cccccccccccc8"},
-[37] = {29,25,-2,-23,25.0000,"ccccccccccccccc812b2cc07cc81fbc8231cc8b10172c0132cc817c27c07ccc232c1718231ccc232c1714132ccc0232c1787ccc427c274232ccc8724171017cccc1f72471cccc012721423242b21cccc0174fb1cccc231027101bccc81324728171ccc474171c71ccc0231417c072ccc132817c071ccc7c1718171cc8231c02710172cc8132c41fbccc71cc2b2cccccccccccccccc"},
-[38] = {26,25,-2,-23,21.0000,"ccccccccccccccc02b6cccc41ffcccc1bab2ccc827281b1ccc4b1cb1ccc4b1cbccc82728272ccccb202b1cccc2f72cccc8f31cccc41f71c172cc02b12b18172cc1b82b14271ccb1c2b10bcc1bc4f272cc1bc8f7cc01b1c8f1cc4f1c02f31cc02faff3cc42ff3201fcc416b6181b2ccccccccccccc8"},
-[39] = {12,25,-2,-23,8.0000,"ccccccc171cc171cc171cc171cc171cc171cc171ccccccccccccccccccccccccccccccccccccccccccccccccc"},
-[40] = {14,30,-2,-23,10.0000,"ccccccccc271cc0172cc4bcc4271cc4bcc4172cc4bcc8bcc4172cc4271cc4271cc4271cc427cc827cc8271cc4271cc4271cc4172cc4172cc8bcc8271cc8bcc8271cc8bcc8172cc8271ccccccc4"},
-[41] = {14,30,-2,-23,10.0000,"ccccccc4172cc8271cc8bcc8172cc8bcc8271cc8bcc8bcc8271cc4172cc4172cc4172cc4172cc4172cc4172cc4172cc4172cc4271cc4b1cc4bcc4172cc4bcc4172cc4bcc4271cc0172ccccccccc"},
-[42] = {17,25,-2,-23,13.0000,"cccccccccc0232ccc4232ccc4232cc412101310121c42b232b2c416f361cc01b1cc817071cc01710171cc16861cccccccccccccccccccccccccccccccccccccccccccccccccccccccc0"},
-[43] = {25,20,-2,-18,21.0000,"ccccccccccccccc0232ccccc4232ccccc4232ccccc4232ccccc4232ccccc4232cccc2fff31cc42fff31cc4d572d5cccc232ccccc4232ccccc4232ccccc4232ccccc4232ccccc49ccccccccccccccccccccc4"},
-[44] = {11,11,-2,-6,7.0000,"cccccc4b1c8bc8172c8271c8bcc72c8171cccccc8"},
-[45] = {16,13,-2,-11,12.0000,"cccccccccffccffcc1eaccccccccccccccccccccccccccccccccc"},
-[46] = {11,8,-2,-6,7.0000,"cccccc4232c81b2c41b2c8232cccccc4"},
-[47] = {18,28,-3,-23,12.0000,"cccccccccccc271ccc4bccc4172ccc4b1ccc0172ccc4271ccc01bccc4272ccc4bccc4172ccc4b1ccc01bccc4271ccc4bccc4272ccc4bccc4172ccc4271ccc01bccc4271ccc4bccc4172ccc4b1ccc0172cccccccccccc"},
-[48] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc02fb2cc82f2f2cc01b182b1cc272c0b2ccb1c02bc81bc41b1c4272c8b1c4272c8b1c4272c8b1c4b2c8b2c4b2c8b1c4272c8b1c4272c8b1c42bc41bc81b1c02bccb2c0b2cc2b182bcc4f32f1cc8ff1ccc012b2cccccccccccc4"},
-[49] = {16,25,-2,-23,12.0000,"cccccccccc17cc812bcc012f3cc2fbcc276bcc6101bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccc1bccccccccc0"},
-[50] = {21,25,-2,-23,17.0000,"cccccccccccc12f21cc81ff32cc42f2f31cc0232c1fcc02c82b1cccc1b1cccc1b1cccc1bcccc0b2cccc2b1ccc82b1ccc8f2ccc41f1ccc41f1ccc41b2ccc81b2cccc272cccc1b1cccc1fff2c82fff2c82fff2ccccccccccc4"},
-[51] = {21,25,-2,-23,17.0000,"ccccccccccc816b6ccc1ff31cc417af3cc412c02b2cccc0b2cccc0272cccc0272cccc1b1ccc412b2cccfb1ccc0f721ccc0af32cccc01b2cccc01b1cccc0b1cccc0b1cccc1b1c8121c01fcc1baf31cc1ff71cc416f21cccccccccccc4"},
-[52] = {21,25,-2,-23,17.0000,"ccccccccccccc4b2cccc2b2ccccf2ccc82f2ccc41f32ccc4b272ccc0271272ccc1720272cccb4272cc82714272cc41728272cc01bc272cc0b1c272cc272c0272c81fffb2c1fffb2c1ee2faccc4272cccc0272cccc0272cccc0272ccccccccccc8"},
-[53] = {21,25,-2,-23,17.0000,"ccccccccccc82ff32cc42ff32cc42ff32cc4bcccc4bcccc4bcccc4bcccc4bcccc01fb21cc81ff32cc413af72cccc2fcccc01b1cccc0b2cccc0272cccc0b2cccc1b1cc21c02fcc027af31cc02ff31cc416f21cccccccccccc4"},
-[54] = {21,25,-2,-23,17.0000,"cccccccccccc812f2ccc1ff1cc41f3671cc01b21c1cc4b2cccc1bcccc0272cccc0b1cccc1b012b21cc01b1fb2cc1f76f2c81f181fc81b2c01b1c41b1c4b2c41b1c4b2c8b1c4b1c8272c01b1c81b281b2cc02f2f31cc42ff1ccc12b21cccccccccccc0"},
-[55] = {20,25,-2,-23,16.0000,"cccccccccc8fff7c4fff7c4fff32ccc81bccccb2ccc81bccccb2ccc81bcccc272ccc81b1ccc8272ccccb1ccc82bccccb2ccc81b1ccc82bccccb2ccccb1ccc81bcccc2bcccc272cccccccccccc4"},
-[56] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc1ff2cc8f6f2cc02b182b1ccb2c0b1ccb1c0272ccb1c0b1cc1bc1bcc4b2101b1cc82fb2ccc2fb1cc41fab2cc0b2c1b2c81bc41bc8272c8b1c4272c8b1c42bc41b1c41b2c1fcc2f6f31cc02ff31ccc6b21cccccccccccc0"},
-[57] = {21,25,-2,-23,17.0000,"cccccccccccc012b21ccc1ff2cc41f32f1cc0f182bcc1b1c0b2c8272c41bc8272c41bc8272c41b1c42b1c02b1c41f182f1c82fff1cc2fb1b1cc012b201bcccc01bcccc0272cccc0b1cccc2bcc05c12b1cc02b2f32cc42ff1cc816b21cccccccccccc8"},
-[58] = {11,19,-2,-17,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccc0232c81b2c41b2c8232cccccc4"},
-[59] = {11,22,-2,-17,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccc0b1c41bc8172c8271c8bcc72c8171cccccc8"},
-[60] = {25,20,-2,-18,21.0000,"cccccccccccccccc812ccccc427ccccc2fcccc42f2cccc01f2cccc01f2cccc01f2cccc8b2ccccc0f21ccccc1f21ccccc12f1ccccc12f2ccccc12fccccc0127ccccc812cccccccccccccccccccc0"},
-[61] = {25,17,-2,-15,21.0000,"ccccccccccccc82fff31cc42fff31cc4ddd9ccccccccccccccccccccc02fff31cc42fff31cc4ddd9cccccccccccccccccccccccccccccccccccccc8"},
-[62] = {25,21,-2,-19,21.0000,"cccccccccccccc2cccccc72ccccc4f2ccccc02f1ccccc12f1ccccc12f1ccccc12b21ccccc1fcccc812b2cccc01f21cccc1f21cccc2f21cccc0f21cccc8721ccccc021ccccccccccccccccccccccccccccc0"},
-[63] = {17,25,-2,-23,13.0000,"ccccccccc812b21cc1ff2c82ff32c423181fc41c41b1ccc0bccc01bccc0b1cccb2cccb2cccb2ccc272ccc0bccc4bccc4271ccccccccccc8171ccc0fccc0fccc0171cccccccccc0"},
-[64] = {33,28,-2,-23,29.0000,"ccccccccccccccccccc416f21ccccc41ffb2cccc8f25092b1ccc81b2cc01b1ccc4b1ccc271ccc271ccc4bcc8171c127202324172cc4bc1ff2827cc47281b101b2827cc01718bc1718171cc278172c1718171cc27827c01718171cc27827c01718171cc27827c017c17cc027827c027c72cc0171427181b14171cc47241b10132720172cc827142f3202f32ccc1b81b282721ccc4272ccccccc42b1ccccccc02f2509acccc812ffb2ccccc052f361ccccccccccccccccccc0"},
-[65] = {24,25,-2,-23,20.0000,"cccccccccccccc4f1cccc41f2cccc42f3cccc01f71cccc27672ccccb5bccc81b4b1ccc42724272ccc4b141b1ccc1bcb2ccc272c2bcc81b1c1b1cc42bc4b2cc4fff7cc01fff71cc2fff72ccb2cc2b1c41b1cc1b2c42bcc4fc01b2cc42b1c2b1cc8b2cccccccccccc4"},
-[66] = {22,25,-2,-23,18.0000,"cccccccccccc1ff21cc81ffb1cc01baf7cc01bc02b2cc1bc4b2cc1bc4b2cc1bc4b2cc1bc01b1cc1bc2b1cc01ff321cc41ff72cc41baf71cc1bc01fcc1bc41b2c81bc8b2c81bc8b2c81bc41b2c81bc01f1c81baf72cc1ffb1cc01ff6cccccccccccc8"},
-[67] = {23,25,-2,-23,19.0000,"cccccccccccccc12f321ccc2ff71cc4fff1cc0f3218521cc2b2cccc01b2cccc4fcccc41b1cccc42b1cccc42bcccc82bcccc82bcccc82bcccc81b1cccc41b2cccc82b1cccc41f1cccc42f354921cc02fff1cc41ffb1ccc12f325cccccccccccc4"},
-[68] = {26,25,-2,-23,22.0000,"cccccccccccccc1ff61ccc41fff2ccc1fff71cc41bc012f31cc01bcc2fcc01bcc02b1cc1bcc4b2cc1bcc42bcc1bcc42bcc1bcc41b1c81bcc41b1c81bcc41b1c81bcc42bcc1bcc4b2cc1bcc01b1cc1bcc0fcc01bccf1cc01bc012f2cc41fff31cc81ffb21ccc1ff21ccccccccccccccc8"},
-[69] = {20,25,-2,-23,16.0000,"ccccccccccc1ffbcc1ffbcc1ffbcc1bcccc1bcccc1bcccc1bcccc1bcccc1bcccc1ff71cc1ff71cc1ff71cc1bcccc1bcccc1bcccc1bcccc1bcccc1bcccc1ffb1c81ffb1c81ffb1cccccccccc8"},
-[70] = {19,25,-2,-23,15.0000,"cccccccccc41ffbc81ffbc81ffbc81bccc81bccc81bccc81bccc81bccc81bccc81ff71c81ff71c81ff71c81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bcccccccccccc0"},
-[71] = {25,25,-2,-23,21.0000,"ccccccccccccccc12f361ccc01ffb1cc82fff1cc4f3218571cc02b2cc05cc1b2cccccfccccc1b1ccccc2b1ccccc2bccccc02bc4ffc82bc4ffc82bc4ffc81b1cc01bccb2cc01bcc2b1cc1bcc1f1c81bcc01f2185fcc41fff7cc812ffb1ccc016f61cccccccccccccc"},
-[72] = {26,25,-2,-23,22.0000,"cccccccccccccc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1ffff1cc1ffff1cc1ffff1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cc1bcc4b1cccccccccccccc"},
-[73] = {13,25,-2,-23,9.0000,"ccccccc41b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1cc1b1ccccccc4"},
-[74] = {16,25,-2,-23,12.0000,"ccccccccccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb2cccb1cccb1cc81b1cc82bc85012b2c82fbcc2f7cc01b21cccccccccc"},
-[75] = {23,25,-2,-23,18.0000,"cccccccccccc41bc82b1c81bc41b2cc1bc01b2cc01bc0fcc41bc2b1cc41b82b1cc81b41b2ccc1b4b2ccc01b02bccc41b2bccc81fbccc81b1b2ccc41b02b2ccc01b42b1ccc1b8f1cc81b81fcc81bc1b2cc41bc02b2cc01bc4f1cc1bc41f1c81bc81fcccccccccccc0"},
-[76] = {19,25,-2,-23,15.0000,"cccccccccc41bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81bccc81ffb1c41ffb1c41ffb1cccccccccc"},
-[77] = {32,25,-2,-23,28.0000,"ccccccccccccccccc1f2ccc2fcc01f3cc81f3cc01f31cc42f3cc01f7cc4f7cc0172b1cc172bcc017672cc271bcc01721bc81721bcc01720b1c4275bcc017201bc4b01bcc01724b1c17201bcc01724272c27101bcc017241b817241bcc01728271427141bcc017281724b81bcc0172cb57281bcc0172c2767181bcc0172c1f32c1bcc0172c02f1c1bcc0172c01fc01bcc0172c4b2c01bcc0172c4271c01bccccccccccccccccc0"},
-[78] = {27,25,-2,-23,23.0000,"cccccccccccccc41fcc4b1cc1f2cc0b1cc1f31ccb1cc1f7ccb1cc1f72c8b1cc1b1b1c4b1cc1b0272c4b1cc1b01b1c0b1cc1b42bc0b1cc1b8b2cb1cc1b81b18b1cc1bc2b8b1cc1bc0b24b1cc1bc01b10b1cc1bc42b0b1cc1bc8b2b1cc1bc81f71cc1bcc2f31cc1bcc0f31cc1bcc01f1cc1bcc42b1cccccccccccccc4"},
-[79] = {27,25,-2,-23,23.0000,"ccccccccccccccc816b61cccc1ff721ccc01fff31cc81f21812f1cc01f1c82fcc02b1cc02b1ccb2cc8fc81b1cc82bc82bccc1b1c42bccc1b1c42bccc1b1c42bccc1b1c42bccc1b1c41b1cc82bccb2cc8b2cc2b1cc02b1cc1f1c82fcc42f21812fccc2fff31ccc01ff72cccc012f61ccccccccccccccc8"},
-[80] = {22,25,-2,-23,18.0000,"cccccccccccc1ff21cc81ffb1cc01fff1cc1bc02fcc1bc42b1c81bc41b1c81bc8b2c81bc8b1c81bc41b1c81bc4fcc1bc1f2cc1ffb2cc01ff72cc41f761ccc1bcccc41bcccc41bcccc41bcccc41bcccc41bcccc41bcccccccccccccc4"},
-[81] = {28,28,-2,-23,23.0000,"cccccccccccccccc016b61cccc012ff321ccc41fff31ccc1f21812f1cc8f1c82fcc42b1cc02b1cc0b2cc8b2cc1b1cc82bcc2bccc1b1c82bccc1b1c82bccc1b1c82bccc1b1c82bccc1b1c81b1cc82bcc0b2cc8b2cc02b1cc02b1cc01f1c82b2cc82f21812f1ccc2fff31ccc41ffb2cccc012f6f1ccccc82f1ccccc81f2ccccc81f2cccccccccccccc8"},
-[82] = {23,25,-2,-23,19.0000,"cccccccccccc41ff6ccc1ffb2cc41f6f71cc01bc02fcc01bc42b1cc1bc41b1cc1bc41b1cc1bc42bcc01bc02b1cc01f6f31cc41ff321cc81ff31ccc1b412b1cc81bc2b1cc41bc0fcc41bc01b2cc01bc42bcc01bc41b2cc1bc82b1c81bccfc81bcc2b2cccccccccccc"},
-[83] = {20,25,-2,-23,16.0000,"ccccccccccc812f36cc01ff71c81ffb1c8f21c12c81b2ccc81b1ccc81b2ccccf1ccc81f21ccc42f71ccc01f72ccc41f71ccc41f3cccc2b2cccc2bcccc2bc45ccfc41321c12b2c41fffc81ff72cc052f61ccccccccccc4"},
-[84] = {21,25,-2,-23,17.0000,"ccccccccccc1fffbc01fffbc01fffbcc81bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccc01bcccccccccccc8"},
-[85] = {25,25,-2,-23,21.0000,"ccccccccccccc4272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc272cc0272cc2bcc0272cc2bcc0272cc2bcc0b2cc1b1c81b1cc0f1c4fcc42f541f2cc8fff3ccc02ff32ccc812f61cccccccccccccc4"},
-[86] = {24,25,-2,-23,19.0000,"cccccccccccc42b1cc42bc01b2cc4b2c4b2cc01bc82bcc0272c81b1ccb1ccb2c81bcc02bc8272cc4b1c4b1cc4272c01bcc81bc0272cccb1cb1ccc27281bccc01b8272ccc4b14b1ccc427201bccc81b0271ccccb1bcccc02f32cccc01f31cccc4f3cccc82b2cccccccccccccc4"},
-[87] = {33,25,-2,-23,29.0000,"ccccccccccccccccc2b1ccb2ccb2c1b2c81fc81b1c0b2c82f1c42bc42bc8f32c4272c41b1c01f32c4b1c8b2c0272bc01bccb2c0271b1c2bcc2bc0b0272c272cc1b181720172cb1cc0b2827101b81bcc42728b8b14172cc41b417282724271cc41b1017281b4b1cc8b10271cb01bccc2720bc027572ccc1b172c027671ccc0b271c0172bccc42f31c4f7ccc41f3c82f2ccc41f2c81f1ccc8f1c81fcccccccccccccccccc4"},
-[88] = {23,25,-2,-23,19.0000,"cccccccccccc0f1ccfc41fc82b1c82b1c4b2cc0fc02bcc41b181b1cc8f8272ccc1b201bccc42b0b1ccc8fbcccc1f31cccc0f3cccc02f31ccc81b2bccc82720b2ccc02b102b1cc81b28fcc82bc1b1cc01b1c02bcc0fc41b2c82b1c82b1c01b2cc1fcccccccccccc0"},
-[89] = {22,25,-2,-23,17.0000,"ccccccccccc42b1cc2bc4b2c81b1c42b1c42bccb2c01b1cc2b1c2bcc4b2cb1cc42b8272cccb24b1ccc1b0272ccc4b2b1ccc41f32ccccf3cccc01b2cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1cccc4b1ccccccccccccc0"},
-[90] = {22,25,-2,-23,18.0000,"ccccccccccc82fffbc42fffbc42fff71cccc1b2cccc0b2cccc02b1cccc1b1cccc0b2cccc02bcccc02b1cccc1b2cccc0fcccc02b1cccc1b2cccc0fcccc02b1cccc1b1cccc0b2cccc02fff72c01fffb2c01fffb2ccccccccccc8"},
-[91] = {14,30,-2,-23,10.0000,"cccccccc0f7ccf7ccb9ccbcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8b9ccf7ccf7ccccccc8"},
-[92] = {18,29,-3,-23,12.0000,"ccccccccc8bccc8271ccc41bccc8271ccc4172ccc8bccc8271ccc41bccc8271ccc4172ccc8bccc8271ccc4172ccc8b1ccc4172ccc8bccc8271ccc4172ccc8b1ccc4172ccc8bccc8271ccc4172ccc8bccc8172ccccccccc4"},
-[93] = {14,30,-2,-23,10.0000,"ccccccc8f7ccf7cc9bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc8bcc9bccf7ccf7cccccccc0"},
-[94] = {25,25,-2,-23,21.0000,"ccccccccccccccc0231ccccc01bccccc0f1cccc81727cccc872072cccc0171027cccc072872ccc81718271ccc472c072ccc0271c0171ccc72c8bcc8271c8171cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-[95] = {17,8,-2,-2,12.0000,"ccccccccccccccccc4eee1cfff1ccccccccc"},
-[96] = {13,27,-2,-25,9.0000,"ccccccc0172cc4271cc427cc872cc4171ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc8"},
-[97] = {20,19,-2,-17,16.0000,"ccccccccccc412f21cc41ff31cc017efcc0121c1b1cccc272cccc272cc81af2cc12ff32ccf65272c8272c0272c8b1c0272c8b2c2b2c82f67272ccfb1272cc02b210272ccccccccccc"},
-[98] = {22,27,-2,-25,18.0000,"cccccccccccc272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccc427242b21cc42721fb2cc0272b6f2cc2f181fcc2b1c01b1c8272c8b2c8272c8272c8272c8272c8272c8272c8272c8b2c82bc41b1c82b2c1fcc2f36f31cc276fb1cc0272012b2cccccccccccc8"},
-[99] = {18,19,-2,-17,14.0000,"cccccccccc816b21cc02ffcc2fa7c82b2c02c8b2ccc01bccc42bccc4272ccc4272ccc42bccc41b2ccc42b2c02c81f3a7cc1ff3cc412b61ccccccccc8"},
-[100] = {22,27,-2,-25,18.0000,"cccccccccccccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcc8672102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc1f3672bcc02fb12bcc412b242bcccccccccccc"},
-[101] = {20,19,-2,-17,16.0000,"ccccccccccc812b21ccc2fb2cc4fab2cc2bc1b1c41b1c0272c41bc4172c42fff3c42fff3c42bdd5c42bcccc1b1ccccf1c012cc1f3a72cc01ff32cc86b61ccccccccccc0"},
-[102] = {15,27,-2,-25,10.0000,"ccccccccc42b2cc1f32ccfac81b1cc42bcc8272cc8272cc8272cc1ff3c01ff3c016facc272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272ccccccccc"},
-[103] = {22,26,-2,-17,18.0000,"cccccccccccc82b2102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc2f3672bcc02fb12bcc412b24272cccc4272cccc4b2cccc02b1cc12c42b2cc02baf31cc02ff71cc816f21ccccccccccccc"},
-[104] = {21,27,-2,-25,17.0000,"ccccccccccc4272cccc0272cccc0272cccc0272cccc0272cccc0272cccc0272cccc0272cccc027242b21cc02721fb1cc27276f3cc2f182b1c82b1c1b1c82bc4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2c8272c4b2ccccccccccc0"},
-[105] = {12,26,-2,-24,8.0000,"ccccccc161ccfccfcc171ccccccccccc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272ccccccc"},
-[106] = {15,33,-5,-24,8.0000,"ccccccccc0161cc8fcc8fcc8171cccccccccccccc272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8b2cc8b1cc41b1cc42bc816f1c81f32cc1b21ccccccccc0"},
-[107] = {20,27,-2,-25,16.0000,"ccccccccccc272cccc272cccc272cccc272cccc272cccc272cccc272cccc272cccc272c1b2c8272cfcc27282b1cc27242b1cc027201b1cc42721b2cc8272b2ccc2f71ccc276b1cc82720fcc827201fcc427241b2cc027282b2cc272c2b2c8272c0f1cccccccccc4"},
-[108] = {12,27,-2,-25,8.0000,"ccccccc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272cc272ccccccc"},
-[109] = {31,19,-2,-17,27.0000,"cccccccccccccccc4272012b1c2b21cc42721f7201fb1cc027276f1b2f3cc02b281f3282b1cc2b1c2b2c0b2cc272c01b1c0b2cc272c01b1c0272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cc272c01bc4272cccccccccccccccc4"},
-[110] = {22,19,-2,-17,18.0000,"cccccccccccc27242b2cc82721fb1cc027276f3cc02f182b1cc2b1c1b1cc272c4b2cc272c4b2cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cc272c4272cccccccccccc"},
-[111] = {22,19,-2,-17,18.0000,"cccccccccccc812f21ccc02ff31cc4f36f3cc02b1c1b2c81b2c42b1c41bccb1c4272ccb2c4272cc272c4272ccb2c42bccb1c41b2c42bcc2b1c1b2cc0f36f3cc41ff32ccc012f21cccccccccccc8"},
-[112] = {22,26,-2,-17,18.0000,"cccccccccccc27242b21cc42721fb2cc0272b6f2cc2f181fcc2b1c01b1c8272c8b2c8272c8272c8272c8272c8272c8272c8272c8b2c82bc41b1c82b2c1fcc2f36f31cc2721fb1cc0272012b2cc8272cccc4272cccc4272cccc4272cccc4272cccc4272cccc4272cccccccccccccc4"},
-[113] = {22,26,-2,-17,18.0000,"cccccccccccc8672102bcc01fb6bcc1f36f7cc2b1c2fc81b2c4fc81bc82bc8272c82bc8272c82bc8272c82bc82bc82bc81b1c01fccf181f3cc1f3672bcc02fb12bcc412b2102bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccc42bcccccccccccc"},
-[114] = {15,19,-2,-17,11.0000,"cccccccc427201232c42721fc4272f3c42f2cc02b2cc42bcc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272cc8272ccccccccc0"},
-[115] = {17,19,-2,-17,13.0000,"cccccccccc6b6cc1ffc81fe3c82bc01c8272ccc01b2ccc0f321cc82f321cc412f31ccc1b2ccc02bc41c4272c423ef1c42ff2c812f61ccccccccc8"},
-[116] = {15,23,-2,-21,11.0000,"cccccccc8521cc8b2cc8b2cc8b2cc1ff3c01ff3c016faccb2cc8b2cc8b2cc8b2cc8b2cc8b2cc8b2cc8b2cc82bcc82f6cc1f7cc012b2cccccccc0"},
-[117] = {22,19,-2,-17,18.0000,"ccccccccccccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c4b1ccb1c01b1ccb2c02b1cc2b181f1cc1f3272b1cc02f721b1cc412b14b1cccccccccccc"},
-[118] = {20,19,-2,-17,15.0000,"cccccccccc42bc82bc01b1c4b2c4b2c01bc82bc0272c81b1cb1ccb281bcc01b8272cc4b14b1cc427201bcc81b0271cccb0bccc027272ccc01f31ccc4f3ccc82b2cccccccccccc"},
-[119] = {27,19,-2,-17,23.0000,"cccccccccccccc2bc4b1c0b1c1b1c1b2c1bc4b1c2fc172c4272cf3c271c41b8172718bccb14170724172cc27142320b4171cc2724710274271cc1b01741710bcc4b1232872172cc427171827171cc41727182727cccf3c1f2ccc2b2c0f1ccc1b1c02bccccccccccccccc0"},
-[120] = {19,19,-2,-17,15.0000,"cccccccccc1b2c01b1c02b1c272c8b281bcc1b14b1cc02b0172cc8b1bccc1f31ccc02fccc01f31cccb2bcc82720272cc01b101b1ccb282bc82bc0b2c01b1c02b1cccccccccc"},
-[121] = {20,26,-2,-17,15.0000,"cccccccccc42bc81bc01b1c4272c4b2c4b1c42bc01bccb1c271cc272cbcc01b8172cc4b14271cc42724bcccb0172ccc27127ccc017272ccc4f31ccc42fccccb2ccc81b1ccc8272ccccb1ccc82bccc132f1ccc1f31ccc01b2ccccccccccccc0"},
-[122] = {18,19,-2,-17,14.0000,"ccccccccc82ffb1c02ffb1c0eeb1ccc0b2ccc02bccc01b1ccc1b2ccc0b2ccc02bccc01b1ccc1b2ccc0b2ccc02beec01fff1c2fff1ccccccccc4"},
-[123] = {14,30,-2,-23,10.0000,"cccccccc8127cc01fcc0b21cc1bcc4172cc4172cc4172cc4172cc4172cc4172cc4271cc01bcc0272cc4272cc82bcc8271cc4172cc4172cc4172cc4172cc4172cc4172cc41bcc8b21cc01fcc4127ccccccc8"},
-[124] = {12,34,-2,-25,8.0000,"ccccccc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172cc172ccccccc"},
-[125] = {14,30,-2,-23,10.0000,"ccccccc872cc8f1cc012bcc8bcc8271cc4271cc4271cc4271cc4271cc4271cc4172cc8b1cc8272cc4272cc0b1cc0172cc4271cc4271cc4271cc4271cc4271cc4271cc4b1cc12bcc0f1cc0721cccccccc8"},
-[126] = {25,15,-2,-13,21.0000,"cccccccccccccc12721c0232cc8fb24172cc427212ff1cc472c2f31cc89c49cccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-[8212] = {34,13,-2,-11,30.0000,"ccccccccccccccccc4fffffff7cfffffff7ceeeeeee6cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
-[183] = {11,15,-2,-13,7.0000,"cccccc4232c81b2c41b2c8232ccccccccccccccccccccccccc8"},
-},
-mono = {
-[32] = {19,4,-2,-2,15.0000,"ccccccccccccccccccc"},
-[33] = {19,23,-2,-21,15.0000,"ccccccccccc427cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc17cccc132cccc132cccc132cccc121ccccccccc5ccccb1ccc8b1ccc8232ccccccccccc4"},
-[34] = {19,23,-2,-21,15.0000,"cccccccccc81724bcc4171472cc4171472cc4171472cc4171472cc8714232cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
-[35] = {19,22,-2,-20,15.0000,"ccccccccccc1328231cc41328231cc413287cc823187cc823187cc2fff2c02fff2cc78132cc878132cc878231cc41328231c81fff3c01fff3cc23187cc823187cc82314132cc8714132cc878132ccccccccccc"},
-[36] = {19,27,-2,-22,15.0000,"cccccccccccc7cccc07cccc132ccc012f21cc42ff1cc272123521cc714231cc417147cc817247ccc27217ccc02f2ccc412f2ccc42f31ccc235b1cc87872cc87872cc87872c41293201bc81ff71cc6f321ccc0231cccc7cccc07cccccccccccc"},
-[37] = {20,23,-2,-21,15.0000,"ccccccccccc2721c0132c42f3c07c417102328231c413241324132c8132413247cc17102320231cc02f30132cc8272471cccc231cccc132cccc071cccc23102721cc413202f31cc0710710232cc2320132417c81324132417c87141710232c4232c2f3c4132c4272ccccccccccc0"},
-[38] = {20,23,-2,-21,15.0000,"ccccccccccc412721ccc02f72cc81724271cc427c71cc4232c72cc427c71cc4171427cccb1b1ccc1f2ccc41b2ccc42f31417c81710b1017c8728b0232c87181f32c4171c1fcc72c0272cc272141f1ccff2b1cc12b2101bcccccccccc8"},
-[39] = {19,23,-2,-21,15.0000,"ccccccccccc4b1ccc827cccc27cccc27cccc27cccc27ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0"},
-[40] = {19,29,-2,-22,15.0000,"cccccccccccc42cccc072ccc872ccc8232ccc817cccc71ccc827cccc72ccc817cccc27cccc232cccc72cccc72cccc72cccc232cccc27cccc171cccc72cccc27cccc072cccc271cccc27cccc072cccc172cccc12ccccccccccc"},
-[41] = {19,29,-2,-22,15.0000,"ccccccccccc6cccc172cccc171cccc271cccc27cccc071cccc27cccc071cccc232cccc27cccc17cccc171ccc8171ccc8171ccc817cccc17cccc232cccc71ccc827cccc71ccc8232ccc8171ccc4171ccc4171cccc21cccccccccccc0"},
-[42] = {19,23,-2,-21,15.0000,"ccccccccccc4132cccc032ccc0283245cc271031027cc017232721cc82b21ccc01b2ccc1723272cc0271031027cc0283245ccc132cccc132cccccccccccccccccccccccccccccccccccccccccccc8"},
-[43] = {19,18,-2,-16,15.0000,"ccccccccccc417cccc17cccc17cccc17cccc17cccc17cc8fff31c0fff31cc417cccc17cccc17cccc17cccc17cccc17ccccccccccc4"},
-[44] = {19,14,-2,-7,15.0000,"ccccccccccc81cccc0bccc81b2ccc8b2ccc8172ccc8172ccc8171ccc4272ccc02b2ccc42321cccccccccccc"},
-[45] = {19,12,-2,-10,15.0000,"cccccccccc81fb2cc41fb2ccccccccccccccccccccccccccccccccccccccc0"},
-[46] = {19,9,-2,-7,15.0000,"ccccccccccc49ccc81b1ccc42b2ccc42b2ccc8232ccccccccccc4"},
-[47] = {19,26,-2,-21,15.0000,"cccccccccccc417cccc232cccc7cccc232cccc71ccc817cccc231ccc817cccc232cccc71ccc8232cccc71ccc817cccc231ccc817cccc232cccc71ccc8232cccc71ccc817cccc231ccc817cccccccccccc8"},
-[48] = {19,22,-2,-20,15.0000,"ccccccccccc02b21cc81fb2cc47214272cc27c0271c871c472c417c4172c4232c02fc423281b27c423241b57c42320272417c4232b1817c42f1c17c4172c4232c4171c472c8232c027cc17214272cc01fb2cc812b21ccccccccccc"},
-[49] = {19,22,-2,-20,15.0000,"ccccccccccc4172ccc01f2cc81b272cc8721072cc812872cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccc72cccd729cc2ff72c82ff72cccccccccc0"},
-[50] = {19,22,-2,-20,15.0000,"ccccccccccc12b21cc82fb1cc027141b1cc02c0172cccc72cccc232cccc72ccc8171ccc827ccc8271ccc4271ccc4271ccc4271ccc4271ccc4271ccc4272ddc8ffb2c8ffb2cccccccccc0"},
-[51] = {19,22,-2,-20,15.0000,"cccccccccc812f21cc41ff1cc012181bcccc171cccc72cccc71ccc817ccc8271cc82f31ccc2f72ccc81272cccc171cccc71cccc71ccc827ccc41271cc2ff1cc02f321ccccccccccc0"},
-[52] = {19,22,-2,-20,15.0000,"ccccccccccccb2ccc42b2ccc01f2ccc071232ccc2320232cc8174232cc8714232cc4278232cc01718232cc0232c232cc17c0232cc71c0232c81fff32c1fff32ccc0232cccc232cccc232cccc232cccccccccc8"},
-[53] = {19,23,-2,-20,15.0000,"cccccccccc41ff31cc1ff31cc17cccc17cccc17cccc17cccc17cccc1f361cc41ff2ccc81272cccc27cccc171ccc8171ccc817cccc72ccc41bcc02fb2cc42f321cccccccccccccccc"},
-[54] = {19,22,-2,-20,15.0000,"ccccccccccc416b2cc82f72cc4b21ccc027ccc817cccc232cccc71cccc716b21cc1ff72c81b541271c417c872c4171c427c871c427c872c427c827c472cc72141bcc01ff1cc412b21ccccccccccc"},
-[55] = {19,22,-2,-20,15.0000,"cccccccccc01ffb2c41ffb2c8dd172ccc817cccc72ccc817cccc72ccc8171ccc8232ccc8171ccc8232ccc8171ccc8232ccc8171ccc827ccc8171ccc827ccc8171cccccccccccc"},
-[56] = {19,22,-2,-20,15.0000,"ccccccccccc12f2cc82ff1cc17181bcc232c0171c872c471c872c0171c8172c72cc02725bcc82f32ccc1f321cc427101b1cc271c271c871c472c4171c472c4172c472c8b281b1c81ff31cc46b6ccccccccccc"},
-[57] = {19,22,-2,-20,15.0000,"ccccccccccc12b21cc82fb2cc02728271cc72c027c817c4171c427c871c427c872c4171c4232c8b181272c81ff72cc02f2172cccc71ccc817cccc232ccc827ccc012b1cc02fb1cc42b61ccccccccccc4"},
-[58] = {19,18,-2,-16,15.0000,"ccccccccccc4232ccc81b2ccc41b2ccc8271cccc1ccccccccccccccccccccccc41cccc0271ccc41b2ccc41b2ccc8232ccccccccccc4"},
-[59] = {19,23,-2,-16,15.0000,"ccccccccccc4232ccc81b2ccc41b2ccc8271cccc1ccccccccccccccccccccccc41cccc0b1ccc41b2ccc8fccc81bcccc72ccc8171ccc41bccc02fccc42321cccccccccccc"},
-[60] = {19,19,-2,-17,15.0000,"cccccccccccc46cccc271ccc4b1ccc01b1ccc0172ccc4272ccc4271ccc4271cccc271cccc272cccc172cccc1b1ccccb1cccc271cccc6cccccccccc8"},
-[61] = {19,15,-2,-13,15.0000,"cccccccccc01ffb2c41ffb2ccccccccccccccc81ffb2c41ffb2ccccccccccccccccccccccccccccc0"},
-[62] = {19,19,-2,-17,15.0000,"cccccccccc812cccc0b1cccc271cccc272cccc172cccc1b1cccc271ccccb1ccc4271ccc01b1ccc0172ccc4272ccc4271ccc4b1ccc812cccccccccccc4"},
-[63] = {19,23,-2,-21,15.0000,"ccccccccccc761ccc4f32ccc812bcccc172cccc171cccc71cccc72ccc8171ccc4127ccc2f31ccc1b21ccc0132cccc132cccc121ccccccccc5ccccb1ccc8b1ccc8132ccccccccccc8"},
-[64] = {20,28,-2,-21,15.0000,"cccccccccccc6721ccc17a72cc4171c232cc071c4231c8231c8132c417cc032c4231417a07c4741f32023c432471071023c013201324710231c231023147423c0231071017423c023107413247c0747423247c074742320132c023475720231c023102b2f2c423142320172c8132cccc47cccc4231cccc471c41cc417e232ccc2f21ccccccccccc8"},
-[65] = {20,22,-2,-20,15.0000,"ccccccccccccb2ccc81fccc823271ccc47172ccc017027ccc02320171ccc71472cc817827cc82328171cc471c71cc017c0232cc0232d127cc0ffb1c81ffb2c8232c817c871c8171c017cc072c0232cc027cccccccccc8"},
-[66] = {19,22,-2,-20,15.0000,"cccccccccc4fb6cc4ff71cc72c272cc72c027cc72c0171c872c017cc72c0232cc7281271ccff2cc4ff71cc7285bcc72c472c872c427c872c4232c872c472c872c1bccff71ccfb21ccccccccccc"},
-[67] = {19,22,-2,-20,15.0000,"ccccccccccc46b21cc41ff2cc2b29232c8172ccc827ccc8171ccc817cccc27cccc27cccc27cccc27cccc27cccc171ccccbcccc272ccccf29232cc02ff2cc412f21cccccccccc4"},
-[68] = {19,22,-2,-20,15.0000,"cccccccccc02f76cc42ff31cc27c1272c827c4271c427c872c427c827c427c8171c027c8171c027c8171c027c8171c027c8171c027c817c427c827c427c4172c427c4bc827812b1c82ff31cc2f721ccccccccccc0"},
-[69] = {19,22,-2,-20,15.0000,"cccccccccc41ff7cc1ff7cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff32cc1ff32cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff7cc1ff7cccccccccc4"},
-[70] = {19,22,-2,-20,15.0000,"cccccccccc41ff7cc1ff7cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc81ff31cc1ff31cc171ccc8171ccc8171ccc8171ccc8171ccc8171ccc8171ccc8171cccccccccccc0"},
-[71] = {19,22,-2,-20,15.0000,"ccccccccccc46b6cc42ff2cc2b2d6c8272ccc872ccc8271ccc8232cccc72cccc7181f7c47181f7c472c827c472c827c427c827c4171c427c8b1c027c81b21827cc1ff7cc412f21cccccccccc4"},
-[72] = {19,22,-2,-20,15.0000,"cccccccccc017c827c417c827c417c827c417c827c417c827c417c827c417c827c417c827c41fffc41fffc417c827c417c827c417c827c417c827c417c827c417c827c417c827c417c827cccccccccc0"},
-[73] = {19,22,-2,-20,15.0000,"cccccccccc42ff7cc2ff7ccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27ccc2ff7cc2ff7cccccccccc4"},
-[74] = {19,22,-2,-20,15.0000,"cccccccccc41ff3cc01ff3cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc27cccc27cccc72cc012141271cc02fb1cc412f21ccccccccccc0"},
-[75] = {19,22,-2,-20,15.0000,"cccccccccc472c0172c872c072cc72c27cc072827cc4724171cc4720171cc872072ccc7632ccc0f3ccc47272ccc072171ccc720271cc8724bcc8724172cc4728172cc072c271cc72c0b1c872c01bcccccccccc0"},
-[76] = {19,22,-2,-20,15.0000,"cccccccccc8232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc2ff31cc2ff31cccccccccc0"},
-[77] = {19,22,-2,-20,15.0000,"cccccccccc0172c01bc42bc02bc42b1cfc42323281327c4231782317c4231231013207c4235320231071c02310707471c071023232471c07101b1471c0714b871c078132871c07cc071c07cc0232c07cc0232c17cc0232c17cc0232c17cc0232cccccccccc"},
-[78] = {19,22,-2,-20,15.0000,"cccccccccc01bc4132c41b1c0132c41fc0132c41f1c132c417132c132c4170718132c41702328132c41701714132c41742324132c4174174132c41782320132c4178170132c417c7532c417c17132c417c07232c417c02b2c417c4b2c417c4272cccccccccc0"},
-[79] = {19,22,-2,-20,15.0000,"ccccccccccc02b21cc81ff1cc172141bcc72c0172c417c827c4232c8171c072cc71c071cc72c171cc72c171cc72c071cc72c072cc71c072c8171c027c827c4172c0171c827214172cc02fb2cc812b21ccccccccccc"},
-[80] = {19,22,-2,-20,15.0000,"cccccccccc4fb21cc4ff71cc72812bcc72c0171c872c472c872c427c872c4232c872c472c872c0171c87281272ccff32cc0fb21cc472cccc72cccc72cccc72cccc72cccc72cccccccccccc4"},
-[81] = {20,27,-2,-20,15.0000,"ccccccccccc82b21ccc1ff1cc01b92bcc0bc0172c8171c427c8232c8171c472cc71c471cc72c0171cc72c0171cc72c471cc72c472cc71c472c8171c427c827c8172c0171cc27214172cc42fb2ccc12b21ccc8232cccc0171cccc0b1412ccc1fbccc012b21cccccccccc8"},
-[82] = {19,22,-2,-20,15.0000,"cccccccccc42f721cc42ff2cc023281272cc232c0bcc232c027cc232c027cc232c072cc23281b1cc2ff1cc02f72cc82324172cc42328171cc0232c72cc0232c171cc232c072cc232c0271c8232c472c8232c427cccccccccc0"},
-[83] = {19,22,-2,-20,15.0000,"ccccccccccc16b61cc02ff1cc272189cc72ccc8171ccc8172ccccb2ccc81f1ccc82f21ccc012f2ccc81b2cccc271cccc72cccc72ccc8171c4121c01bc81ff32cc16f321ccccccccccc"},
-[84] = {19,22,-2,-20,15.0000,"cccccccccc02fff1c02fff1cc427cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27cccc27ccccccccccc4"},
-[85] = {19,22,-2,-20,15.0000,"cccccccccc027c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c427c827c417c827c417c8232c872c0171c82728172cc02ffcc812b21ccccccccccc"},
-[86] = {20,22,-2,-20,15.0000,"cccccccccc427cc0171c171cc27c472cc71c427c817c8171c4232cc72c471cc27c017cc0171c232cc471c71cc4232817cc8178232ccc71471ccc232017ccc0170232ccc017171ccc4f3ccc82b2ccc81b1cccccccccccc"},
-[87] = {19,22,-2,-20,15.0000,"cccccccccc17cc0132c17cc0132c17cc0232c07cc0232c07cc0231c071cc231c07141328231c0714278231c02314b1471c023101b247c42320231747c423207023107c4232132013207c4136314717c41327823232c41b281b2c41b1cb2c41bc0272cccccccccc0"},
-[88] = {20,22,-2,-20,15.0000,"cccccccccc8bc8171c4172c472cc27c027cc4728171cc4171472cccb0271ccc17272ccc42fccccb1ccc81b2ccc8f31ccc0271bccc1720172cc8278271cc0171c72cc072c0271c8271c4bc4172c8172cccccccccc8"},
-[89] = {20,22,-2,-20,15.0000,"cccccccccc4271cc27c0172cc72c4271c427cc72c472cc271c27cc4728171cc4271427ccc720171ccc171232ccc47271ccc41b2cccc271cccc27cccc027cccc027cccc027cccc027cccc027cccccccccccc0"},
-[90] = {19,22,-2,-20,15.0000,"cccccccccc01ffb2c41ffb2c8dd271ccc872ccc827ccc8171ccc872ccc827ccc8171ccc872ccc827ccc8171ccc872ccc827ccc8171ccc8bdd1c41fffc41fffcccccccccc0"},
-[91] = {19,29,-2,-22,15.0000,"ccccccccccc1f71cc81f71cc817cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc1f71cc81f71cccccccccc8"},
-[92] = {19,26,-2,-21,15.0000,"cccccccccc4232cccc17cccc0232cccc17cccc071cccc132cccc071cccc232cccc17cccc0232cccc17cccc071cccc132cccc071cccc232cccc17cccc0231cccc17cccc071cccc232cccc071cccc232cccccccccc0"},
-[93] = {19,29,-2,-22,15.0000,"cccccccccccf72cccf72cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccc232cccf72cccf72ccccccccccc"},
-[94] = {19,22,-2,-20,15.0000,"ccccccccccc427ccc81b1ccc42317ccc01320232ccc231471cc41328132cc47c071cc232c017cc7c8232ccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
-[95] = {20,9,-2,-2,15.0000,"ccccccccccccccccccccccccc4fffb1cfffb1cccccccccc4"},
-[96] = {19,23,-2,-21,15.0000,"cccccccccc8271cccc171cccc1232ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc4"},
-[97] = {19,18,-2,-16,15.0000,"cccccccccc816b6cc8ff3cc43218172cccc27cccc17cccc17cc412fbcc0ff7cc271c17cc72c017cc71c027ccb141fcc1fb27cc012b2107cccccccccc4"},
-[98] = {19,23,-2,-21,15.0000,"cccccccccc4232cccc232cccc232cccc232cccc232cccc232012721cc0236f71cc2b210127cc272c071c8232c4232c8232c427c8232c427c8232c427c8232c4232c8232c472c8232c017cc232141272cc2ff2cc412f21ccccccccccc"},
-[99] = {19,18,-2,-16,15.0000,"ccccccccccc46761cc41ffcc01b1452cc072ccc8171ccc827cccc232cccc232cccc232cccc27cccc172cccc2721452cc42ffcc812b61cccccccccc4"},
-[100] = {19,23,-2,-21,15.0000,"cccccccccccc417cccc17cccc17cccc17cccc17cc86b27cc01ff3cc17214127cc232c017cc71c017c817c417c817c417c827c417c817c417c8171c027cc72c2bcc271012327cc0f7207cc4272147cccccccccc4"},
-[101] = {19,18,-2,-16,15.0000,"ccccccccccc02b21cc81fb2cc4b14172cc27c0171c871c472c4171c4232c41ffb2c41ffb2c417cccc071cccc232cccc1b1852cc01ff3cc82f61cccccccccc4"},
-[102] = {19,23,-2,-21,15.0000,"cccccccccccc2f21cc41fb1cc4b181cc4171ccc817cccc17cccc17cccfff3c4fff3cc417cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17ccccccccccc8"},
-[103] = {19,23,-2,-16,15.0000,"ccccccccccc12ff1c82ff71c4172101271cc232c0232cc72c027cc232c0232cc17241271cc0ff2cc0236b21cc471cccc71cccc721ccc81ff21cc1ff72c4171c427c427c817c42721c172c8ff72cc012f321cccccccccc8"},
-[104] = {19,23,-2,-21,15.0000,"cccccccccc4232cccc232cccc232cccc232cccc232cccc232012721cc0236f71cc2b210172cc272c17cc232c0171c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471cccccccccc0"},
-[105] = {19,24,-2,-22,15.0000,"ccccccccccc85ccccb1ccc8b2ccc8232cccccccccccc41f71cc81f71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cc82ff71c82ff71cccccccccc0"},
-[106] = {19,29,-2,-22,15.0000,"cccccccccccc05cccc272ccc82bccc8171ccccccccccc82ff1cc02ff1cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71ccc817cc01218172cc01fb2cc812b21ccccccccccc4"},
-[107] = {19,23,-2,-21,15.0000,"cccccccccc427cccc27cccc27cccc27cccc27cccc27c0172c827c172cc278172cc0274172cc4270172cc827072ccc2f3ccc027171ccc270271cc8274271cc4278271cc027cb1cc27c0b1c827c01bcccccccccc0"},
-[108] = {19,23,-2,-21,15.0000,"cccccccccc41f71cc81f71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cccc71cc82ff71c82ff71cccccccccc0"},
-[109] = {19,18,-2,-16,15.0000,"cccccccccc02301724232c8231f12b2c42b0232357c4271017247c4232417871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871c02314132871cccccccccc"},
-[110] = {19,18,-2,-16,15.0000,"cccccccccc4231012721cc02312f71cc2b210172cc272c17cc232c0171c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471cccccccccc0"},
-[111] = {19,18,-2,-16,15.0000,"ccccccccccc12b6cc81ff1cc172141bcc72c0172c4171c427c427c817c4232c817c4232c817c4232c817c417c8232c872c0171c827214172cc02fb2cc812b21ccccccccccc"},
-[112] = {19,23,-2,-16,15.0000,"cccccccccc4231012721cc02312f71cc2b210127cc272c071c8232c4232c8232c427c8232c427c8232c427c8232c4232c8232c472c8232c017cc23218272cc2ff2cc02f721cc4232cccc232cccc232cccc232cccc232cccccccccccc4"},
-[113] = {19,23,-2,-16,15.0000,"ccccccccccc06b63cc01ff3cc07214127cc232c017cc71c017c817c417c817c417c827c417c817c417c8171c027cc72c2bcc271012fcc0f7217cc42721017cccc17cccc17cccc17cccc17cccc17cccccccccc4"},
-[114] = {19,18,-2,-16,15.0000,"cccccccccc417412721cc170fb1c81f210172c81b1c27c8171c017c817cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccccccccccc4"},
-[115] = {19,18,-2,-16,15.0000,"ccccccccccc06f2cc41ffcc472185cc017cccc171cccc2721ccc82f21ccc012f2ccc81272cccc27cccc17cc9c172cc2ff2cc016f21ccccccccccc"},
-[116] = {19,22,-2,-20,15.0000,"ccccccccccc023cccc17cccc17cccc17ccc0fff1c4fff1cc017cccc17cccc17cccc17cccc17cccc17cccc17cccc17cccc171ccccb1ccc81fb1cc812f31cccccccccc0"},
-[117] = {19,18,-2,-16,15.0000,"cccccccccc4232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c471c8232c0171c827c1b1c817242f1ccfb171cc02b2471cccccccccc0"},
-[118] = {19,18,-2,-16,15.0000,"cccccccccc072c8171c027c8232c872c471c827c017cc171c72cc0728171cc027827cc4171472cc8232017ccc170232ccc07171ccc02fccc41b2ccc8b1ccccccccccc0"},
-[119] = {19,18,-2,-16,15.0000,"cccccccccc17cc027c17cc0232c07cc0232c0714132871c071427871c02324b147c423201b2017c413202317017c41707023532c87132013632c8723147231c8f82b1c827281bcc271cbcccccccccc4"},
-[120] = {19,18,-2,-16,15.0000,"cccccccccc0172c4bc8271c271ccb8172cc0172472cc827127ccc02f1ccc4b2ccc8b2ccc4f31ccc27127cc8171472cc01728172ccbc0271c4271c4b1cccccccccc"},
-[121] = {19,23,-2,-16,15.0000,"cccccccccc072c8171c0271c4232c872c471c827c017cc171c232cc072c71cc027817cc8714231cc8232017ccc170232ccc07171ccc02fccc41b2ccc827cccc72ccc827ccc41271cc81f31ccc1b2cccccccccccc4"},
-[122] = {19,18,-2,-16,15.0000,"cccccccccc42ff7cc2ff7ccc8171ccc4172ccc8bccc827ccc8171ccc4172ccc872ccc827ccc8171ccc4172ccc82ff71c82ff71cccccccccc0"},
-[123] = {19,29,-2,-22,15.0000,"cccccccccccc1271ccc02f1ccc272ccc8232cccc71cccc71cccc71cccc71cccc71cccc7ccc81232ccc02b2ccc42b2cccc172cccc171cccc71cccc71cccc71cccc71cccc71cccc71cccc232cccc272ccccf31ccc4671cccccccccc4"},
-[124] = {19,31,-2,-24,15.0000,"ccccccccccc4132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132cccc132ccccccccccc4"},
-[125] = {19,29,-2,-22,15.0000,"cccccccccc8b21ccc4f31ccc81bcccc171cccc71cccc71cccc71cccc71cccc71cccc232cccc171cccc1f1ccc01f1ccc171ccc8232cccc71cccc71cccc71cccc71cccc71cccc71ccc8171ccc41bccc0f31ccc0b21ccccccccccc8"},
-[126] = {19,14,-2,-12,15.0000,"cccccccccc41271ccc01f32c231c02320172871c0714172017c47c1f32ccc01272ccccccccccccccccccccccccccccc4"},
-[8212] = {21,12,-3,-10,15.0000,"ccccccccccc0fffb1c0fffb1cccccccccccccccccccccccccccccccccccccccccc4"},
-[183] = {19,14,-2,-12,15.0000,"ccccccccccc85ccccb2ccc42fccc41b2ccc82321ccccccccccccccccccccccccccccccccccc"},
-},
-}
+-- Roboto Condensed (width axis 75): native-size glyphs, 16-level coverage.
+--[=[
+Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic)
 
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://openfontlicense.org
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
+]=]
+ShiftWebhook.fonts={sans={
+[32]={14,4,-2,-2,10.0000,"f0f0f070"},
+[33]={15,34,-2,-32,11.0000,"f0f010074f0a70064f0970064f0970054f0870054f0870044f0770044f0770034f0770034f0670024f0670024f0570014f0570014f04804f04804f03800e3f03800e3f02800d3f02800d3f01800c3f01800c3ff0f0f060040c0e0d0680020e3f0570074f0a70074f0a70020e3f0580040c0e0d06f0f020"},
+[34]={17,36,-2,-34,13.0000,"f0f0400a2f07103f02400a2f07103f02400a2f07103f02400a2f06103f01400a2f04102f0e500a2f03102f0d500a2f01102f0b500a2f202f0a500a1f0d202f09500a1f0c202f07500a1f0a202f06f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f090"},
+[35]={26,34,-2,-32,22.0000,"f0f0f0d0091f0e10042f05e00b1f0c10062f03e00e1f0a10092fe0012f08100b1f0de0032f06100d1f0be0052f03102f09e0072f0100022f07e0091f0e10042f049001383f183f0a18066003ff0f0c6003ff0f0c6003ff0f0ca0052f03102f08e0082f0100032f06e00a1f0e10052f04e00c1f0c10072f02e00e1f0910091f0ee0012f07100b1f0ca007ff0f076007ff0f076007ff0f076004283f180e2f0c2804a00c1f0b10072f01e00e1f09100a1f0ee0022f07100c1f0ce0042f05100e1f0ae0062f0200012f07e0082f10032f05e00b1f0d10052f03e00d1f0b10082f01f0f0f0c0"},
+[36]={25,42,-2,-36,21.0000,"f0f0f0c0041f0cf040041f0cf040041f0cf040041f0cf02004093f0904e0020c7f0a01b0020e9f0c01a00cbf0990065f1d5f03800b4f0610094f09804f0d20010e3f0d70014f0b300a4f0160014f0a30084f03704f0c30074f04700d4f04f010084f0e04f000020e5f0a02f0067f0901e0077f0e06e0040d7f09f0070e6f08f001070e5f03f000020c4f0af010020e3f0e60014f0a400a4f02604f0b40084f03600d3f0e40084f03600a4f04300c4f0260064f0d0210064f0e70010d5f1d5f088005cf0e019008bf04b0060e7f0c03d001070b3f0a05f0200b1f05f0400b1f05f0400b1f05f0400b1f05f0f0f0b0"},
+[37]={31,34,-2,-32,27.0000,"f0f0f0f03002090d0f0d0a03f060040e5f06f040010e7f03f030072f0d070c2f0a30010902c00c2f0200010e1f0e30091f07b00e1f0d200b2f0210022f07b02f0b20092f03100a1f0dc02f0b20092f0300032f06c00e1f0d200b2f02000b1f0cd00c2f0300010e1f0e00042f04d0072f0d070b2f0a000c1f0be0010e7f03052f03f0040e5f06000d1f0af01002090d0f0d0a0300062f02f080010e1f09f090081f0e01f080010e1f0800030a0d0e0d0902f010091f0e01065f0e04f0022f07037f0e01e00a1f0d000b2f0b070d2f07d0032f05012f0d10022f0cd00b1f0c00022f0a200e1f0ec0042f0400032f08200c2fc00c1f0b10032f08200c2fb0052f0310022f0a200d1f0eb00d1f0a20012f0e0100012f0cb0020b0f02300b2f0c070c2f07d00240037f0e01f040065f0e04f060030a0d0f0d0902f0f0f0f030"},
+[38]={28,34,-2,-32,24.0000,"f0f0f0f000040a0d1e0b0601f0200a6f0c02f0000a8f0d01e006af09e00c4f0c0e4f01c0024f0600010d3f05c0043f0e20063f06c0053f0c20053f06c0053f0d20073f04c0024f0300020e2f0ee00d3f0b030d3f07e0079f0cf0010e7f0c01f000056f0a01f010056ff020077f04200e2f0e80068f0d01103f0e7003af0a00023f0d700c3f0e020e4f06053f0b60034f0800044f0e0b3f0860064f0510099f0560074f0410010d7f0e0160064f0620037f0970054f0b30076f0270015f071001076f900a5f1d8f0680030eff0e028006ff0f0c90040e7f0d060e4f089001060b0e0f0e0d090510045f04f0f0f090"},
+[39]={11,36,-2,-34,7.0000,"f0800a2f0a500a2f0a500a2f0a500a2f09500a2f08500a2f07500a2f06500a2f04500a2f03500a2f02500a2f01f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0"},
+[40]={18,46,-2,-35,14.0000,"f0f0f00607e0090f0dd0092f03b0062f0e02a0033f04b00b2f09b0052f0e01b00c2f09b0033f03b00a2f0cc00e2f08b0043f04b0083f01b00c2f0dc00e2f0bb0023f09b0043f07b0053f06b0063f06b0073f05b0083f05b0083f05b0073f05b0063f06b0053f06b0043f07b0023f09c00e2f0bc00c2f0dc0083f01b0043f04c00e2f08c00a2f0cc0043f02c00c2f08c0052f0e01c00c2f08c0033f04c0072f0e02c00a2f03d00a0f0df00607f0f070"},
+[41]={18,46,-2,-35,14.0000,"f0f0700b02e0050f0e04d00a2f04c0082f0e02c00b2f0cc0020e2f07c0082f0e01b0013f08c00a2f0e01b0053f06b0013f0cc00b3f01b0083f05b0053f09b0033f0cb0013f0ec00e3f02b00d3f03b00c3f04b00c3f05b00b3f06b00b3f06b00c3f05b00c3f04b00d3f03b00e3f02a0013f0eb0023f0cb0053f09b0083f05b00b3f01b00e2f0cb0043f06b0092f0e01a0010e2f08b0072f0e01a0010e2f07b00a2f0db0072f0e02b00a2f05c0051f05e00b03f0f0f0"},
+[42]={23,34,-2,-32,19.0000,"f0f0f060032f0bf010022f0af010022f09f010012f08b00203402f07400250080f0c06200e1f061001070d0c500d2f0e08020d1f06040a3f0230039f0e5f073002080cdf0c066001050a0e5f0e0a0501b0054f08e0030e5f03c0010d2f072f0d01b00b2f0900082f0ba0082f0e0100010d2f0880033f0520043f0480040d0f0a400a1f06a001080140010b03f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f070"},
+[43]={24,28,-2,-26,20.0000,"f0f0f0800b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bb004455f4503500aff08500aff08500aff08500aff08500aff08b00b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0f0f0f0f0f0f0f000"},
+[44]={14,17,-2,-7,10.0000,"f0f0023f0d70023f0d70023f0d70023f0d70023f0d70033f0b70053f0970083f04700e2f0e70053f07700c2f0d70010b1f0e0390040c04f0f020"},
+[45]={19,19,-2,-17,15.0000,"f0f090068c0570088f0770088f0770088f0770088f07f0f0f0f0f0f0f0f0f0f0f0f0f0f070"},
+[46]={16,11,-2,-9,12.0000,"f0f050011401a0050e1f0e0480020e3f0e0170055f0370045f0270010d3f0b90020a1e0a01f0f040"},
+[47]={19,37,-3,-32,14.0000,"f0f0f000023f01c0062f0cd00a2f08d00e2f04c0032f0ed0072f0bd00c2f07c0013f03c0052f0dd0092f09d00d2f05c0023f01c0062f0cd00a2f08d00e2f04c0032f0ed0082f0bd00c2f07c0013f02c0052f0dd0092f09d00d2f05c0023f01c0062f0cd00a2f08d00e2f04c0042f0ed0082f0bd00c2f06c0013f02c0052f0dd0092f09d00d2f05f0f0f000"},
+[48]={25,34,-2,-32,21.0000,"f0f0f0a0060b0d0f0e0c0801e0040d6f0e06c0040e9f07a0010ebf0390085f0c0e4f0c900e3f0e0200010b4f0370044f0620034f0870084f01300d3f0c700b3f0e400a3f0e700d3f0c40084f01600e3f0b40074f03604f0b40074f0350014f0b40074f0450014f0b40074f0450014f0b40074f0450014f0b40074f0450014f0b40074f0450014f0b40074f04604f0b40074f03604f0b40084f02600d3f0c40094f01600b3f0e400a3f0e70084f02300d3f0b70044f0720034f0870010e3f0e0200010c4f0280085f0d0e4f0b90010ebf03a0030e9f06c0030d6f0e06f0060b0e0f0e0c0702f0f0f090"},
+[49]={25,34,-2,-32,21.0000,"f0f0f0f0050b0af02002080e1f0af000040a4f0ad001070d6f0ac0089f0ac00b9f0ac00b9f0ac00b1f0e0a054f0ac00b0c060100014f0ac00230014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af010014f0af0f0f090"},
+[50]={25,34,-2,-32,21.0000,"f0f0f09002080c0e0f0e0c0904e0078f0a01b009af0c019007cf0980025f0e0c6f02700a4f0a0100020d4f0760014f0d30054f0a60044f0830014f0c60064f05400e3f0d60084f04400e3f0cf010024f09f010074f05f0100d3f0e01f000074f09f000020e3f0e01f0000b4f07f000084f0bf000054f0e02f0030e4f03f0010d4f06f0000b4f0af000084f0d01f0055f04f0020e4f08f0010d4f0cf0000b5f0d8c065001ff0f085001ff0f085001ff0f085001ff0f08f0f0f040"},
+[51]={25,34,-2,-32,21.0000,"f0f0f09004090c1e0d0b0601d0020c8f07b0030eaf0a90010dcf0780095f0e0c6f01700e4f0710020d4f0660034f0b30054f0a60054f0730014f0bf0204f0cf010014f0af010054f06f000020d3f0e01c0091a0b5f06d08f07e07f07f08f08e00d8f09f00001050e4f04f010034f0af0200c3f0ef0200a4f0150094f0340094f0250074f05400b4f0150054f0b30024f0e60015f0710020c4f0970095f0d0c6f0370020ecf0990040eaf0bb0030c7f0e07e0050a0d0e0f0d0b0701f0f0f090"},
+[52]={25,34,-2,-32,21.0000,"f0f0f0e05f04f000055f04f0000c5f04f0056f04f00c6f04e0057f04e00c7f04d0058f04d00c8f04c0053f0a4f04c00c2f0a084f04b0053f04084f04b00c2f0c00084f04a0053f0600084f04a00c2f0e10084f0490053f0810084f04900c3f0210084f0480053f0a20084f04800c3f0320084f0470054f3c6f0c09500aff0f0c5009ff0f0c5008ff0f0c5007ff0f0cf0084f04f010084f04f010084f04f010084f04f010084f04f010084f04f0f0f060"},
+[53]={25,34,-2,-32,21.0000,"f0f0f070df078001df078003df078004df0780064f8e0780073f0bf020093f0af0200a3f08f0200c3f07f0200d3f05f0204f06080d0f0e0c0701a001bf0e059003df048004df0d0170064f0c08070c5f078003060a0e0a30084f0cf0200d4f01f010094f03f010074f05f010064f06f010064f06604f0b40074f05600d3f0e400a4f02600a4f0420010e3f0e70064f0d02100a4f09800d5f0c0e5f038004cf08a006af0bc0040d7f08f0060b0d0f0e0c0803f0f0f090"},
+[54]={25,34,-2,-32,21.0000,"f0f0f0d004080c0e0f0bf000030c4f0cf0086f0ce0097f0cd0088f0ac0035f0d0602e00c4f0901f0044f0af0100a3f0e01f000014f09f010044f0403090d0f0d0b04a0074f076f09900adf09800cef04700d6f0c0d5f0b700e4f0d0210085f01600e4f03300b4f05600e4f40054f08600e4f40034f0a600d3f0c40014f0a600c3f0d40014f0a600a4f40024f0960064f0330064f0760024f09300c4f03700b4f0510084f0d80045f0d0e5f06900abf0ba0010c9f0d02b001097f0a01e003090d1e0d0904f0f0f090"},
+[55]={25,34,-2,-32,21.0000,"f0f0f04009ff0f075009ff0f075009ff0f075009ff0f055007ac0e3f0e01f0100d3f0af010034f05f010093f0ef010010e3f09f010054f04f0100b3f0df010024f08f010074f03f0100d3f0df010044f07f010094f02f000010e3f0cf010054f06f0100b4f01f000024f0bf010074f05f0100d3f0e01f000044f0af010094f05f000010e3f0ef010064f09f0100b4f04f000024f0df010084f08f0100d4f03f0f0f0d0"},
+[56]={25,34,-2,-32,21.0000,"f0f0f09001060b0d0f0e0c0802e0060e7f08c007af0ba004cf07900c5f0c0e4f0e0170024f0e0300010d4f0570054f0920054f0870074f0520024f0a70074f0520014f0a70054f0620024f0870024f0920064f05800c3f0e0300010d3f0e0180030e4f0c0e4f05a005af08c0058f09c005af08a004cf0780010e3f0e0401030c4f0370064f0520024f0a700b3f0e400c3f0e700d3f0c40094f01600e3f0c40094f02600e3f0e400b4f02600c4f0420010e4f70084f0c0200010a4f0c70036f0c0e5f068009cf0ca00caf0e02b0088f0b02d002070c0d0f0e0c0904f0f0f090"},
+[57]={25,34,-2,-32,21.0000,"f0f0f09001060b0d0f0d0b05f0040d6f0c02c0059f0e02a002bf0ca00b4f0e0c5f0680034f0d0200030e3f0d80094f0520074f04700c3f0e30014f08704f0b400d3f0b60014f0a400b3f0e60024f09400a4f60014f0b400e4f704f0d405f01600c4f03305f0160084f0b20095f0160035f0d090c6f800adf0e80020dcf0c90030d5f0b0d3f0aa001070c1e0c06000e3f07f010034f03f010093f0ef010034f08f000030e4f02d00104095f08c0058f0cd0057f0d01d0056f0b02e0054f0d07f000050f0d0c0905f0f0f0d0"},
+[58]={15,28,-2,-26,11.0000,"f0f03001140190050e1f0e0470020e3f0e0160055f0360045f0260010d3f0b80020a1e0a01f0f0f0f0f0f0f0f0f0f001140190050e1f0e0470020e3f0e0160055f0360045f0260010d3f0b80020a1e0a01f0f010"},
+[59]={15,36,-2,-26,11.0000,"f0f03001140190050e1f0e0470020e3f0e0160055f0360045f0260010d3f0b80020a1e0a01f0f0f0f0f0f0f0f0f0f0f0c0023f0d80023f0d80023f0d80023f0d80023f0d80033f0b80053f0980083f04800e2f0e80053f07800c2f0d80010b1f0e03a0040c04f0f040"},
+[60]={23,27,-2,-25,19.0000,"f0f0f0d0020a02f010020a1f03f002093f03d002095f03b002097f039002099f027001098f0e080270070e7f0d0701907f0c05c05f0b04e05f0a03e07f0c05c0078f0d0701a001098f0e0802a002099f02b002097f03d002095f03f0020a3f03f010020a1f03f030020a02f0f0f0f0f0f0f060"},
+[61]={25,24,-2,-22,21.0000,"f0f0f05003ec047004ef057004ef057004ef057004ef05f0f0f0f0f0f0b004ef057004ef057004ef057004ef057003ed04f0f0f0f0f0f0f0f0f0f0f0f0b0"},
+[62]={23,27,-2,-25,19.0000,"f0f0f010060801f030070f0e0801f010072f0e0801f0074f0e0801d0076f0e0701b0068f0e0701a0030a8f0e0701a002080e7f0e06b001060d7fe0040b5fe0050c5fb001070d7f9002080e7f0e0670030a8f0e080170068f0e080190076f0e0801b0074f0e0801d0072f0e0801f0070f0e0801f010060801f0f0f0f0f0f0f0f020"},
+[63]={23,34,-2,-32,19.0000,"f0f0f04004090d1e0d0b0601b0020c7f0e0590020eaf06800cbf0e0260055f1e5f08600a4f0b0100064f0d600d4f02200c4f01500e3f0d30094f02f0094f02f00b4f01e0034f0cf00c4f06e0084f0ce0064f0e03d0035f05e00b4f07e0034f0af0073f0e01f0093f0af0000b3f07f0000b3f05f0f0f0f00113f020040e1f0c02f0010e3f0af0034f0ef0034f0df0000c3f08f000020a0e0d08f0f0f070"},
+[64]={36,42,-2,-31,32.0000,"f0f0f0f0f05004080c0d1e0d0b0803f070050d9f0c05f030010bdf0901f000030d3f0e0a0716070b0e3f0c01e0020e2f0e076001070e2f0bd0010d2f0c0290020c2f07c0092f0c01b0010d2f02a0032f0e02d0032f09a00b2f06f0092f0180032f0c50040a0e0f0d0a0430032f0680092f0640096f0901200d1f0a800e1f0e0130099f20091f0e70032f0a30063f0d093f0a20062f0260072f0620010e2f0810062f0920032f04600a2f0220072f0c20072f0720022f05600d1f0e300c2f0620082f0620012f0650012f0c20023f0120092f0520012f0650022f0b20062f0d300a2f0420012f0650032f0920092f0b300c2f0320022f0650042f09200b2f09300d2f0120032f0450042f08200d2f08300e2f30052f0250042f09200d2f08302f0e30071f0e60042f09200d2f0920042f0d300b1f0b60022f0b200b2f0c200a2f0c20022f0660012f0c20083f0300033f0e200a1f0e01700e2f20044f0b0e4f09050a2f07800b2f03200c6f0b7f0c90072f0820020e4f08000b5f0c0190032f0d3002090e0f0c051001080e0f0e0c06c00d2f05f0e0072f0d01f0d0010e2f0bf0e0053f0b01f0d0093f0e0701500318f0300a5f0c0a190b0e1f0cf04008df01f040030aaf0901f06002060a0d0e0f0e0d0a0601f0f0f0f0f040"},
+[65]={29,34,-2,-32,25.0000,"f0f0f0f040054f06f0500a4f0bf0500e5f01f030046f05f030096f0af0300e6f0ef020038f04f010088f09f0100d3f0c3f0ef000024f044f03f0073f0d000c3f08f00c3f0a00093f0de0014f0600054f03d0064f0200014f07d00b3f0d200c3f0cc0014f0920084f02b0054f0520044f06b00a4f01300e3f0bb00e3f0c400b4f019004ff0f069009ff0f0a900dff0f0e017003ff2f057008ff2f09700c4f0360024f0e60024f0e800d4f0450074f0b80094f09500b4f0780054f0d40015f0380015f0330064f0ea00d4f08f0f0f0b0"},
+[66]={28,34,-2,-32,24.0000,"f0f0f0b0098f0e0d0b0802c009df0a01a009ef0e029009ff0d9009ff0f0680094f062001060e4f0b80094f0640055f80094f06505f0170094f06500d4f0270094f06500e4f80094f0640024f0c80094f0640094f0780095f2a0b5f0d9009ef0d029009df0d01a009ef0d039009ff0e0380094f0630020b4f0b80094f06500d4f0270094f0650094f0670094f0650074f0870094f0650064f0970094f0650084f0870094f0640010d4f0670094f0630030b5f027009ff0f0c8009ff0f038009ff069009df0d04a0099f0d0c0904f0f0f0f000"},
+[67]={28,34,-2,-32,24.0000,"f0f0f0f01005090d0e0f0e0c0a05f000050d8f0d04d008cf06b007ef049003ff0d01800b4f0d05010001060e4f0770024f0e0240034f0c70074f08600c4f02600a4f0460084f05600d4f0160064f08604f0e70054f0950014f0df040014f0df040024f0df040024f0df040024f0df040024f0df040024f0df040014f0df0504f0ef0500e4f70064f09600b4f0360074f0760074f07600b4f0560034f0d0140025f01700c4f0c041001050d4f0a8004ff0f039009ef08b009cf0ad0060e8f0e06f001060a0d0e0f0e0d0a0601f0f0f0f0"},
+[68]={28,34,-2,-32,24.0000,"f0f0f0b0097f0d0c0904e009bf0d05c009df0ab009ef0ba009ff0890094f061001050b5f0280094f0640094f0980094f0640010e3f0e80094f06500a4f0470094f0650064f0770094f0650044f0970094f0650034f0a70094f0650034f0b70094f0650034f0c70094f0650034f0c70094f0650034f0c70094f0650034f0c70094f0650034f0b70094f0650034f0a70094f0650044f0970094f0650064f0770094f0650094f0470094f0640010e4f0170094f06400a4f0980094f061001050b5f028009ff089009ef0ba009df0ab009bf0d05c0097f0d0c0904f0f0f0f020"},
+[69]={25,34,-2,-32,21.0000,"f0f0f05009ff086009ff086009ff086009ff086009ff0760094f06f010094f06f010094f06f010094f06f010094f06f010094f06f010094f06f010095f7c0a8009df0c8009df0c8009df0c8009df0c80094f06f010094f06f010094f06f010094f06f010094f06f010094f06f010094f06f010094f06f01009ff086009ff086009ff086009ff086009ff08f0f0f040"},
+[70]={24,34,-2,-32,20.0000,"f0f0f03009ef0e6009ef0e6009ef0e6009ef0e6009ef0e60094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f00009df0b7009df0c7009df0c7009df0c7009df0c70094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f0f0f0c0"},
+[71]={29,34,-2,-32,25.0000,"f0f0f0f03005090c0e0f0e0d0b0702f000050d9f0901d008cf0c01b007ef0ba003ff0f04900a4f0e070110040d4f0b80025f0440010e4f0170064f0b60094f0570094f0660054f08700c4f0360034f09700e4f01f0505ff0605ff0605ff0605f30048805705f30098f0a705f30098f0a705f30098f0a705f30098f0a700e4f0160044f0a700c4f0360044f0a70094f0760044f0a70064f0c60044f0a70015f0750044f0a800a5f09031001050d4f0a80020eff0f0a9006ff0f07a006df0e05c0040caf0902f004080c0d1f0e0c090601f0f0f0f010"},
+[72]={30,34,-2,-32,26.0000,"f0f0f0f0094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f057009ff3f057009ff3f057009ff3f057009ff3f057009ff3f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f0570094f0670094f05f0f0f0f0"},
+[73]={15,34,-2,-32,11.0000,"f0f010054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0a70054f0af0f010"},
+[74]={25,34,-2,-32,21.0000,"f0f0f0f00b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f04f0100b4f03605f400c4f03600e4f01300e4f01600c4f0620054f0d70094f0e0400030d4f087003ef02800acf0790010caf0ab0010a8f07e002080c0d0f0e0c0802f0f0f0a0"},
+[75]={28,34,-2,-32,23.0000,"f0f0f0b0094f0650055f0d0150094f06500d5f0460094f0640075f0970094f0630010e4f0e0170094f0630095f0580094f0620035f0a90094f06200b4f0e0190094f0610055f06a0094f06100d4f0bb0094f0600074f0e02b0094f06010e4f06c0094f060a4f0cd0094f0a5f02d009bfe009bf05d009bf0dd009cf06c009cf0dc0096f0c5f07b0095f0d010a4f0e01a0095f0200035f07a0094f0b200a4f0e0190094f0620035f0890094f06300b4f0e0180094f0630045f0880094f06400c5f0270094f0640055f0970094f06500d5f0260094f0650065f0960094f06600d5f02f0f0f090"},
+[76]={24,34,-2,-32,20.0000,"f0f0f030094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f000094f06f00009ff6009ff6009ff6009ff6009fff0f0f020"},
+[77]={36,34,-2,-32,32.0000,"f0f0f0f0b0095f0ea0036f0670096f0490076f0670096f08900c6f0670096f0d80017f0670097f0270057f0670097f07700a7f0670097f0b700e7f0670098f0150048f0670098f0550088f0670098f0a500d2f0e4f0670098f0e40023f0b4f0670093f1e3f0430063f074f0670093f0e0a3f08300b3f034f0670094f053f0d20013f0c034f0670094f014f0210053f08034f0670094f010b3f0610093f144f0670094f01073f0b100d2f0e00044f0670094f124f01033f0a00054f0670094f03000d3f05073f0600054f0670094f0300083f090c3f0200064f0670094f0300033f0e3f0c10064f0670094f03100e7f0810064f0670094f0310097f0410064f0670094f0310056f0e20064f0670094f0310016f0a20064f0670094f03200b5f0620064f0670094f0320065f0220064f0670094f0320024f0d30064f0670094f03300c3f0830064f0670094f0330073f0430064f06f0f0f0f0b0"},
+[78]={30,34,-2,-32,26.0000,"f0f0f0f0094f0670064f0470094f0d70064f0470095f0660064f0470095f0d60064f0470096f0650064f0470096f0d50064f0470097f0640064f0470097f0d40064f0470098f0630064f0470098f0d30064f0470099f0620064f0470094f0d3f0d20064f0470094f064f0510064f0470094f020b3f0d10064f0470094f02044f0500064f0470094f02000b3f0d00064f0470094f0200044f05064f0470094f02100b3f0d064f0470094f0210044f0b4f0470094f02200b9f0470094f0220049f0470094f02300b8f0470094f0230048f0470094f02400b7f0470094f0240047f0470094f02500b6f0470094f0250046f0470094f02600b5f0470094f0260045f0470094f02700b4f04f0f0f0f0"},
+[79]={29,34,-2,-32,25.0000,"f0f0f0f03004080c0d0f0e0d0a0501f000030b8f0d06e005cf09c005ef09a0010eff0590095f08020001060e4f0d80010e4f0540020e4f0570064f0b60074f0a70094f0660014f0e700c4f02700d4f02600e4f800a4f04604f0e80094f0550014f0e80094f0650014f0e80084f0650014f0e80084f0650014f0e80084f0650014f0e80084f0650014f0e80094f06604f0e80094f05600e4f800a4f04600d4f02700c4f03600a4f0560014f0e70064f0b60064f0b70025f0540010d4f06800a5f08020001050d4f0e0180020eff07a006ef0bc006cf0b01d0040c8f0e07f01004080c0e0f0e0d0a0601f0f0f0f020"},
+[80]={28,34,-2,-32,24.0000,"f0f0f0b0099f0e0d0a05c009df0d03a009ff069009ff0f048009ff0f0d0170094f063002095f0770094f06500a4f0c70094f0650025f0160094f06600e4f0360094f06600c4f0460094f06600d4f0460094f0650015f0260094f0650074f0e70094f063001075f097009ff1f027009ff0f078009ff099009df0e05a0099f0e0d0a0601b0094f06f040094f06f040094f06f040094f06f040094f06f040094f06f040094f06f040094f06f040094f06f040094f06f040094f06f0f0f0f080"},
+[81]={29,39,-2,-32,25.0000,"f0f0f0f03004080c0e0f0e0c0905f010030c8f0d05e006cf09c005ef09a0020eff0590095f08020002060e4f0d80015f0540020e4f0570064f0b60074f0a700a4f0560024f0e700d4f02700d4f02604f0e800b4f0350014f0d800a4f0450024f0d80094f0550024f0d80094f0650024f0d80094f0650024f0d80094f0650024f0d80094f0650024f0d80094f0550014f0d800a4f04605f800b4f03600d4f02700d4f02600a4f0560024f0e70064f0b60074f0a70015f0540020e4f0580095f08020001060e4f0d90020eff05a005ef09c005cf0ce0030caf0e04f004080c0e8f05f040030e5f06f040020d5f03f040020d3f07f060010c1f06f080010b05f0f0f0f0"},
+[82]={27,34,-2,-32,23.0000,"f0f0f090089f0e0c0803b008df0b019008ef0e038008ff0d017008ff0f0970084f072001040d4f0e70084f0740035f0460084f07500b4f0660084f0750084f0760084f0750084f0760084f0750084f0660084f07500c4f0460084f0740035f0160084f072001050e4f0a7008ff0f037008ff078008ef079008df06a008df09a0084f0710055f0190084f07200d4f0790084f0720074f0d90084f0720015f0580084f07300a4f0b80084f0730045f0370084f07400d4f0970084f0740075f0160084f0740010e4f0760084f0750094f0d60084f0750035f05f0f0f070"},
+[83]={27,34,-2,-32,23.0000,"f0f0f0e0050a0d0e0f0e0c0904f0060e8f0b01c009bf0e03a008df0d0180037f0e6f0a80084f0e051001095f03700d4f06400b4f07700e4f0140054f0a705f50034f0c700d4f05f030095f05f020036f0b04f010097f0d0601f0098f0e0701e0060e8f0d03e001099f05f001080e7f04f010060d5f0e01f020085f07f030084f0b60064f0850024f0e60054f09605f60034f0d605f700e4f0440044f0d700a4f0e060110040d4f0970027f1e6f038007ef09a008cf0bc0040d8f0e07f004090c0e0f0e0d0a0601f0f0f0d0"},
+[84]={27,34,-2,-32,23.0000,"f0f0f0800eff2f0b500eff2f0b500eff2f0b500eff2f0b500eff2f0bc00a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0300a4f05f0f0f0f0"},
+[85]={28,34,-2,-32,24.0000,"f0f0f0b00c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700c4f0350034f0c700b4f0450044f0c700a4f0650064f0a70074f0c500c4f0770035f0a0310020a5f03800bff0b9003ff03a005df05c0030c9f0c03f003080b0d1e0d0b0803f0f0f0f000"},
+[86]={28,34,-2,-32,24.0000,"f0f0f090065f900b4f0a30025f03800e4f06400d4f0770035f0240084f0b70074f0d50044f0e700b4f08600e4f03600e4f04600b4f0650034f0e70064f0a50064f0a70024f0e500a4f06800d4f02400e4f0280084f0630024f0c90044f0930064f08a00e3f0d300a4f04a00a4f01200d3f0eb0064f0510024f0ab0024f0910054f06c00d3f0c10094f01c0084f01000d3f0cd0044f04014f08e00e3f08054f03e00a3f0c083f0ef0064f0d3f0af0029f05f0000d8f01f000087f0cf010047f07f0200e6f03f0200a5f0ef030065f0af030025f05f0f0f0f010"},
+[87]={35,34,-2,-32,31.0000,"f0f0f0f0800e3f0e500c3f0640064f08400c4f01404f0840084f0540094f0430034f0b400a4f0240074f0630064f0e400d4f50044f0830085f02304f0c50014f0b300b5f0520024f09600e3f0d300e5f0820044f07600b4f20026f0a20074f0460084f0210056f0d20094f0160064f0510087f01100b3f0e70034f07100a7f04100d3f0b804f09100d7f0700014f08800d3f0b00013f0d3f0900034f06800a3f0e00043f080e2f0c00054f0380074f01073f050b3f00074f0180044f03093f02083f030a3f0d90024f050c2f0e00063f060c3f0aa00e3f083f0b00033f080e3f08a00b3f0d3f08100e2f0d4f05a0098f05100c8f02a0068f0210097f0eb0037f0e20067f0cb0017f0b20037f09c00d6f08307f07c00a6f05300c6f04c0086f0230096f01c0055f0e40065f0ed0025f0b40035f0be00e4f08505f08e00c4f05500c4f06f0f0f0f0c0"},
+[88]={28,34,-2,-32,24.0000,"f0f0f0a00d4f0d60035f0650065f0550094f0e01600d4f0c40010e4f0770065f0330064f0e01800d4f09300c4f0790075f0110034f0e0190010e4f0710094f08b0074f0d00010e3f0e01b0010e4f05064f08d0074f0b0c4f01d0010e9f09f0079f02f0010e7f09f010077f02f010010e5f0af020046f0cf0200b7f04f000038f0bf0000b9f03e003af0be00a4f060e4f03c0034f0e00094f0ac00a4f0800035f03a0025f02100c4f0aa0094f0b20065f0280025f04300e4f0980094f0d40085f0260025f0740025f0960095f01500b5f0240015f0960055f09f0f0f0a0"},
+[89]={27,34,-2,-32,23.0000,"f0f0f070075f0160045f0430015f0560094f0c50094f0a600e4f0650035f0140044f0e01600c4f0640094f0870054f0b400e4f02800e4f0120044f0b90084f0620094f0490024f0b200e3f0db00a4f0100044f07b0044f0600093f0e01c00d3f0b000e3f09d0064f054f03d0010e3f0e3f0cf0098f05f0027f0ef0100b6f08f010056f02f0200d4f0af0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0300a4f06f0f0f0f0"},
+[90]={26,34,-2,-32,22.0000,"f0f0f06008ff1f0b5008ff1f0b5008ff1f0b5008ff1f0a5008ff1f03f010074f09f010010e3f0e01f010094f07f010034f0df0200b4f05f010054f0cf0200d4f03f010074f0af010010e3f0e02f010094f08f010034f0e01f0100b4f06f010054f0cf0200d4f04f010074f0bf010010e4f02f010094f09f010034f0e01f0100b4f07f010054f0df0200dff0f0e5005ff1f0e5006ff1f0e5006ff1f0e5006ff1f0ef0f0f060"},
+[91]={15,46,-2,-37,11.0000,"f0f0100b6f03500b6f03500b6f03500b6f03500b4f1902500b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f800b4f1802500b6f03500b6f03500b6f03500b6f03f0f0"},
+[92]={21,37,-2,-32,16.0000,"f0f0b0094f04d0054f09e00e3f0de00a4f03d0054f08d0014f0de00b4f02d0064f07d0014f0ce00c4f02d0074f06d0024f0be00c4f01d0084f06d0034f0ae00d3f0e01d0084f05d0034f0ae00e3f0ee0094f04d0044f09e00e3f0de00a4f03d0054f08d0014f0de00a4f03d0064f07d0014f0ce00b4f02d0064f07d0024f0be00c4f01d0074f06f0f0b0"},
+[93]={15,46,-2,-37,11.0000,"f0f0046f0a50046f0a50046f0a50046f0a5002194f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a70014f0a500208094f0a50046f0a50046f0a50046f0a50046f0af0f010"},
+[94]={20,34,-2,-32,16.0000,"f0f0e0010e2f07d0053f0dd00a4f03b0015f08b0065f0db00b6f0390012f0e082f0890062f0b032f0d900b2f06000e2f0370013f0200092f0970062f0d10052f0e700c2f0810013f0450023f04200b2f0950072f0e30072f0e500c2f0a30033f04f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f050"},
+[95]={21,9,-2,-2,17.0000,"f0f0b009ef053009ef053009ef053009ef053006ea03f0f0b0"},
+[96]={18,35,-2,-33,14.0000,"f0f060074f0d01a0084f08b0094f04b0093f0d01b00a3f09c00b3f04f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f090"},
+[97]={24,26,-2,-24,20.0000,"f0f0f070050a0d1e0d0b0601c0030d7f0d04a004bf0480020ebf0d80094f0d08095f04700d3f0e0110064f0860014f0b20024f09705120014f0af000014f0aa002080b0d0e6f0a80010abf0a70010dcf0a700a4f0e0907084f0a60014f0d0210014f0a60054f0720014f0a60074f0520014f0a60064f0920064f0a60045f0b090b5f0b700ddf0b7004df0d80060e5f090b4f018002080c1e0c0500074f06f0f0f020"},
+[98]={25,36,-2,-34,21.0000,"f0f0f0500d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0d00040b0e0f0d0a04a00d3f0d086f0a900ddf08800def02700d5f0e0c0e5f09700d4f0920074f0d700d4f400c4f01600d4f40084f04600d4f40064f05600d4f40054f06600d4f40054f06600d4f40054f06600d4f40054f06600d4f40064f05600d4f40074f04600d4f400b4f01600d4f0820054f0d700d5f0e0c0e5f09700def03700ddf09800d3f09076f0a900d3f0700040b0e0f0d0a04f0f0f080"},
+[99]={23,26,-2,-24,19.0000,"f0f0f050050a0d0e0f0e0b06c0030c7f0c0290030e9f0e0270010dbf0b70075f0d0c5f05600d4f0410044f0a50024f09300a3f0e50054f0530064f50074f0430044f0240084f03f0084f03f0084f03f0084f03f0074f04f0054f0530044f0240024f0930074f01500d3f0e0310020e3f0c60075f0d0c5f0760010dbf0d0170030e9f0e0390030c7f0c03c0050a0d0e0f0d0a05f0f0f040"},
+[100]={25,36,-2,-34,21.0000,"f0f0f0f0024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0aa0050a0d0f0d09124f0a80010b5f0e064f0a800adf0a7004ef0a700b5f1d6f0a60015f0510020e4f0a60044f0a30044f0a60074f0530024f0a60084f0330024f0a60094f0230024f0a600a4f0230024f0a600a4f0230024f0a60094f0230024f0a60084f0330024f0a60074f0530024f0a60044f0930034f0a60015f0510020d4f0a700b5f0e0d6f0a7004ef0a800a7f0e4f0a900a5f0e040b3f0aa0050a0d0f0d090200093f09f0f0f050"},
+[101]={24,26,-2,-24,20.0000,"f0f0f07003080c0e0f0e0c0802c0010a8f08a0010caf099009cf0570035f0e0c0e4f0d70094f0820094f03600e3f0d30014f0750024f09400c3f0a50044f08410b3f0c5005ff0d5006ff0e5006ff0e5006ff0e50054f07f000034f0af0100e3f0e01500306800a4f0c022001070e0f0370036f0e0c0d3f0c8009df0670010bbf0b0190089f08c002070b0d0e0f0e0b0701f0f0f050"},
+[102]={18,36,-2,-34,14.0000,"f0f0c0050b0d0f0e0c0380020c5f0470010d6f0470097f04700e5f1d0460044f0e0390064f07a0074f04a0084f04a0084f047003af0b4003af0b4003af0b4003af0b4001150d4f08150470084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04a0084f04f0f090"},
+[103]={25,35,-2,-24,21.0000,"f0f0f08003090d1e0c0700044f90086f0c074f8007ef7002ff70095f0e0c0e6f700e4f0920065f60034f0d405f60064f07405f60074f05400c4f60084f03400c4f60094f03400c4f60094f03400c4f60084f03400c4f60074f04400c4f60064f07400e4f60034f0c405f700e4f0820065f70095f0e0d0e6f7002ff8007ef90076f090c4fa003090d1e0b05000c4ff0200c4ff0200d3f0e901250024f0c90090e070120010b4f0980023f0b0a0b0e5f038009cf0a900cbf0c019001099f0901c001070b0d0f0e0d0b0702f0f0f090"},
+[104]={25,36,-2,-34,21.0000,"f0f0f0504f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0bf0204f0b00030a0d0f0d0a03a04f0b066f0790ef0480ef0c806f0e0c6f02705f0710020d4f05705f30064f07705f30034f08704f0c30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09704f0b30024f09f0f0f050"},
+[105]={15,36,-2,-34,11.0000,"f0f04001b0091f0d0480083f0e01700c4f05700c4f0570063f0e0180070d0e0b03f0f0f050094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f02f0f010"},
+[106]={16,45,-4,-34,10.0000,"f0f07011b0010a1f0d0390093f0d01800e4f03800d4f0380083f0ca0080d0e0a02f0f0f090094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f0380094f02800b4f0170035f50010e0d5f0b50017f0550016f0b60015f0c0160010c0e0f0d0b06f0f060"},
+[107]={25,36,-2,-34,20.0000,"f0f0f0500d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0d30095f03600d3f0d20045f07700d3f0d200d4f0b800d3f0d10074f0e02800d3f0d00020e4f05900d3f0d000b4f09a00d3f0d054f0d01a00d3f1e4f03b00d9f07c00d9f05c00d9f0dc00daf06b00daf0e01a00d5f0e4f08a00d4f08010e3f0e01900d4f10084f09900d3f0d10025f02800d3f0d20094f0a800d3f0d20025f03700d3f0d300a4f0c700d3f0d30025f05600d3f0d400a4f0df0f0f040"},
+[108]={15,36,-2,-34,11.0000,"f0f010094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f0270094f02f0f010"},
+[109]={35,26,-2,-24,31.0000,"f0f0f0f0900d3f090002080d1e0b052001070c1e0c0801900d3f0a050e5f0900030d5f0d02800ddf070e7f0b800dff8f03700d5f0e0c8f1d5f08700d4f0910020e5f0410074f0b700d4f30085f300e3f0d700d4f30054f0a300c3f0e700d4f30054f07300c4f700d4f30044f07300c4f700d4f30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4f700d3f0e30044f07300c4ff0f0f0f090"},
+[110]={25,26,-2,-24,21.0000,"f0f0f0504f060002090d0f0e0b05a04f08060e5f09904f0e8f0580ef0d806f0e0c6f02705f0810010d4f05705f30064f08705f30034f08704f0d30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09f0f0f050"},
+[111]={25,26,-2,-24,21.0000,"f0f0f09003080c0e0f0e0c0802d0010a8f08b0010caf0ba00bcf0980055f0e0c0e5f03700b4f0910010b4f0960014f0d30010e3f0e60044f08400a4f0250064f0540074f0450074f0440064f0550084f0440054f0650084f0440054f0650074f0440064f0550064f0540074f0450044f08400a4f0250014f0d30010e3f0e700b4f09200a4f0970055f0e0c0e5f03800bcf0990010caf0b01a0010a8f09e003080c0e0f0e0c0802f0f0f090"},
+[112]={25,35,-2,-24,21.0000,"f0f0f0500d3f0800040b0e0f0d0a04a00d3f09086f09900ddf08800def02700d5f0e0c0e5f08700d4f0820084f0d700d4f400d4f01600d4f40094f03600d4f40074f05600d4f40064f05600d4f40054f06600d4f40054f06600d4f40064f05600d4f40074f05600d4f40094f03600d4f400d4f01600d4f0820084f0c700d5f0e0c0e5f07700ddf0e01700ddf06800d3f0d076f08900d3f0d00040b0e0f0d0a03a00d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0200d3f0df0f0f0f000"},
+[113]={25,35,-2,-24,21.0000,"f0f0f080050b0d0f0d0a0300073f0a80010b6f060a3f0a800bdf0a7005ef0a700c5f0d0c0e5f0a60015f0510010c4f0a60044f0a30034f0a60074f0530024f0a60084f0330024f0a60094f0230024f0a600a4f0230024f0a600a4f0230024f0a60094f0230024f0a60084f0330024f0a60074f0530024f0a60044f0a30034f0a60015f0510010c4f0a700b5f0d0c0e5f0a7004ef0a800adf0a900a6f074f0aa0050a0d0f0d0a03024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af010024f0af0f0f050"},
+[114]={18,26,-2,-24,14.0000,"f0f0700d3f0900050c0f0d01500d3f0a063f01500d3f0d0e3f01500d9f01500d9f01500d6f0d0c0d600d4f0c02900d4f02a00d4fb00d4fb00d4fb00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0db00d3f0df0f0b0"},
+[115]={23,26,-2,-24,19.0000,"f0f0f04002080c0e0f0e0c0803b001098f0a01900baf0c017006cf09700d4f0906095f0150014f0720094f0550024f0720054e0650014f0e04f00c5f0b05d0047f0e0801b0068f0e08b0030c8f0c01b0040b7f0ad002096f025003340320020c4f06500a3f0c30024f0850074f0320034f0750024f0e0907080e4f046009cf0c800caf0e0390098f0c02b003090c0e0f0e0c0904f0f0f040"},
+[116]={17,32,-2,-30,13.0000,"f0f0600d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0c70089f0c40089f0c40089f0c40089f0c4003155f1504700d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0ca00d3f0da00c4f03900b5f0e0d70076f0e70010e5f0e80055f0e9003090d1f0d08f0f040"},
+[117]={25,26,-2,-24,21.0000,"f0f0f0504f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09704f0c30024f09700e3f0e30064f09700c4f0710035f0970085f1e6f097003ef09800b7f0e4f0980010c5f0e040e3f09a0070c1e0d0802000d3f09f0f0f050"},
+[118]={23,26,-2,-24,19.0000,"f0f0f0054f0a400d4f0130014f0d30014f0c500b4f0120044f0850074f0420074f0450034f07200a3f0e700e3f0a200d3f0b700a3f0d10014f0670064f0200044f0270014f0500073f0d900c3f08000a3f0990083f0b000d3f0590043f0e014f01a00e3f063f0cb00b3f0d3f07b0068f03b0027f0ed00d6f0ad0096f06d0056f02d0015f0cf00b4f08f0074f04f0f0f050"},
+[119]={31,26,-2,-24,27.0000,"f0f0f0f0034f05303f07300c3f0b500e3f0720023f0a300e3f08500b3f0a20063f0e20014f0550083f0c20094f0210044f0250053f0e200d4f0610063f0e60024f0200015f0a10093f0b700e3f0400055f0d100b3f07700b3f0700096f02000e3f0470073f09000c6f06014f0170043f0c013f0d2f09033f0d80013f0e042f0e062f0d063f0a900d3f0a2f0b023f0a3f07900a7f07000e7f0390077f03000a7f0190046f0e10066f0ca0016f0b10036f09b00c5f07200e5f06b0095f04200a5f03b0064f0e30064f0ec0034f0b30034f0bd00e3f07400e3f08d00b3f04400a3f05f0f0f0f040"},
+[120]={23,26,-2,-24,19.0000,"f0f0f0000d4f0420014f0e0140054f0c20074f07600d4f04100d3f0d70054f0b00054f06800d4f040b3f0d90054f0d4f05a00d8f0cb0058f04c00c6f0bd0056f03e00d4f0be0010e4f0e01d0086f07c0010e6f0e01b0088f08a0010e8f0e0190084f0b4f0980010e3f0d000d4f0270084f0700064f0960014f0e01100d4f0250094f0820064f0a40025f01300d4f03f0f0f0"},
+[121]={23,35,-2,-24,19.0000,"f0f0f0084f0a400c4f0330034f0d30014f0d500e4f0120044f09500a4f0420084f0550054f08200b4f0150014f0b200e3f0b700c3f0e10034f0770074f0200074f0370034f06000a3f0d900e3f09000e3f0990093f0c024f0590054f074f0190014f0d3f0bb00b8f07b0078f02b0037f0dd00d6f09d0096f04d0056f01d0015f0bf00b4f07f0074f02f0063f0df000093f09f0010e3f04e0010b3f0ed0060d5f09d0076f03d0075f09e0074f0bf0050d0f0e0c06f0f0f0a0"},
+[122]={23,26,-2,-24,19.0000,"f0f0f00002ef025002ef025002ef025002ef0150017c5f08e0034f0df00c4f04e0074f09e0020e3f0e01e00b4f06e0054f0be0010e4f02e0094f07e0044f0cf00d4f03e0084f09e0034f0d01e00c5f7c035005ef045005ef045005ef045005ef04f0f0f000"},
+[123]={17,44,-2,-35,13.0000,"f0f0b0030a07c0091f0cb00b3f0290073f0d0280010e2f0e0290063f0aa00a3f06a00d3f04a00e3f03a04f02a04f02a04f02a04f02a04f0290014fa0043f0da00a3f098004094f03805f07904f06a04f0901900d4f099001064f04a0083f0aa0033f0ea0014f01a04f02a04f02a04f02a04f02a04f02a00e3f03a00d3f04a00a3f06a0063f0aa0010e3f02a0073f0d02a00a3f02b0091f0cd0030a07f0f050"},
+[124]={15,40,-2,-32,11.0000,"f0f020072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f0290072f02f0f020"},
+[125]={17,44,-2,-35,13.0000,"f0f0500c0701c0051f0e04b00a3f04a0083f0e01a0093f08a0023f0eb00d3f03a00b3f06a00a3f07a0093f08a0093f08a0093f08a0093f08a0093f08a0083f09a0063f0ba0014f03a00a3f0d060180010d4f0690010c3f0b90030d3f0a80020e4f05800b3f0b0280024f0190063f0ba0083f09a0093f08a0093f08a0093f08a0093f08a0093f08a00a3f07a00b3f06a00d3f0290023f0ea0093f0890083f0d0190093f03a0041f0d04c00c0701f0f0b0"},
+[126]={27,21,-2,-19,23.0000,"f0f0f0c0050b1e0b05f0300a5f09400d2f0570077f0a20013f0460019f0a01000a3f0160074f0e4f1e3f0c700a2f0e0200050e8f06700d2f0820047f0c800d2f0630040e4f0d02f02002090d0f0d0801f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f030"},
+[8212]={32,21,-2,-19,28.0000,"f0f0f0f03006fc6c066008ff6f076008ff6f076008ff6f076008ff6f07f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f020"},
+[183]={16,22,-2,-20,12.0000,"f0f050011401a0050e1f0d0280010e3f0b80035f80034f0e900c3f0890020a0e0d08f0f0f0f0f0f0f0f0f0f0f0f0f050"},
+},mono={
+[32]={14,4,-2,-2,10.0000,"f0f0f070"},
+[33]={14,34,-2,-32,10.0000,"f0f0000b2f01800b2f01800a2f01800a2f01800a2f01800a2f900a2f90092f90092f90092f90092f90091f0e90081f0e90081f0e90081f0e90081f0e90081f0d90071f0d90071f0d90071f0d90071f0d90071f0df0f0f0f010030d0e09900a2f04800a2f0480030d0e09f0f000"},
+[34]={17,36,-2,-34,13.0000,"f0f050031f0b100a1f0460031f0b100a1f0460031f0b100a1f0360031f0a100a1f0360031f08100a1f0160031f07100a1f70031f06100a0f0e70031f05100a0f0d70031f03100a0f0b70031f02100a0f0af0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0b0"},
+[35]={27,34,-2,-32,23.0000,"f0f0f0f0100d0f0e300d0f0ef0001f0c301f0bf0021f0920021f09f0051f0720051f06f0071f0420071f04f00a1f02200a1f01f00c0f0e300c0f0ef0001f0c301f0bb03d3f2d3f1d0c80ff0f0e80ff0f0ec00a1f02200a1f01f00c0f0e300c0f0ef0000e0f0c301f0cf0021f0920021f09f0051f0720051f07f0071f0420071f04f00a1f02200a1f02f00c0f0e300c0f0eb005ff0f097005ff0f0970042c3f2c3f2c08b0071f0420071f04f0091f02200a1f02f00c0f0e300c0f0ef0000e0f0c301f0cf0021f0a20021f09f0041f0720051f07f0071f0520071f04f0091f02200a1f02f0f0f0e0"},
+[36]={25,42,-2,-36,21.0000,"f0f0f0c00a1f03f0400a1f03f0400a1f03f0400a1f03f020050a3f0701e0020c6f0e04c0010d8f0e03b00a2f0e0806070d2f0ca0022f0d0220010d2f0590072f0540042f0a90092f01500d1f0d900a1f0e60092f01800a1f0e60072f0380092f0250062f0380062f08f030013f06f030083f0a02f0200c4f0a03f000010a5f0c03f000050d5f08f010050b4f09f020040c3f05f0300a2f0cf0400c2f02f030062f05700a1f0e70032f0770092f70032f0770072f0460052f0670042f0a600b2f03800d2f0640072f0d90063f0b0605070c3f05a00aaf09c0088f07e002080d2f0b0702f0201f0cf0501f0cf0501f0cf0501f0cf0f0f0c0"},
+[37]={31,34,-2,-32,27.0000,"f0f0f0f03002090d0e0d0801f060020d4f0c01f0500c1f0b080c1f0af040051f09200b1f02400601c0091f0220041f0730030f0e03b00b0f0e30011f09300b0f0e01b00c0f0d401f0a20041f07c00c0f0d401f0a200c0f0dd00b0f0e30011f0910051f05d0091f0220041f07100d0f0ce0051f09200b1f0200071f04f00c1f0b080c1f0a00010e0f0bf000020d4f0d0100081f03f01002090d0f0d080100010e0f0af0a0091f02f090021f09f0a00a0f0e010001080d0e0d0801f010031f0700020d4f0d02f0000b0f0e01000b1f0b070b1f0bf0051f0600041f0a200b1f03e00d0f0d10081f0320031f08d0061f05100a1f401f0ac0010d0f0c200b0f0e400e0f0bc0071f04200b0f0e400e0f0bb0010e0f0b300a1f401f0ab0081f0330081f0320031f08b0030c0940041f0a200a1f03d001500b1f0b080b1f0bf050020d4f0d02f06001080d0f0d0801f0f0f0f030"},
+[38]={27,34,-2,-32,23.0000,"f0f0f0e0050a0d0f0d0a04f010010a6f09f000098f08e0032f0e0502050d2f02d0082f0520022f08d00c1f0e400b1f0ad00d1f0b40091f0bd00d1f0c400b1f09d00b1f0e0120022f06d0072f0610010c1f0e01d0010e1f0e01020d2f05f0072f0d0e2f06f0100d5f05f020034f04f020010b3f0df020010c5f06f0100c2f0a0e1f0e0220051f0e80092f0800052f0c20061f0d70032f0b200a2f0810081f0b70082f0320010e2f03000b1f09700c1f0e40052f0d010e1f06700d1f0c500a2f0e2f02700c1f0c50010d4f0c800b2f0150044f0580072f06600c3f90012f0e0240040e3f0590082f0e070302040a5f0e02900bef0ba0097f0d05000d2f07a003090c0e0f0d0a060110033f03f0f0f070"},
+[39]={11,36,-2,-34,7.0000,"f0900d1f03600d1f03600d1f03600d1f02600d1f01600d1f700d1f700d0f0e700d0f0d700d0f0cf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0b0"},
+[40]={17,48,-2,-36,13.0000,"f0f0d00507d0050f0cc0031f0eb0010d1f04b0091f08b0031f0dc00b1f05b0041f0dc00b1f07b0022f02b0081f0cc00c1f08b0012f04b0062f01b0091f0dc00b1f0bc00e1f09b0012f07b0022f06b0032f06b0042f05b0052f05b0052f05b0042f05b0032f06b0022f06b0012f08c00e1f09c00b1f0bc0091f0dc0062f01b0022f04c00c1f08c0081f0cc0022f02c00b1f07c0041f0dd00c1f05c0031f0cd00a1f07c0010d0f0e02c0031f0dd0050f0ce00507f0f040"},
+[41]={17,48,-2,-36,13.0000,"f0f0400507e0090f08d00b1f06c0010e0f0e02c0051f0cd00b1f06c0041f0e01c00c1f07c0061f0dc0010e1f05c00a1f0ac0061f0ec0022f04c00e1f09c00b1f0cc0091f0ec0072f02b0052f04b0032f05b0032f06b0022f07b0022f07b0022f07b0022f07b0032f06b0032f05b0042f04b0062f02b0081f0ec00a1f0cc00d1f09b0012f04b0051f0ec0091f0ac00d1f05b0041f0dc00a1f07b0021f0e01b0091f06b0031f0cb0010d0f0e02b00a1f06c0090f07d00507f0f0d0"},
+[42]={22,34,-2,-32,18.0000,"f0f0f040071f0af010061f09f010061f09f010051f08b0020130051f084001500b0e0a0410051f081002070d0c40013f0e08071f08050b3f0230040eef065004080d8f0b07039002093f0b0501c0010d3f0ce00b1f0b0d1f08c0071f0e02042f05a0032f0610091f0e0280010d1f0b20010d1f0c80010a0f0e0230041f0a01900506500906f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0"},
+[43]={25,29,-2,-27,21.0000,"f0f0f0b0062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03c002583f0c586003ff0f6003ff0f6003ff0fd0062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f0f0f0f0f0f0f0f060"},
+[44]={12,14,-2,-7,8.0000,"f0b0062f0560062f0560062f0560072f0460082f02600c1f0c60032f07600b1f0d60032f0470030c04f0d0"},
+[45]={14,19,-2,-17,10.0000,"f0e07201407f07407f07407f07f0f0f0f0f0f0f0f0f0f0f070"},
+[46]={15,9,-2,-7,11.0000,"f0f030060804a00a2f04903f09900d2f0890040d0e0a01f0f020"},
+[47]={20,37,-2,-32,16.0000,"f0f0f030012f01e0051f0af00a1f06f00e1f01e0041f0bf0091f06f00e1f02e0041f0cf0081f07f00d1f02e0031f0df0081f08f00d1f03e0021f0df0071f09f00c1f04e0021f0ef0061f09f00b1f05e0011f0e01e0061f0af00a1f05e0010e1f01e0051f0bf00a1f06f00e1f01e0041f0cf0091f07f00e1f02e0041f0cf0081f08f00d1f03e0031f0df0f0f050"},
+[48]={25,34,-2,-32,21.0000,"f0f0f09001070c0e0f0e0b06f0040e6f0c02c0030e8f0d01b00c2f0a0302040c2f09a0052f09400c2f02900b1f0e0140032f0780012f09600d1f0b80042f0660091f0e80062f0360072f0170082f0160052f0370092f70042f0470092f70042f05700a2f70042f05700a2f70042f05700a2f70042f05700a2f70042f05700a2f70042f0570092f70042f0570092f70042f0570082f70052f0470072f0260062f0370052f0360072f0170032f06600a1f0e900e1f0a600d1f0a900a2f0140042f0690052f0930010c1f0e01a00c2f0a0402050c2f08b0030e8f0c01c0040e6f0c02e001070c0e0f0d0b05f0f0f0a0"},
+[49]={25,34,-2,-32,21.0000,"f0f0f0d001070e03f02003092f03f000050b4f03d001060d6f03d00a4f0e2f03d00b2f0a03062f03d00b0e080210062f03d0040130062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f030062f03f0f0f0a0"},
+[50]={25,34,-2,-32,21.0000,"f0f0f09003090c0e0f0d0b0601e0097f0d03c00baf03a0082f0e070302050c2f0d90022f0d0230010c2f0580072f0450042f0a800b1f0e700d1f0d800e1f0b700b1f0e802f09700a1f0ef0400b1f0cf0400e1f09f030042f05f0300b1f0ef030052f07f020010d1f0df0300a2f05f020062f0af020030e1f0d01f010010d2f03f0200a2f07f020062f0af020032f0d01f010010d1f0e02f0200b2f05f020072f09f020042f0cf020010e1f0e04a27009ff016009ff016009ff01f0f0f040"},
+[51]={25,34,-2,-32,21.0000,"f0f0f090040a0d0f0e0d0904e0010a7f0a01c00c9f0cb0082f0d0613060d2f0890012f0d0130010d1f0e90072f0450062f05800a1f0e60022f07800c1f0c60012f09f030012f09f030032f07f030082f03f020032f0be02204082f0e02e06f0d03f06f05f0007f0af02002060d2f0af030010c2f03f030032f09f0400d1f0cf0400b1f0ef0400a1f0e800e1f0a700b1f0d800d1f0c700d1f0b800a2f0250042f0880052f0b0130010c2f02900c2f0c050203060d2f09a0020e9f0c01b0020c7f0a01e0050a0d1e0d0904f0f0f0a0"},
+[52]={25,34,-2,-32,21.0000,"f0f0f0e0013f02f020073f02f010010e3f02f010084f02f000025f02f000095f02f0022f092f02f00a1f08072f02e0031f0e01072f02e00b1f0800072f02d0041f0e0100072f02d00c1f0810072f02c0051f0e0110072f02c00d1f0820072f02b0061f0e0120072f02a0010e1f0730072f02a0071f0e0130072f0290010e1f0740072f0290081f0e0140072f0280022f0852092f0412015009ff0f07500cff0f07500cff0f07f000072f02f030072f02f030072f02f030072f02f030072f02f030072f02f030072f02f0f0f070"},
+[53]={25,34,-2,-32,21.0000,"f0f0f0800dbf03a00ebf039001cf0390022f09880190032f02f030052f01f030061f0ef040071f0df040091f0cf0400a1f0af0400b1f09040a0e0f0d0a05d00d1f0e6f0b01b00eaf0bb03f0d0807080d3f0790010b0e0f0940092f0ec003600c2f05f030042f09f0400e1f0cf0400b1f0df0400a1f0ef0400a1f0ef0400b1f0d800e1f08700d1f0c800c1f0b60022f0980082f0250082f0580032f0b40032f0ea00a2f0c050203070e2f06a0010d9f0ac0010b7f09f0040a0d0f0e0d0903f0f0f090"},
+[54]={25,34,-2,-32,21.0000,"f0f0f0c001060a0d0e0ff010080e4ff0010c6fe0010d3f0c070504e00a2f0d04f010032f0d01f020092f03f020010e1f09f030052f03f030081f0ef0400c1f0a00040a0e0f0d0a04c00e1f196f08a001cf0890024f0e0713093f0380033f0d0230072f0a80043f03500c2f0170043f60072f0570042f0a60032f0770042f07702f0970042f06700e1f0a70032f07700e1f0a70012f09702f09800d1f0c60022f0780092f0250062f0380042f09500c1f0ea00c2f0430072f08a0043f070304092f0e01b0089f04d0076f0e05f003090d1e0c0701f0f0f090"},
+[55]={25,34,-2,-32,21.0000,"f0f0f04004ff0d6004ff0d6004ff0b70b2032f06f030071f0e01f0300d1f0af030032f04f030091f0df030010e1f08f030062f03f0300b1f0cf030022f06f030082f01f0300d1f0af030042f05f0300a1f0ef030012f09f030062f03f0300c1f0df030032f07f030092f02f0300e1f0bf030052f06f0300b1f0e01f020022f0af030072f04f0300d1f0df030042f08f0300a2f02f020010e1f0cf0f0f0f0"},
+[56]={25,34,-2,-32,21.0000,"f0f0f09001070c0d0f0d0b05f0040e6f0c02c0049f0e01a0010e2f0a0402050d2f0aa0062f0930010d2f02900b2f0140052f07900e1f0b50012f0a902f09600d1f0b902f09600d1f0b900d1f0b602f0990092f0140052f0590032f0930010c1f0db0092f0a0302050c2f04c00a8f06d0010e6f08d0020d8f09b0010d1f0e070201030a2f08a0092f0440092f0480012f0a50010e1f0b80052f0460092f0170082f0260062f0470092f0160052f0570082f0160052f0470072f0460082f0270032f09600d1f0e900d2f0440072f0990052f0e080302040a2f0e02a008af05c0077f0e04e002070c0e0f0d0b0601f0f0f090"},
+[57]={25,34,-2,-32,21.0000,"f0f0f09002080d0e0f0d0902f0076f0e05d0079f05b0033f0803040a2f0e01a00b2f0430092f0890022f09500d1f0e90062f0350062f0480091f0e60022f08800b1f0c700d1f0b800c1f0b700b1f0d800d1f0b700b1f0e800c1f0c700d2f800a1f0e703f80072f03603f80032f0950072f0e900d2f0430053f0d90062f0e070304094f0da00b7f0e0c1f0ca0010b5f0d030b1f0bc0060b1e0c0701000d1f09f030012f06f030042f02f0300a1f0df030032f08f020010d1f0e02f010030d2f07d0010405070b3f0be0056f0b01e0054f0e06f000050f0e0c0a0501f0f0f0c0"},
+[58]={14,27,-2,-25,10.0000,"f0f010060804900a2f04803f09800d2f0880040d0e0a01f0f0f0f0f0f0f0f0f0f0f0f0060804900a2f04803f09800d2f0880040d0e0a01f0f0"},
+[59]={13,32,-2,-25,9.0000,"f0e0060804800a2f04703f09700d2f0870040d0e0a01f0f0f0f0f0f0f0f0f0f0f000062f0570062f0570062f0570072f0470082f02700c1f0c70032f07700b1f0d70032f0480030c04f0f000"},
+[60]={23,27,-2,-25,19.0000,"f0f0f0d00508f020030c0f0af000020a2f0ae001080e3f0ad0060d4f0b03b0040c4f0b04b0020a4f0c04b001084f0c05d0083f0d05f00b2f0bf010083f0c04f001084f0c04f0020a4f0b04f0030c4f0b03f0050d4f0b03e001080e3f0af000020a2f0af020030c0f0af0400508f0f0f0f0f0f0f0f0e0"},
+[61]={24,25,-2,-23,20.0000,"f0f0f04004c502800ecf06800ecf06800ecf06f0f0f0f0f0f0f0f0f0800ecf06800ecf06800ecf0680d402f0f0f0f0f0f0f0f0f0f0f0f0f0b0"},
+[62]={23,27,-2,-25,19.0000,"f0f0f010030902f030031f0801f010032f0e0701f0034f0d06f0050d4f0d05f0050c4f0c04f0050c4f0b03f0040c4f0902f0040b3f0cf010083ff0050c3f0cd0050d4f0902b0050d4f0a02b0050d4f0c03b0050d4f0d05c0034f0d06e0032f0e07f000031f0801f010030902f0f0f0f0f0f0f0f0f090"},
+[63]={22,34,-2,-32,18.0000,"f0f0f02004090d1e0c0903b0010a7f07a00b9f0780073f0905060b3f02700d1f0e0330092f0760022f0840012f0b60042f05500c1f0df0100a1f0ef0100b1f0df0100e1f0af000052f05f0010e1f0df0000b2f05f0092f09f0062f0cf0032f0d01f00b2f03f0022f0af000052f05f000072f02f000082f01f0f0f0f0f0f090020501f010041f0e02f000092f06f000082f05f000010b0e0af0f0f050"},
+[64]={36,42,-2,-31,32.0000,"f0f0f0f0f05002070b0d1e0d0b0803f070020a9f0c04f040073f0e0c1b0c0e3f08f020092f0b05014004092f0bf000091f0e0590020c1f09e0061f0d02b0010b1f05c0020e0f0e02d0010d0f0dc00a1f05f0041f06a0031f0bf0100c0f0ca0091f035002090e0f0d090340061f0280011f0c50040e5f0630011f0680051f0740030e1f0d0a0c2f05300c0f0a800a1f02400d1f08200d1f0330090f0d800e0f0d40061f0b300b1f0230071f70011f0a400d1f03300c1f0130061f0160041f0830031f0c400d1f40041f0360061f0530081f07400e0f0d40041f0360081f04300c1f04401f0c40041f0360091f03302f0130021f0b40041f03600a1f0220022f40031f0a40061f0260091f0220031f0d40051f0840071f70091f0220041f0d40091f0740090f0d70091f0320041f0d400e1f06400d0f0970071f0420032f01302f0630031f0570061f06302f0520072f08300a0f0e0170041f08300b1f0d0300063f0c20061f0780011f0c30056f050d1f0b070a1f0ca00c1f01300a4f0800045f0c02a0081f0640070d0f0c0520040b1e0c0701b0021f0cf0f0000b1f05f0f0031f0d01f0f00a1f0b01f0e0010d1f0c02f0e0020e1f0e08025003090af040020c3f0d0a190b0e2f01f050070e9f0901f0600105090c0e0f0e0d0a0602f0f0f0f0f040"},
+[65]={28,34,-2,-32,24.0000,"f0f0f0f0300a1f0df0700e2f03f050053f08f050093f0df0500e4f03f030042f0d1f07f030091f0b081f0cf0300e1f07032f02f010032f02000e1f07f010081f0d10091f0cf0100d1f0810052f02f0032f0410012f06f0081f0e300b1f0bf00d1f0a30062f01d0022f0530022f06d0072f01400c1f0bd00c1f0c50082f01b0022f0750032f05b0072f06642f0cb00befa001ff059006ff09900b1f0e900b1f0e80012f0a90072f0470052f0690022f09700a2f01a00d1f0e60010e1f0cb0082f0450052f07b0042f08500a2f03c00e1f0d500e1f0dd00a2f03f0f0f090"},
+[66]={27,34,-2,-32,23.0000,"f0f0f0a00c7f0e0d0a0601c00cbf0e04b00cdf04a00c2f4405070d2f0ea00c2f60010c2f06900c2f70042f0a900c2f802f0c900c2f800d1f0e900c2f800e1f0d900c2f70012f0b900c2f70062f07900c2f60030e1f0e01900c2f0435060a0e2f04a00cbf0e04b00cbf0a02b00ccf0e04a00c2f5002082f0e02900c2f70052f0a900c2f800c2f01800c2f80072f05800c2f80052f07800c2f80042f07800c2f80052f07800c2f80092f05800c2f70010e2f01800c2f700a2f0b900c2f4304060c3f03900cdf06a00cbf0e05b00c7f0e0d0b0601f0f0f0d0"},
+[67]={28,34,-2,-32,24.0000,"f0f0f0f01002070c0d0f0e0d0a05f00001098f0d03d0010cbf04c00c2f0e09050405070d2f0e02a0082f0d02500a2f0a90012f0e0260010d2f0180072f0780072f06800c2f0180032f0a70012f0ba02f0b70032f09a00d1f0d70052f06f060062f06f060072f05f060072f05f060072f05f060072f05f060072f05f060072f05f060062f06f060052f06f060042f08a00d1f0d70012f0ba02f0b800c1f0e90032f0980072f0680072f0580012f0d0160010e1f0e0190082f0b0140010a2f09a0010d2f0e08050405080d2f0e01b0020daf0e03d0010a8f0c02f00003080c0e0f0e0c0904f0f0f0f000"},
+[68]={28,34,-2,-32,24.0000,"f0f0f0c00c6f0e0c0905f00caf0d05d00ccf09c00c2f3405070c3f09b00c2f60050e2f05a00c2f70032f0da00c2f80082f05900c2f80022f0a900c2f900c1f0e900c2f90092f02800c2f90072f04800c2f90062f05800c2f90052f05800c2f90052f06800c2f90052f06800c2f90052f06800c2f90052f06800c2f90052f06800c2f90062f05800c2f90082f04800c2f90092f02800c2f900d1f0e900c2f80022f0a900c2f800a2f05900c2f70052f0da00c2f60063f05a00c2f230405080d3f09b00ccf08c00caf0c05d00c5f0e0d0c0804f0f0f0f020"},
+[69]={25,34,-2,-32,21.0000,"f0f0f0600cef01700cef01700cef01700c2fb4800c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2f9302900ccf08900ccf08900ccf08900c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2ff0400c2fb301700cef04700cef04700cef04f0f0f040"},
+[70]={24,34,-2,-32,20.0000,"f0f0f0400cdf0c700cdf0c700cdf0c700c2fa403700c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2f94900ccf01800ccf01800ccf01800c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0f0f0e0"},
+[71]={29,34,-2,-32,25.0000,"f0f0f0f03005090c0e0f0e0d0a05f010040c8f0d03e005cf06c0033f0d08050405080d3f03b00c2f090140010a2f0ca0052f0b70010d2f03900a2f0380062f08900e1f0d90022f0b80022f09a00e1f0d80042f07f070052f06f070062f05f070072f05f070072f05f070072f0540018380072f0540057f0e80072f0540057f0e80072f0540057f0e80062f05a00c1f0e80052f06a00c1f0e80042f08a00c1f0e80012f0ba00c1f0e900d2f01900c1f0e90082f07900c1f0e90022f0e02800d1f0ea0092f0d035001092f0ea0010d3f0a061405080d3f06b0020ccf06d001099f0c04f00002070b0d0e0f0e0c0904f0f0f0f020"},
+[72]={30,34,-2,-32,26.0000,"f0f0f0f0000c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fa3042f0c900cff1f0c900cff1f0c900cff1f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0c900c2fb02f0cf0f0f0f000"},
+[73]={15,34,-2,-32,11.0000,"f0f020092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f0290092f02f0f020"},
+[74]={24,34,-2,-32,20.0000,"f0f0f0e0072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04f020072f04600c2f70082f04600b2f0260092f0360092f05600d2f0160052f0a50032f0c70010e2f0630010d2f0680073f0a0504070d2f0ca00b9f0e03a0010a7f0d02d003080c0e0f0e0b06f0f0f080"},
+[75]={27,34,-2,-32,23.0000,"f0f0f0a00c2f900c2f09700c2f80092f0d01700c2f70043f03800c2f60010e2f06900c2f600b2f0aa00c2f50072f0d01a00c2f40033f04b00c2f30010d2f07c00c2f30092f0bd00c2f20052f0e02d00c2f10020e2f04e00c2f100b2f08f00c2f00082f0cf0000c2f043f09f0000c2f0e4f02f00c8f0bf00c4f0a0d2f05e00c3f0c01042f0e01d00c2f0e02100a2f09d00c2f0320020e2f03c00c2f40072f0cc00c2f500d2f07b00c2f50042f0e02a00c2f600a2f0ba00c2f60020e2f05900c2f70072f0d01800c2f800d2f09800c2f80043f03700c2f900a2f0c700c2f90020e2f07f0f0f070"},
+[76]={24,34,-2,-32,20.0000,"f0f0f0400c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2ff0300c2fa302700cdf0b700cdf0b700cdf0bf0f0f020"},
+[77]={36,34,-2,-32,32.0000,"f0f0f0f0c00c3f03d0073f07900c3f08d00c3f07900c3f0dc0024f07900c4f03b0074f07900c4f07b00c4f07900c4f0ca0015f07900c5f0290065f07900c1f0b2f07900b1f0c0e1f07900c1f0a0b1f0c80012f072f07900c1f0b062f0270052f022f07900c1f0b012f06700a1f0c012f07900c1f0b000b1f0b60010e1f07012f07900c1f0c00062f0150052f02012f07900c1f0c00012f06500a1f0c00022f07900c1f0d100b1f0a500e1f0700022f07900c1f0d10062f0130042f0200032f07900c1f0e10012f0530091f0c10032f07900c1f0e200b1f0a300e1f0710042f07900c2f20061f0e20032f0210042f07900c2f20012f0410081f0c20042f07900c2f300b1f09100d1f0720042f07900c2f30061f0e00032f0220042f07900c2f30012f04081f0c30042f07900c2f400b1f090c1f0730042f07900c2f40061f0e2f0230042f07900c2f40014f0c40042f07900c2f500b3f0740042f07900c2f50063f0240042f07900c2f50012f0c50042f07900c2f600b1f0750042f07f0f0f0f0c0"},
+[78]={30,34,-2,-32,26.0000,"f0f0f0f0000c2f04a02f0b900c2f0ca02f0b900c3f04902f0b900c3f0c902f0b900c4f05802f0b900c4f0d802f0b900c5f05702f0b900c2f0a1f0d702f0b900c2f022f06602f0b900c2f000a1f0d602f0b900c2f00022f07502f0b900c2f10091f0e01402f0b900c2f10022f07402f0b900c2f20091f0e01302f0b900c2f20010e1f08302f0b900c2f30081f0e01202f0b900c2f30010e1f08202f0b900c2f40081f0e01102f0b900c2f40010e1f09102f0b900c2f50072f02002f0b900c2f50010e1f09002f0b900c2f60072f022f0b900c2f700d1f0a2f0b900c2f70065f0b900c2f800d4f0b900c2f80064f0b900c2f900d3f0b900c2f90053f0b900c2fa00c2f0b900c2fa0052f0bf0f0f0f000"},
+[79]={29,34,-2,-32,25.0000,"f0f0f0f03002070c0d0f0e0c0904f01001098f0c03e0020dbf04c0010d3f0b0706070a0e3f03b0082f0d0340010a2f0ca0012f0e02700b2f0590072f0780032f0b900c2f01900c2f01802f0ba0072f0470032f08a0052f0770052f06a0032f0870052f05a0022f0970062f05a0012f0a70062f05a0012f0a70062f05a0012f0a70062f05a0012f0a70062f05a0012f0a70062f05a0012f0a70052f05a0022f0970052f06a0032f0870032f08a0052f07802f0ba0072f04800c2f01900b2f0180072f0780022f0b90012f0e02700b2f05a0082f0d0340010a2f0cc00d3f0b0716090e3f03c0020dbf05e001098f0c03f01003080c0e0f0e0d0905f0f0f0f030"},
+[80]={27,34,-2,-32,23.0000,"f0f0f0a00c8f0e0d0a05c00ccf0d03a00cdf0e04900c2f5405080e2f0e02800c2f70010c2f0a800c2f80010e2f02700c2f90082f06700c2f90042f08700c2f90022f0a700c2f90022f0a700c2f90032f09700c2f90072f06700c2f900d2f03700c2f800a2f0c800c2f5405070d3f03800cef07900ccf0e05a00c9f0d0b0601b00c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0600c2ff0f0f0f070"},
+[81]={29,39,-2,-32,25.0000,"f0f0f0f03004080c0e0f0e0c0803f010020b8f0b02e0030eaf0e03c0020e3f0a0706070a3f0e01b00b2f0c0240020c2f0aa0042f0d0160010d2f02900a2f0480052f08902f0da00e1f0d80032f09a00a2f0170062f06a0072f0470072f04a0052f0570082f03a0042f0670092f02a0042f0770092f02a0042f0770092f02a0042f0770092f02a0042f0770092f02a0042f0770092f02a0042f0770082f03a0042f0670072f04a0052f0570062f06a0072f0470032f09a00a2f01800e1f0da00e1f0d900a2f0480052f0990042f0d0160010d2f03a00b2f0c0240020c2f0bb0020e3f0a0705070a3f0e02c0030eaf0e03e0020b9f0df01004080c0e0f0e4f0b01f060053f0c01f060053f0c01f060043f09f070040e0f0c01f080040b01f0f0f0e0"},
+[82]={26,34,-2,-32,22.0000,"f0f0f0800c7f0e0d0a05c00cbf0d03a00cdf05900c2f4405080e2f0e02800c2f60010c2f09800c2f70022f0e800c2f800a2f04700c2f80062f06700c2f80052f07700c2f80052f07700c2f80072f05700c2f800b2f03700c2f70032f0e800c2f60020d2f07800c2f043305090e2f0d01800ccf0e02900cbf0b02a00cbf01b00c2f40082f07b00c2f40012f0db00c2f500a2f05a00c2f50032f0ca00c2f600b2f04900c2f60052f0b900c2f700d2f03800c2f70062f0a800c2f70010e2f02700c2f80082f09700c2f80022f0e01600c2f900a2f07f0f0f050"},
+[83]={26,34,-2,-32,22.0000,"f0f0f0c0050a0d0e0f0e0b0601e0030d7f0e05c005bf07a0020e2f0c0714060b3f04900a2f0950062f0d0170012f0d70092f0670052f0870022f0b70062f06800d1f0e70062f06800b2f70042f0af040013f04f040092f0e06f030010d3f0c05f020020d4f0e0803f00001096f0b04f000030a6f0a01f00002070d4f0c01f020040b3f0bf040063f05f040062f0af0500e1f0e60032f08900c2f60022f0a900b2f700e1f0e900d1f0e70092f0770042f0b70020e2f0650020d2f0680063f0c071405090e2f0ca007bf0d02b0040d8f0b01e004090d0e0f0e0c0803f0f0f0b0"},
+[84]={26,34,-2,-32,22.0000,"f0f0f0600bff1f0a500bff1f0a500bff1f0a5003643f6402d00e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0500e1f0cf0f0f0e0"},
+[85]={28,34,-2,-32,24.0000,"f0f0f0b0052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170052f06900b2f0170042f07900b2f80032f08900d1f0e80012f0b80012f0c900c2f0370072f0890072f0d0250043f0290010d2f0e090514060a3f08b0020ebf0ad0020b8f0e07f00003080c0d0f0e0d0a0501f0f0f0f000"},
+[86]={28,34,-2,-32,24.0000,"f0f0f0a00e2f02b0082f08500a2f06b00d2f0450052f0aa0022f0e60012f0ea0062f09700b2f04900a2f0570062f08900e1f0e0170022f0c80042f0a900c2f0170082f0690072f05700c2f0190032f0a60012f0cb00d1f0e60062f07b0092f03500a2f02b0042f07500e1f0dd00e1f0b40032f08d00a2f0130072f03d0052f05300c1f0ee0012f0920012f09f00b1f0d20052f04f0062f0210091f0ef000012f06100d1f0af0100c1f0b00032f06f010071f0e00072f01f010022f040b1f0bf0300d1f092f07f030085f02f030044f0cf0500e3f08f050093f03f050052f0df060012f09f0f0f0f030"},
+[87]={36,34,-2,-32,32.0000,"f0f0f0f0a0072f0470062f800e1f0c50042f07700a2f0260022f0950012f0a700d2f0660052f06600d1f0d60013f0960072f03600a2f60053f0c600a2f70072f0350084f01500d1f0c70042f06500c1f0e1f0440012f0970012f09502f091f0740032f06800d1f0b40041f0d051f0b40062f03800a1f0e40071f0a011f0e40082f90072f02300a1f06000d1f02300b1f0c90042f04300e1f03000a1f06300e1f0990012f0720021f0e10061f0920012f06a00d1f0a20061f0a10031f0c20042f03a00a1f0d20091f07200e1f0110072f01a0072f01100d1f03200b1f0410091f0cb0042f0300011f0e30081f07100c1f09b0012f0600041f0b30041f0a102f06c00d1f0900081f0830011f0e00022f03c00a1f0b000b1f04400d1f02052f01c0071f0e000e1f0140091f05081f0cd0042f041f0c50061f080a1f0ad0012f081f0850021f1b1f07e00d1f0d1f05600e0f0e0d1f04e00a4f01600b4f01e0073f0d70073f0df0043f0970043f0af0013f0670013f07f0000d2f02800c2f04f0000a1f0e90092f01f0f0f0f0f0"},
+[88]={27,34,-2,-32,23.0000,"f0f0f080033f0380010e2f06600a2f0b80072f0d70023f0360010e2f0580092f0a60072f0c90010e2f0340010e2f04a0082f0a40072f0bb0010e2f03300e2f04c0072f0a20062f0bd0010e2f02100d2f03e0072f0a00062f0af0000d2f020d2f02f000062f0d2f09f0200d5f02f020054f09f0400c3f01f030010e3f03f030074f0bf020010e5f04f010082f0b2f0bf000010e1f0e010c2f04f0092f0800042f0ce0022f0e01100c2f05d00a2f0820052f0dc0032f0e01300c2f06b00a2f0840052f0da0033f02500c2f07900b2f0960052f0e0170043f02700d2f07700c2f0980052f0e0150053f02900d2f08f0f0f080"},
+[89]={26,34,-2,-32,22.0000,"f0f0f050033f0290023f02400b2f0890082f0a50042f0e900d2f04600c2f0570052f0c70052f0b700b2f05800d2f0250022f0d90072f0850082f0790010e1f0e500e1f0e01a0082f0530052f08b0022f0b300b2f02c00a2f0210022f09d0032f0810082f03e00b1f0e100e1f0bf0042f05062f04f0000c1f1c1f0cf010065f05f0200e3f0df030073f07f030010e1f0e01f0400d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0500d1f0df0f0f0e0"},
+[90]={26,34,-2,-32,22.0000,"f0f0f070ff0f0a70ff0f0a70ff0f0a7003b40e2f05f030042f0bf0400c2f03f030062f09f030010e1f0e01f030082f07f030022f0df0400a2f05f030042f0bf0400c2f03f030062f09f030010e1f0e01f030082f07f030022f0df0400a2f05f030042f0bf0400c2f03f030062f09f030010d1f0e01f030082f07f030022f0df0400a2f05f030032f0bf0400c2f06c3015002ff1f035002ff1f035002ff1f03f0f0f060"},
+[91]={15,44,-2,-36,11.0000,"f0f010035f0960035f0960035f0960032f08120160032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f08120160035f0960035f0960035f09f0f000"},
+[92]={20,37,-2,-32,16.0000,"f0f0a00c1f09f0071f0ef0022f04f00c1f09f0081f0df0032f03f00d1f08f0081f0df0042f02f00e1f07f0091f0cf0042f02f00e1f07f00a1f0bf0052f01e0012f06f00b1f0bf0062f01e0012f05f00b1f0af0071f0ef0022f04f00c1f09f0071f0ef0022f04f00d1f09f0081f0df0032f03f00d1f08f0091f0df0042f02f00e1f07f0091f0cf0f0a0"},
+[93]={15,44,-2,-36,11.0000,"f0f0055f0760055f0760055f07600112042f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f0790032f07600112042f0760055f0760055f0760055f07f0f020"},
+[94]={20,34,-2,-32,16.0000,"f0f0f00a1f03f00e1f08e0042f0de0093f03d00e3f09c0051f0b1f0ec00a1f050c1f04a0010e1f01071f09a0051f0b00021f0ea00a1f07100d1f0480012f0210081f0980061f0d20041f0e800b1f08300e1f0560012f03300a1f0a60061f0e40051f0e01f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f060"},
+[95]={21,8,-2,-2,17.0000,"f0f0b007ef083007ef083007ef083001e201f0f0b0"},
+[96]={17,35,-2,-33,13.0000,"f0f040062f0e02b0082f0bc0092f06c00b1f0e02b0010c1f0bc0020d1f06f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0"},
+[97]={24,26,-2,-24,20.0000,"f0f0f07002080c0e0f0d0b0701d0087f0d04b0099f0e0290062f0e060302050c2f09900d1f0e0230010d1f0e80022f0850082f027002280350062f03f020062f04f020062f04b003080b1e5f0490010aaf0480010d3f0e0b1a3f04800b2f0b0330062f0470032f0a50062f0470072f0250062f0470092f60082f0470092f01500e2f0470072f0740063f0470023f0915070c4f05800a8f0c2f0680010b6f08032f09a0050a0d0f0e0b0400010e1f0df0f0f030"},
+[98]={25,36,-2,-34,21.0000,"f0f0f050042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f0500040a0d0f0e0b06b0042f05096f0d0290042f0d8f0d0180044f0a050304080e2f0880043f0740030e1f0e80043f60082f0570042f0860032f0770042f05702f0a70042f05700d1f0b70042f05700d1f0c70042f05700c1f0c70042f05700c1f0c70042f05700d1f0c70042f05700d1f0b70042f05702f0a70042f0860032f0770043f60092f0470043f0740042f0e80044f0b050405093f0880042f0a8f0d0180042f02096f0c0190042f0100040a0e0f0e0b06f0f0f090"},
+[99]={23,26,-2,-24,19.0000,"f0f0f05003090c0e0f0d0b06c0010a7f0d0290010c9f0e0280082f0d060302040a2f0b70012f0d0140092f0360062f0550010e1f08600a1f0e700b1f0b600d1f0c70081f0d600e1f0af0202f0af0202f09f0202f09f0202f0af0200e1f0af0200d1f0cf0200a1f0e70091f0d60062f04600c1f0a60012f0d0140062f0570082f0d06030203092f0d80010c9f0e0290010a7f0c03c003090c0e0f0d0b05f0f0f040"},
+[100]={25,36,-2,-34,21.0000,"f0f0f0f0100a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2fc0060b0e0f0d0a03000a2fa0030d6f070a2f90020ecf900a2f0e080403050b4f80022f0e0240093f80072f06603f800b1f0e01603f800d1f0c700a2f802f0a700a2f802f09700a2f70012f09700a2f70012f09700a2f802f09700a2f802f0a700a2f800d1f0c700a2f800a1f0e703f80072f05603f80022f0d0240093f900a2f0e0814060c4f90010d8f0d2fa0020d6f172fc0060b0e0f0d0a0300062ff0f0f060"},
+[101]={24,26,-2,-24,20.0000,"f0f0f07002080c0e0f0d0b0601d0077f0d03b0099f0e0290052f0d060302040b2f0b900d1f0e02400a2f0370042f0650022f0870082f01600d1f0b700c1f0d700b1f0d700d1f0c710a1f0e700eef70ff70ff700e1f0af0300e1f0bf0300d1f0cf0300a2f01f020062f0770030280010e1f0e0350040e0c0180083f080412040a2f09900baf0e03a0098f0c02c003080c0e0f0e0d0904f0f0f060"},
+[102]={17,36,-2,-34,13.0000,"f0f0a0030a0d0f0e0a90074f0c80055f0b800e2f0a051470042f0ab0082f03b0092fc00a1f0ec00a1f0ec00a1f0e90088f0b50088f0b50081e3f2e0a800a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ec00a1f0ef0f080"},
+[103]={25,35,-2,-24,21.0000,"f0f0f08001070b0e0f0d0a0300042fa0030d6f07052f90020e8f0c2f900a2f0e080403050b4f80022f0e0240083f80072f06603f800a2f01600e2f800d1f0c700a2f800e1f0a70092f802f0a70092f802f0970092f802f0970092f802f0a70092f800e1f0a70092f800d1f0c700a2f800a2f01603f80072f06603f80022f0e0240093f90092f0e0814060c4f90010d8f0e2fa0020d6f07092fc0060b0e0f0d0a0300092ff040092ff0400a1f0ef0400c1f0ca00170022f09a00b0a01500b2f0590051f0e08040203060c2f0ca006af0e02b0040c7f0c02e004090c1e0d0a05f0f0f0a0"},
+[104]={24,36,-2,-34,20.0000,"f0f0f030042f05f020042f05f020042f05f020042f05f020042f05f020042f05f020042f05f020042f05f020042f05f020042f05f020042f050003090d0f0e0b05a0042f05076f0a90042f0d8f0780044f0c0603050b2f0e80043f0a400b2f0470043f0140052f0670042f0b50022f0870042f0650012f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f09f0f0f030"},
+[105]={14,35,-2,-33,10.0000,"f0f0100403a00b1f0780022f0d80012f0c90070e0d04f0f0f0f0102f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09f0f000"},
+[106]={14,44,-3,-33,9.0000,"f0f01001040290020e0f0e0380072f0880062f0780010b0e0b01f0f0f0f000032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680032f0680042f0580072f04500304050e2f0150074f0a60073f0e0260050d0f0d0902f0f010"},
+[107]={23,36,-2,-34,19.0000,"f0f0f010042f06f010042f06f010042f06f010042f06f010042f06f010042f06f010042f06f010042f06f010042f06f010042f06f010042f0640020e2f0460042f06400c2f0770042f0630082f0b80042f0620042f0d0180042f0610010e2f0390042f06100b2f06a0042f0600072f0ab0042f06032f0c01b0042f070d2f02c0047fd0047f06c0047f0e01b0043f0b052f0ab0043f01000b2f04a0042f0810022f0da0042f0620082f0890042f0620010e2f0280042f0630052f0b80042f06400c2f0670042f0640032f0e0160042f0650092f0960042f0650010e2f04f0f0f0"},
+[108]={14,36,-2,-34,10.0000,"f0f0002f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09902f09f0f000"},
+[109]={36,26,-2,-24,32.0000,"f0f0f0f0b0042f0300050a0d0f0e0a0430040a0d0f0e0b06b0042f040a6f08100a6f0c019004cf060a8f0a90044f080403060d5f0c0503050a3f0380043f0430010d3f0c0130082f0780042f0e50063f0440012f0a80042f0850023f600d1f0c80042f0550013f600c1f0d80042f05603f600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0d80042f05602f09600b1f0df0f0f0f0c0"},
+[110]={24,26,-2,-24,20.0000,"f0f0f030042f030003090d0f0e0b05a0042f03076f0a90042f0b8f0780044f0c0603050b2f0e80043f0a400b2f0470043f0140052f0670042f0b50022f0870042f0650012f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f0970042f05602f09f0f0f030"},
+[111]={25,26,-2,-24,21.0000,"f0f0f09001070b0e0f0e0b0701e0050e6f0e06c007af08a0043f09040204093f05900d2f0540042f0e0170042f0960082f0670092f0260012f0a700c1f0d800c1f0e700e1f0a80092f702f0980082f02602f0980082f02602f0980082f02602f0980082f02600e1f0a80092f01600c1f0d800b1f0e70092f02700e1f0a70042f0960052f06800d2f0540020e1f0e0180043f09040203070e2f06a007af09c0060e6f0e07e001070b0e0f0e0c0702f0f0f090"},
+[112]={25,35,-2,-24,21.0000,"f0f0f050042f0100050b0e0f0e0b06b0042f020a6f0d0290042f0c8f0d0180044f090403050a3f0880043f0440062f0e80042f0d600a2f0470042f0660052f0770042f0560012f0970042f05700e1f0a70042f05700d1f0b70042f05700d1f0b70042f05700d1f0c70042f05700d1f0b70042f05700e1f0a70042f0560012f0970042f0660042f0770042f0b600a2f0370043f0240042f0d80043f0e07030203083f078004cf0c90042f060b6f0c0190042f0500050b0e0f0e0b06b0042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f030042f05f0f0f0f010"},
+[113]={25,35,-2,-24,21.0000,"f0f0f08001070b0e0f0d0a0400062fa0030e6f08072f90020ecf900b2f0e070302040a4f80032f0e0240073f80082f06603f800b2f01600d2f800d1f0c700a2f802f0a700a2f802f09700a2f70012f09700a2f70012f09700a2f802f09700a2f802f0a700a2f800d1f0c700a2f800b1f0e01600d2f80072f06603f80022f0d0240063f900a2f0e06030204094f90020ecfa0030d6f080a2fb001070b0e0f0d0a04000a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0400a2ff0f0f060"},
+[114]={17,26,-2,-24,13.0000,"f0f050042f0401080d0f0b60042f050c2f0d60042f0d3f0d60045f0b1a60043f0b0290043f01a0042f0cb0042f07b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05b0042f05f0f090"},
+[115]={23,26,-2,-24,19.0000,"f0f0f050060b0e0f0e0c0802c0030d7f07a0020e9f07900b2f0a040203093f0270012f0b40072f0870042f05500e1f0b70042f0650081b0970022f0d01f0100b2f0e0701f0010d3f0e0802e001095f0b03e0030a5f0901e001070e3f0c01f000073f08702160032f0e700d1f0c60092f01600b1f0e0150082f0160062f0840010d1f0d70010e2f0a0412050c2f088004af0d0190030d7f0b02b001060b0d0f0e0d0a04f0f0f040"},
+[116]={16,32,-2,-30,12.0000,"f0f040022f07a0022f07a0022f07a0022f07a0022f07a0022f0770088f0c40088f0c40071e4f1e0b70022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f07a0022f08b02f0ab00d2f07040580084f0c80010d3f0c9001090e0f0e09f0f020"},
+[117]={24,26,-2,-24,20.0000,"f0f0f030052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0450012f0970052f0550012f0970042f0650012f0970022f0950072f09800e1f0e0230043f0980092f0d0604050a4f0980020e7f0e2f0990040e5f0e040e1f09a002090d0f0e0c0701000d1f09f0f0f030"},
+[118]={22,26,-2,-24,18.0000,"f0f0e00e1f0c700d1f0c50092f0150022f0750052f0550062f0350010e1f09500a1f0d700b1f0c500e1f0970062f0130032f0470012f0530061f0e900c1f09300a1f0a90071f0d300e1f0690032f0210032f01a00d1f0610071f0cb0091f0a100b1f07b0041f0e100e1f03c00e1f131f0dd00a1f171f09d0051f1b1f04d0014f0ef00b3f0af0073f06f0023f01f0000d1f0cf010081f07f0f0f040"},
+[119]={31,26,-2,-24,27.0000,"f0f0f0f0000d1f0b602f0350072f0140091f0e50032f07500a1f0d50052f0340072f0b500d1f0950022f06400b2f0e40022f05600d1f0930014f0430052f0160091f0d30054f0830081f0d70062f0120091f0d1f0c300b1f0970022f04200d1f052f01200e1f05800d1f0810021f0e000c1f0510032f02800a1f0b10061f0b00081f0910061f0d90061f0e100a1f0700041f0d10091f0990022f03000e1f02100e1f02000c1f06a00d1f06031f0d200b1f06012f02a00a1f0a071f0920071f0a041f0db0061f0d0b1f0520031f0e071f0ab0025f01300d1f0d1f06c00e3f0c40094f02c00a3f0840053f0ed0063f0440013f0ad0033f01500c2f06e00e1f0b60082f02e00a1f0760032ff0f0f0f050"},
+[120]={22,26,-2,-24,18.0000,"f0f0e0072f0950052f0d50010d2f02400c2f0460062f0830042f0b800c1f0e01200b2f0380042f0710032f09a00b1f0e01000a1f0e02a0022f06022f08c0091f0d0a1f0e01c0010e4f06e0073f0df0010e2f05f0023f07f00a3f0e01d0035f09d00b1f0d072f02b0052f06010e1f0ab00d1f0d10072f0390062f0610010e1f0c80010e1f0e30082f0570082f0730012f0d60020e1f0e0140092f0750092f0850022f0e01f0f0d0"},
+[121]={22,35,-2,-24,18.0000,"f0f0d0022f0c60052f08500d2f0150082f0450082f05500c1f0e60042f0940012f0a700e1f0c40052f06700a2f0130082f0170052f05300c1f0c80012f0920012f08900b1f0d20052f0390072f0210081f0ea0022f06100c1f0ab00d1f0900012f06b0081f0d00052f01b0042f02081f0cd00e1f060c1f08d00a1f0b2f03d0054f0ee0014f0af00b3f05f0073f01f0022f0cf0102f08f0102f03f000031f0ef010081f0af0100d1f05f000081f0ed00105060b2f07d0034f0de0033f0e03e0020c0f0e0902f0f0f080"},
+[122]={22,26,-2,-24,18.0000,"f0f0f0df0560df0560df056082052f0cf0000c2f03f0062f09f0010e1f0d01f00a2f05f0042f0af0010d1f0e02f0082f06f0032f0cf0000c2f03f0072f08f0020e1f0d01f00b2f04f0052f09f0010e1f0e01f0092f0782015001df0c5001df0c5001df0cf0f0e0"},
+[123]={17,45,-2,-35,13.0000,"f0f0c0030b06c0091f0bb00a2f09a0062f05b00e1f0ab0052f04b0092fc00c1f0cc00d1f0bc00e1f0ac02f0ac02f0ac02f0ac02f0ac02f09b0022f08b0052f05b00b1f0e019002092f07900b3f0ba04fb00c3f0bb0030a2f07c00c1f0e01b0052f05b0012f08c02f09c02f0ac02f0ac02f0ac02f0ac00e1f0ac00d1f0ac00c1f0cc0091f0ec0052f03c00e1f0ac0062f06c00a2f09c0091f0bd0030b06f0f040"},
+[124]={14,40,-2,-32,10.0000,"f0f000061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0a90061f0af0f000"},
+[125]={17,45,-2,-35,13.0000,"f0f040080902d00e1f07b0010b2f07c0082f04c00d1f0bc0062f02b0022f06c00e1f09c00d1f0bc00c1f0cc00c1f0cc00c1f0cc00c1f0cc00c1f0cc00c1f0cc00a1f0ec0072f02b0022f08c0092f0701a0010b3f07a0010e2f0a90010b3f0790092f080290022f09b0072f03b00a1f0ec00c1f0dc00c1f0cc00c1f0cc00c1f0cc00c1f0cc00c1f0cc00d1f0bc00e1f09b0022f06b0062f03b00d1f0bb0082f0490010b2f07b00e1f07c0080902f0f0c0"},
+[126]={29,20,-2,-18,25.0000,"f0f0f0f000020a1e0d0701f040045f0d03500c1f0380020e6f0e04400e1f01800a1f0e08060a2f0e0420071f0d80012f0520073f0805092f0780041f0d40067f0d0180061f0b50050e4f0d02a0018002090d0f0d0801f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f080"},
+[8212]={32,21,-2,-19,28.0000,"f0f0f0f04001f252800cff5f04700cff5f04700cff5f04f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f020"},
+[183]={14,22,-2,-20,10.0000,"f0f000011701900c1f0c80023f0270013f0180061e06f0f0f0f0f0f0f0f0f0f0f0f0f060"},
+}}
+ShiftWebhook.fontSizes={sans={
+[13]={
+[32]={7,4,-2,-2,3.0000,"f0b0"},
+[33]={7,13,-2,-11,3.0000,"f0030f0a30020f0a30020f0930010f0930010f08400f08a0010e0730020e07f0"},
+[34]={8,14,-2,-12,4.0000,"f010090a080b3019080a30090718f0f0f0f090"},
+[35]={11,13,-2,-11,7.0000,"f090070a08096009070a0750020d070e060130024f0740010f020f50084f4001070d070c0150080918600a070a06f090"},
+[36]={11,15,-2,-12,7.0000,"f0a00e70030d0f0b01501e090f0a40010f0b001d500d0f0570020c0f0b0170060f0b40050f07000d0e40020f0d090f0c50050e0f0c0260020cf0a0"},
+[37]={12,13,-2,-11,8.0000,"f090010b0e0770050d040f000a0440050d040f040d50010b0e080c0580050b900d061d035007090a190a500d020a09080a500100031d03f090"},
+[38]={12,13,-2,-11,8.0000,"f0a0020c0f09700b0e0a0f04600d0c030f0560081f0c70071f021c40040f0c0f0b0e0a40070f04081f0540050f0c091f0350081e0b0f0d01f090"},
+[39]={6,14,-2,-12,2.0000,"d0090b30090b30090a3019f0f0f010"},
+[40]={8,17,-2,-12,4.0000,"f030030940010d0740070d500c0940010f0640030f0440030f0440020f0540010f06500c0950070d50010d07500309f010"},
+[41]={8,17,-2,-12,4.0000,"f010070550040f03500b0a50060f0140030f0540010f0740010f0840020f0740030f0540060f01400b0a40040f03400705f030"},
+[42]={10,13,-2,-11,6.0000,"f07019500301180102300a0f1d0e0a40030f0e04501a0b0940010a02030af0f0f040"},
+[43]={10,12,-2,-10,6.0000,"f0700b0e700b0e50060a1f0a0730093f0b500b0e700b0e700b0ef0f010"},
+[44]={7,8,-2,-4,3.0000,"f0020f0730020f0630050f03300708f000"},
+[45]={9,9,-2,-7,5.0000,"f03002170640041f0df0f0f0"},
+[46]={8,6,-2,-4,4.0000,"f010010d0940010d0af020"},
+[47]={9,14,-2,-11,4.0000,"f050050e60090a600e0650030f0250070d600b0850010f0450050e60090b600d07f060"},
+[48]={11,13,-2,-11,7.0000,"f080040c0e0a0140010e0d090f0840040f07000e0c40060f06000c0e40060f06000c0f40050f06000c0e40040f07000e0d500e0d090f0850040d0e0a01f080"},
+[49]={11,13,-2,-11,7.0000,"f090040a08600d1f086009070f0870040f0870040f0870040f0870040f0870040f0870040f08f090"},
+[50]={11,13,-2,-11,7.0000,"f080050d0f0b0240030f0d0a0f0a40070f05000f0c70020f09700b0f0260080f0660050f0a60031f081740064f01f070"},
+[51]={11,13,-2,-11,7.0000,"f080050d0e0a0140020f0d0a0f0940060f06000f0b6005090f06602f0270020f0b40070f04000e0d40030f0c0a0f0a50060d0e0a01f080"},
+[52]={11,13,-2,-11,7.0000,"f0a01f0560041f05600c1f0550050f090f05500d09070f0540060f090e0f0c0130084f0260070f0570070f05f080"},
+[53]={11,13,-2,-11,7.0000,"f0800c2f0b501d1806500f0970010f1e0c0240010b0a080f0b800d0e40050f07000d0e40011e090f0a50040c0e0a01f080"},
+[54]={11,13,-2,-11,7.0000,"f090050c0d60060f0d08601d0160030f0d0e0d0340051f090f0c40050f0b000b0f0130030f08000b0f500d0e090f0b50030c0e0b02f080"},
+[55]={11,13,-2,-11,7.0000,"f070084f4004270f0d70040f07700a0f0260010e0b70060f06700c0e0160030f0a70090f04f0a0"},
+[56]={11,13,-2,-11,7.0000,"f080040d0f0b0140010f0e0a0f0940030f09010f0b500d0e0b0f0650082f0340030f0a020f0b40050f07000d0e40020f0d090f0b50060d0f0b02f080"},
+[57]={11,13,-2,-11,7.0000,"f080040c0e0850010e0d0a0f0640050f06000e0b40060f06000f0d40020f0d080f0d50070e0c0f0b70040f0750020a0e0d0150040e0a02f090"},
+[58]={8,11,-2,-9,4.0000,"f010010d0940010d0af0c0010d0940010d0af020"},
+[59]={7,13,-2,-9,3.0000,"f0010d0930010d0af080020f0730020f0630050f03300708f000"},
+[60]={10,11,-2,-9,6.0000,"f080040b50040c0f0e400c0f0d0601400c0f0c0660040c0f0e70040bf0f000"},
+[61]={11,11,-2,-9,7.0000,"f07001380540023f0af0a0023f0a40013805f0f030"},
+[62]={10,11,-2,-9,6.0000,"f050030a0360031f0a035001070e0f094001070e0f0930031f0a0340030a03f0f020"},
+[63]={10,13,-2,-11,6.0000,"f060091e0740060f0b0d0f0330090f03080f0450011d01500b0e02600f09f000010d0760020e08f070"},
+[64]={14,16,-2,-11,10.0000,"f0f001090e0f0c0460010c0a0302050e0450080b30040d500e04010b0f0e000d0330040e000a0b060f000b0530060c000f150d000a0630070b020f03080c000c0430060c010f070f0d030e0130040e00080e080d0e05500e06b0050e07130580040c1e08f0f000"},
+[65]={12,13,-2,-11,8.0000,"f0b0021f80071f03700c0e0f0860010f090c0d60060f05080f03501f090c0f0840014f0c40060f08100b0f02300b0f0410070f07f090"},
+[66]={11,13,-2,-11,7.0000,"f070042f0d0840040f0c080d0f0530040f0900050f0730041f0b0d0f0330043f0d0130040f0900060f0830040f0900030f0a30041f080c0f0730042f0e09f080"},
+[67]={12,13,-2,-11,7.0000,"f0a0020a1e0901500c0f090b0f0940040f09101e40060f0780060f0780060f0780040f09101e500d0f090b0f0950020b1e0901f0a0"},
+[68]={11,13,-2,-11,7.0000,"f070041f0e0b0340041f091e0230040f0900050f0830040f0900020f0a30040f0900020f0b30040f0900020f0a30040f0900050f0830041f091e0230041f0e0b03f080"},
+[69]={11,13,-2,-11,6.0000,"f070044f40041f2840040f0970041f180440043f0840040f0970040f0970041f2840044f01f070"},
+[70]={10,13,-2,-11,6.0000,"f050043f0d30041f180730040f0960041f180430043f0830040f0960040f0960040f0960040f09f080"},
+[71]={12,13,-2,-11,8.0000,"f0a0020a1e0a01500c0f0a0b0f0940030f0a100d0e40050f0780060f07012640050f07022f40030f0a100c0f500c0f0a090e0f50020a1e0c05f0a0"},
+[72]={12,13,-2,-11,8.0000,"f090040f0910090f0330040f0910090f0330040f0910090f0330041f181f0330045f0330040f0910090f0330040f0910090f0330040f0910090f0330040f0910090f03f090"},
+[73]={8,13,-2,-11,4.0000,"f010030f0a40030f0a40030f0a40030f0a40030f0a40030f0a40030f0a40030f0a40030f0af020"},
+[74]={10,13,-2,-11,6.0000,"f080030f0a60030f0a60030f0a60030f0a60030f0a60030f0a300a0f03040f0930060f1c0f0540091e08f060"},
+[75]={12,13,-2,-11,7.0000,"f090040f0900050f0d40040f09010d0f0340040f09080f0850040f0c0f0e60043f60043f0650040f0d030f0d50040f09000a0f0740040f0900030f0e01f090"},
+[76]={10,13,-2,-11,6.0000,"f050040f0960040f0960040f0960040f0960040f0960040f0960040f0960041f180730043f0df050"},
+[77]={14,13,-2,-11,10.0000,"f0d0041f0310051f0130041f08100a1f0130041f0c100e1f0130040f0e0f02040f0d0f0130040f0a0f06090e0a0f0130040f080d0b0d1a0f0130040f181f050b0f0130040f08041f010b0f0130040f08000e0c000b0f01f0d0"},
+[78]={12,13,-2,-11,8.0000,"f090040f0c10080f0330041f0400080f0330041f0c00080f0330040f0e0f05080f0330040f080d0c090f0330040f08060f0d0f0330040f08000d1f0330040f0800061f0330040f08100d0f03f090"},
+[79]={12,13,-2,-11,8.0000,"f0a0010a0e0d0901500c0f0a0b0f0940030f0a100c0f0130050f07100a0f0330060f0710090f0430060f07100a0f0330030f0a100c0f01400c0f0a0b0f0a50020a1e0901f0a0"},
+[80]={11,13,-2,-11,7.0000,"f070042f0e0840040f0c080c0f0730040f0900010f0c30040f0900010f0d30041f080c0f0830042f0e090130040f0970040f0970040f09f0b0"},
+[81]={12,15,-2,-11,8.0000,"f0a0010a0e0d0901500c0f0a0b0f0940030f0a100d0f0130060f07100a0f0330060f0710090f0430060f07100a0f0330030f0a100c0f01400c0f0a0d0f0950020a0e1f0380040f0d01800509f0a0"},
+[82]={11,13,-2,-11,7.0000,"f070042f0e0840040f0c080d0f0530040f0900040f0930040f0900040f0830041f080d0f0430043f0940040f09030f0c40040f09000b0f0430040f0900040f0bf070"},
+[83]={11,13,-2,-11,7.0000,"f080050c0f0c0440020f0e091e0230050f0800070f0630021e070160030b0f0e0670030c0f0430070f0600060f0730020f0e080d0f0440050c0e0d06f080"},
+[84]={11,13,-2,-11,7.0000,"f0700a4f0b3006082f080650060f0770060f0770060f0770060f0770060f0770060f0770060f07f090"},
+[85]={11,13,-2,-11,7.0000,"f070050f0800020f0b30050f0800020f0b30050f0800020f0b30050f0800020f0b30050f0800020f0b30050f0800020f0b30040f0900020f0b30011e090c0f0740040c0f0e08f080"},
+[86]={12,13,-2,-11,8.0000,"f0900b0f04100b0f0330060f07100f0e40020f0b00040f09500c0e00070f0550080f040b0f0150040f080e0b700e1f07700a1f0270050f0ef0c0"},
+[87]={14,13,-2,-11,10.0000,"f0d0090f03001f00070f0630060f05031f00090f0330040f08061f020b0f40010f0a081f050e0c500d0c1b0e090f0a500a0f0e080b0e0f0750081f05081f0450051f02051f0150021f00021ff0f0"},
+[88]={12,13,-2,-11,7.0000,"f090070f0900040f0b40010e0f010a0f0450070f090f0b60010e1f0470090f0e70010e1f0560080f080f0c50011e000b0f0540080f0800040f0cf0a0"},
+[89]={11,13,-2,-11,7.0000,"f0700a0f0400040f0b30040f0a00090f05400c0e010e0d50060f090f07600e0f0e0160080f0970060f0770060f0770060f07f090"},
+[90]={11,13,-2,-11,7.0000,"f070084f063004281f0360050f09700d0e0160080f0660020e0c700a0f0460041f280430084f07f070"},
+[91]={8,17,-2,-13,3.0000,"f010041f0230040f0b0130040f0740040f0740040f0740040f0740040f0740040f0740040f0740040f0740040f0740040f0a0130041f02f010"},
+[92]={10,14,-2,-11,5.0000,"f0500c0f0160070f0660020f0a700c0f0160070f0560020f0a700c0e0160080f0560030f0a700d0ef060"},
+[93]={7,17,-2,-13,3.0000,"f00c0f0a30060f0a30010f0a30010f0a30010f0a30010f0a30010f0a30010f0a30010f0a30010f0a30010f0a30060f0a300c0f0af0"},
+[94]={9,13,-2,-11,5.0000,"f040040f0550090f0a500d0a0e40030f020f0530080d000b09f0f0f070"},
+[95]={10,6,-2,-2,5.0000,"f0500d3f01300637f060"},
+[96]={8,14,-2,-12,4.0000,"f010040f0a50050f04f0f0f0f0f010"},
+[97]={10,11,-2,-9,6.0000,"f060070d0e0940030f0b0a0f0530010301050f0740090e1f0730060f07060f0730070f090e0f0730010b0e0b0f09f050"},
+[98]={10,14,-2,-12,6.0000,"f050050f0760050f0760050f0760050f0c0e0c0330051f090f0b30050f0b000d0e30050f0a000c0f30050f0b000c0e30051f090f0b30050f0a0e0d03f050"},
+[99]={10,11,-2,-9,6.0000,"f060060d0e0940030f0c0b0f0530070f04020f0930080f0460070f04020f0930030f0c0b0f0540060d0e08f060"},
+[100]={10,14,-2,-12,6.0000,"f0900f0c700f0c700f0c40090e0a0f0c30040f0c0a0f0c30080f04000f0c30090f03000f0c30080f04000f0c30040f0c0a0f0c40090e0a0e0cf050"},
+[101]={10,11,-2,-9,6.0000,"f060050d0e0a0130020f0d090f0830060f09040e0b30073f0d30060f0560020f0d080b0740050d0e0c04f050"},
+[102]={9,14,-2,-12,4.0000,"f040030d0f02400c0f0901400e0d500b1f0e40041f05500e0d600e0d600e0d600e0d600e0df050"},
+[103]={11,14,-2,-9,7.0000,"f080080e0c1d40040f0d090f0d40070f05000f0d40080f03000f0d40070f05000f0d40040f0c090f0d50080e0b0f0d800e0d500a08090f0950091e0a01f080"},
+[104]={10,14,-2,-12,6.0000,"f050060f0660060f0660060f0660060f0b0e0c0230061f0a0f0930060f09010f0b30060f07000f0b30060f06000f0b30060f06000f0b30060f06000f0bf050"},
+[105]={7,14,-2,-12,3.0000,"f0020d0530030e06a0040f0830040f0830040f0830040f0830040f0830040f0830040f08f0"},
+[106]={8,17,-3,-12,3.0000,"f020030d0540030e06c0040f0840040f0840040f0840040f0840040f0840040f0840040f0840040f0830030b0f0630050f0af020"},
+[107]={11,14,-2,-12,6.0000,"f070050f0770050f0770050f0770050f07060f0a40050f071e0140052f0550052f0650051f0e0d50050f170f0740050f07011e01f070"},
+[108]={7,14,-2,-12,3.0000,"f0040f0830040f0830040f0830040f0830040f0830040f0830040f0830040f0830040f0830040f08f0"},
+[109]={14,11,-2,-9,10.0000,"f0d0050f0a1d050d0e0540051f0a1f090f0c40050f0b011f000d0e40050f08010f0c000c0f40050f07010f0b000c0f40050f07010f0b000c0f40050f07010f0b000c0ff0e0"},
+[110]={10,11,-2,-9,6.0000,"f050060f0a1d0230061f0a0f0930060f0a010f0b30060f07000f0b30060f06000f0b30060f06000f0b30060f06000f0bf050"},
+[111]={11,11,-2,-9,6.0000,"f080050d0e0a0140020f0d090f0940070f05000d0e40080f04000c0f40070f05000d0e40020f0d090f0950050d0e0a01f080"},
+[112]={10,14,-2,-9,6.0000,"f050050f0b0e0c0330051f090f0b30050f0b000d0e30050f0a000c0f30050f0b000d0e30051f090f0b30050f0c0e0c0230050f0760050f0760050f07f080"},
+[113]={10,14,-2,-9,6.0000,"f060090e0a0e0c30040f0c090f0c30080f04000f0c30090f03000f0c30080f04000f0c30040f0c0a0f0c40090e0b0f0c700f0c700f0c700f0cf050"},
+[114]={9,11,-2,-9,4.0000,"f030050f0a0e0130051f0c40050f0d50050f0750050f0750050f0750050f07f050"},
+[115]={10,11,-2,-9,6.0000,"f060091e0840050f090b0f0430050f0a03020140091f09400204020b0f0530070f080a0f0540091e08f060"},
+[116]={8,13,-2,-11,4.0000,"f010010f0b40010f0b400d1f0a30051f0330010f0b40010f0b40010f0b500f0e0640070e0af010"},
+[117]={10,11,-2,-9,6.0000,"f050060f06000f0c30060f06000f0c30060f06000f0c30060f06000f0c30050f06000f0c30030f0c0a0f0c400a0e0a0e0cf050"},
+[118]={10,11,-2,-9,6.0000,"f0500a0f02050f0830060f05080f0430020f080b0e500d0b0d0b50091f0750051f0250011ff070"},
+[119]={12,11,-2,-9,8.0000,"f0900a0f000e0f000c0d30070f031f010e0a30040f071f070f0730010f0c0e1c0f04400d0f0b081f01400a0f07040f0d50070f04010f0af0a0"},
+[120]={10,11,-2,-9,6.0000,"f050070f06070f0630010e2d50081f0550031f0150091f0740010f0c0d0e0130080f05060f07f050"},
+[121]={10,14,-2,-9,6.0000,"f0500b0f02050f0830070f05080f0430030f080b0e500e0c0e0b500a1f0750061f0250021f60010f0a50020b0f0450030e09f080"},
+[122]={10,11,-2,-9,6.0000,"f050063f053003171f0250060f0750010e0c600a0f0450041f170330073f05f050"},
+[123]={8,16,-2,-12,4.0000,"f0300a0540070f02400a0d501c501c40040f08401f0340010e0b501c500b0d50080f0240010a05f010"},
+[124]={7,15,-2,-11,3.0000,"f0000d03400d03400d03400d03400d03400d03400d03400d03400d03400d03400d03f0"},
+[125]={8,16,-2,-12,4.0000,"f010070850040f05500f08500e0a500e0a500a0e0340040f0c401c500e0a500f0940040f06400709f030"},
+[126]={11,9,-2,-7,7.0000,"f080080e07000b0830020f0a0f0a0f0530050f00040e0bf0f0e0"},
+[8212]={13,10,-2,-8,9.0000,"f0b002680230046f03f0f0f0f0f0"},
+[183]={8,9,-2,-7,4.0000,"f010010d0840010d09f0f0a0"},
+},
+[16]={
+[32]={8,4,-2,-2,4.0000,"f0f0"},
+[33]={8,16,-2,-14,4.0000,"f0201f04401f04400e0f03400e0f03400e0f03400d0f02400d0f02400c0f01400c0f01c00c0e02400c0e02f010"},
+[34]={9,16,-2,-14,5.0000,"f030080f010e0930080f000e0830080e000e0730080c000e05f0f0f0f0f0b0"},
+[35]={12,16,-2,-14,8.0000,"f0c00d08060e700f06090c60020f030b0a5005090f070f0d05400e4f0e50080c020f03601a040f0140065f063002050f0b0e0f050240010f041a60030f020c0860060f000e06f0b0"},
+[36]={12,20,-2,-16,8.0000,"f0c0040d90040d80081f0a0150071f0e0f0b500c0f07021f02400d0f05000d0f04400b0f0c0170030e0f0e0670020b1f0980061f0230040f0e100e0f0430011f03011f04400a0f1e0f0d5001091f0b0270070b90070bf0c0"},
+[37]={14,16,-2,-14,10.0000,"f0e0060e0d0480010f090b0d00030750030f03060f000b0950010f090b0d040f0260071e040b09a0040f02a00c09a0040f030c0f0a700c190e070f0550040e010b0a000e0850060800090e060f0580010c0f0af0e0"},
+[38]={13,16,-2,-14,9.0000,"f0d0071e0870041f0e0f0560080f06040f0960080f07050f0860042f0e02702f0370082f04080f0530020f0e090f0d0b0f0430060f0c000c1f0e40050f0e01041f0d40010e0f1e1f0e0140030b0f0e090d0f0af0b0"},
+[39]={7,16,-2,-14,3.0000,"f0080f0230080f0230080f0130080ef0f0f0f080"},
+[40]={9,21,-2,-15,5.0000,"f060050750030f08500b0d50030f0750080f03500c0f600e0d600f0c50010f0c600f0c600e0d600c0f60080f0350030f07600c0d60030f08600507f030"},
+[41]={9,21,-2,-15,5.0000,"f030050760050f05600b0e0150050f0750010f0c600d0f01500b0f03500a0f0450090f05500a0f04500b0f03500d0f0140010f0c50050f07500b0e0140050f06500507f060"},
+[42]={12,16,-2,-14,7.0000,"f0c00f076001100f0660080d070e080a0d4004090d1f0b07600b1e0260090f030d0c60060700040a01f0f0f0f0f060"},
+[43]={12,13,-2,-11,8.0000,"f0b0040f0d80040f0d80040f0d60075f0130075f0150040f0d80040f0d80040f0df0f080"},
+[44]={8,9,-2,-4,4.0000,"f0200e0f500e0f500f0d40050f0840050c01f020"},
+[45]={10,10,-2,-8,6.0000,"f050012c0940012f0bf0f0f0e0"},
+[46]={9,7,-2,-5,5.0000,"f0400305600e0f07500a0e04f040"},
+[47]={10,17,-2,-14,5.0000,"f0800a0d700e0a60030f0660070f02600b0d60010f0960040f0560080f01601c60010f0860050f0460090f700d0bf090"},
+[48]={12,16,-2,-14,8.0000,"f0b0081e0960080f1e0f09500e0f04020f0e40021f100e0f0330030f0e100d0f0530040f0e100d0f0530040f0e100d0f0530030f0e100d0f0530021f100e0f03400d0f04031f0140070f1e0f0960081e0901f0a0"},
+[49]={12,16,-2,-14,8.0000,"f0c003090860040b1f09600c0f0e0f09600603090f0980090f0980090f0980090f0980090f0980090f0980090f0980090f0980090f09f0b0"},
+[50]={12,16,-2,-14,8.0000,"f0a001091e0a01500b0f1e0f0b40031f02041f0130060f0c00011f0270031f01700a0f0a70050f0e0260020e0f06700c0f0a70080f0e0160031f0e2c0630045f07f090"},
+[51]={12,16,-2,-14,8.0000,"f0a0020b1e090140010e0f0e1f0a40050f0e01041f0170011f0270040f0e60040e1f0560062f0580040f0e01800e0f0430060f0d00021f0330020e0f0e1f0b50030b0e0d0901f0a0"},
+[52]={12,16,-2,-14,8.0000,"f0d01f0970061f08700d1f0860060f0d0f08600e0c090f0850070f06090f0840011e00090f0840060f0e0c2f0630075f0870090f0880090f0880090f08f0a0"},
+[53]={12,16,-2,-14,8.0000,"f0a0084f50090f0e2d500a0f04800c0f03800d0f0c0e0c02500e0f0c0e0f0c50010300021f03800c0f05800d0f0530031f121f02400b0f1e0f0a5001091e0a01f0a0"},
+[54]={12,16,-2,-14,8.0000,"f0c0070c0f700a1f0e60050f0e04700b0f0670011f0a0e0d0340022f0e0f0e0130031f02010e0f0530031f100b0f0730011f01000b0f07400d0f05010e0f0440061f0e0f0c60071e0a01f0a0"},
+[55]={12,16,-2,-14,8.0000,"f090075f0630063c1f0570020f0e0170070f0a800d0f0570030f0e80080f0a800d0f0570040f0e80090f0a800e0f0570050f0ef0d0"},
+[56]={12,16,-2,-14,8.0000,"f0a001091e0a0150091f0e0f0a500e0f05041f501f03021f01400c0f05040f0d50043f0550043f05500e0f05041f0130021f100e0f0430021f03021f03400c0f1e0f0d50010a1e0b02f0a0"},
+[57]={12,16,-2,-14,8.0000,"f0b0081e0860080f1e0f0740010e0f03040f0e40030f0e101f0230040f0e101f0330021f02011f04400b0f0e0d1f0340020b0e0a1f0170040f0c70030d0f06600c1f0b700c0d07f0c0"},
+[58]={8,13,-2,-11,4.0000,"f0200305500e0f07400a0e04f0c00305500e0f07400a0e04f010"},
+[59]={8,16,-2,-11,4.0000,"f0200305500e0f07400a0e04f0f0400e0f500e0f500f0d40050f0840050c01f020"},
+[60]={11,13,-2,-11,7.0000,"f0b0020a025001091f023001080e1f0901300c1f0902500c1f08025001080e1f09015001091f0270020a02f0f020"},
+[61]={12,12,-2,-10,8.0000,"f0a00c3d0c500e4ff0d00e4f500c4df0f0f020"},
+[62]={11,13,-2,-11,7.0000,"f070010b0370011f0a0260080e1f09025001070e1f5001070e1f40080e1f090230011f0a0250010b03f0f060"},
+[63]={11,16,-2,-14,7.0000,"f080060d0f0d0540041f0e1f0330080f0b000c0f07700b0f0760031f0250010d0f0760060f0b70090f06f0200205800b0f0770080e04f090"},
+[64]={16,19,-2,-13,12.0000,"f0f04001090d0f0d090170030e0d0605071d01600d0c0120010c0a50060f0201090e0f05040f02400c0b00090f070f0d000e0630010f06010f08000e08000c0830030f04050f04000f07000b0930050f02070f03020f06000c0730040f02070f03060f05010f0430040f03040f0a0d0f190d40020f0600090e180e0d03500d0bd0060f06d00a0f0a16090490060c0f0e0b03f0f040"},
+[65]={14,16,-2,-14,10.0000,"f0f000061fa00b1f0480012f0880050f0e0f0d80090f070e0f02700d0f030a0f0760030f0e00060f0b60070f0b00021f01500d1f1d1f0540016f0a40060f0e20060f0e400a0f0b20021f04f0d0"},
+[66]={13,16,-2,-14,9.0000,"f0b0013f0d0750011f1e1f0840011f0300080f0d40011f0300041f40011f0300060f0d40015f0540015f0540011f0300060f0e40011f0300011f0330011f0300051f0230012f0e1f0b40013f0e0a01f0c0"},
+[67]={13,16,-2,-14,9.0000,"f0d0050c0f0e0a0150051f0e1f0c500d0f0800010e0f0530021f02100a0f0830041f90041f90041f90041f90021f02100b0f08400d0f0800010e0f0540061f0e1f0d60050c0f0e0901f0c0"},
+[68]={13,16,-2,-14,9.0000,"f0b0012f0e0b0350015f0340011f03000a0f0c40011f0300021f0230011f03101f0430011f03101f0430011f03101f0430011f03101f0430011f0300021f0230011f0300090f0c40012f0e1f0340012f0e0b03f0d0"},
+[69]={12,16,-2,-14,8.0000,"f090015f0630012f2e0630011f0370011f0370011f0370012f1c0a40014f0c40011f0370011f0370011f0370012f2d0630015f07f090"},
+[70]={12,16,-2,-14,8.0000,"f090015f0330012f2e0330011f0370011f0370011f0370012f1d0a40014f0c40011f0370011f0370011f0370011f0370011f03f0d0"},
+[71]={13,16,-2,-14,9.0000,"f0d0050c0f0e0a0250051f0e1f0d01400d0f0900010e0f0530021f03100a0f0930031f0180041f00032b0730041f00042f0a30031f01100a0f0a30021f03100a0f0a400d0f0a100b0f0a40052f0e1f0750040c0f0e0c05f0c0"},
+[72]={14,16,-2,-14,10.0000,"f0d0011f0310060f0d40011f0310060f0d40011f0310060f0d40011f0310060f0d40011f0310060f0d40012f1d1f0d40016f0d40011f0310060f0d40011f0310060f0d40011f0310060f0d40011f0310060f0d40011f0310060f0df0e0"},
+[73]={8,16,-2,-14,4.0000,"f0201f04401f04401f04401f04401f04401f04401f04401f04401f04401f04401f04401f04f010"},
+[74]={12,16,-2,-14,8.0000,"f0d0050f0e80050f0e80050f0e80050f0e80050f0e80050f0e80050f0e80050f0e40090f0a00050f0e40070f0d01090f0b40020e3f0550030c0f0d06f0b0"},
+[75]={13,16,-2,-14,9.0000,"f0b0011f0300031f0830011f03000b0f0d0130011f03041f0540011f030c0f0a50011f090f0e0250014f60014f0350012f0e0f0a50011f07051f0340011f03000d0f0a40011f0300071f0330011f0300010e0f0af0b0"},
+[76]={12,16,-2,-14,8.0000,"f090011f0370011f0370011f0370011f0370011f0370011f0370011f0370011f0370011f0370011f0370012f2d0330015f04f090"},
+[77]={16,16,-2,-14,12.0000,"f0f010011f0d300c1f0330012f0210012f0330012f0710052f0330012f0b10092f0330011f0e0f01000d1e0f0330011f0b0f04030f0a0e0f0330011f070f09070f061f0330011f030f0d0b0f021f0330011f020c1f0d001f0330011f02081f09001f0330011f02041f05001f0330011f02000e0f01001f03f0f010"},
+[78]={14,16,-2,-14,10.0000,"f0d0011f0510040f0d40011f0c10040f0d40012f0400040f0d40012f0b00040f0d40011f0e0f140f0d40011f080f0b040f0d40011f020e0f070f0d40011f01070f0e0f0d40011f110e1f0d40011f0100081f0d40011f0100011f0d40011f0110090f0df0e0"},
+[79]={14,16,-2,-14,10.0000,"f0f0040c0f0e090160044f0d01500c0f0a00020e0f0740021f0310080f0b40031f0110060f0d40041f20050f0e40041f20050f0e40041f0110060f0d40021f0310080f0b500d0f0a00020d0f0750044f0d0160040c0f0e0a02f0f0"},
+[80]={13,16,-2,-14,9.0000,"f0b0013f0e090140011f1e1f0b40011f0300041f0330011f03100e0f0630011f03100d0f0730011f0300041f0430012f0e1f0c40013f0e090140011f0380011f0380011f0380011f03f0f000"},
+[81]={14,18,-2,-14,10.0000,"f0f0040c0f0e090160044f0d01500d0f0a00020e0f0740021f0310080f0b40041f20060f0d40041f20060f0e40041f20060f0e40041f0110060f0d40021f0310090f0b500c0f0a00020e0f0750044f0d0160040c2f0ca0020d0f0aa0020b02f0e0"},
+[82]={13,16,-2,-14,9.0000,"f0b0013f0d0850011f1e1f0940011f0300070f0e0130011f0300021f0230011f0300021f0230011f0300080f0e40012f0e1f0640014f0d50011f03060f0e0140011f03010e0f0740011f0300080f0e40011f0300021f06f0b0"},
+[83]={13,16,-2,-14,9.0000,"f0c001080d0e0c04600a1f0e1f0340021f04000b0f0a40031f0200060f0d40010e0f0d0580040e1f0c037002092f0480020c0f0c40060f0e10050f0e40031f0400070f0d500a1f0e1f075001070d0e0d06f0d0"},
+[84]={13,16,-2,-14,9.0000,"f0b0096f0430081e2f1e04600c0f07900c0f07900c0f07900c0f07900c0f07900c0f07900c0f07900c0f07900c0f07900c0f07f0e0"},
+[85]={13,16,-2,-14,9.0000,"f0b0031f02101f0530031f02101f0530031f02101f0530031f02101f0530031f02101f0530031f02101f0530031f02101f0530031f02101f0530021f02101f04400e0f0600041f0240091f0e1f0a60080d0f0d0901f0c0"},
+[86]={14,16,-2,-14,9.0000,"f0d00a0f0b20080f0e40060f0e200b0f0a40021f03100e0f06500d0f0600031f0250090f0a00060f0d60050f0d000a0f0960011f010d0f04700c0f061f0170080f0d0f0b80042f07900e1f03900b1ff0f010"},
+[87]={16,16,-2,-14,12.0000,"f0f010080f0a00011f01000a0f0930060f0d00031f04000c0f0630031f00061f06000e0f0330011f02091f09011f01400d0f040b1f0c040f0d500b0f060e1d0e060f0b50080f0a0f0b0a0f0a0f0850062f08072f0650032f152f0350012f122f01600d1f100e0f0d700a0f0b100b0f0bf0f030"},
+[88]={13,16,-2,-14,9.0000,"f0b0071f0200011f0630010e0f0800070f0e50070f0e000d0f0750010e0f090f0e0160082f0870022f0270032f02700a2f0960021f081f0150090f0c000e0f0840010e0f0600080f0e0130080f0e0100021f07f0b0"},
+[89]={13,16,-2,-14,9.0000,"f0b00a0f0c10021f0530041f0100060f0e500d0f06000b0f0850070f0b011f0250011f070f0b700a0f0e0f0570041f0e900d0f08900c0f07900c0f07900c0f07900c0f07f0e0"},
+[90]={12,16,-2,-14,8.0000,"f090076f30063e1f0d70010e0f0470080f0b70021f0370090f0a70031f02700b0f0970040f0e02700c0f0870041f0e3d30066ff090"},
+[91]={8,20,-2,-15,4.0000,"f010021f0d30021f0a30021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0130021f0a30021f0df010"},
+[92]={11,17,-2,-14,6.0000,"f0700c0f0770070f0c70021f01700d0f0670080f0a70030f0e01700e0f0570090f0970050f0e70010e0f03700a0f0870060f0d70011f02f070"},
+[93]={8,20,-2,-15,4.0000,"f0100b1f0430081f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f04400d0f0430081f04300b1f04f010"},
+[94]={10,16,-2,-14,6.0000,"f0701f0250021f0650070f0d0b501c080f0130020f08040f0630070f04000e0bf0f0f0f0f010"},
+[95]={11,6,-2,-2,6.0000,"f0700d4f03300a4c02f070"},
+[96]={9,16,-2,-14,5.0000,"f030020d0f0450020d0e02f0f0f0f0f0f0d0"},
+[97]={12,13,-2,-11,8.0000,"f0a0020b1e0850010d0f0c0e0f0740021a00080f0a80070f0b50040c0e1f0b40021f070b0f0b40060f0c00090f0b40041f0c1f0b50060e0d090f0ef0a0"},
+[98]={12,16,-2,-14,8.0000,"f090031f80031f80031f80031f080e0d0440031f1e0f0e40031f111f0430031f100c0f0530031f100c0f0630031f100c0f0530031f110e0f0330031f1e0f0d40030f0d080e0d04f0a0"},
+[99]={11,13,-2,-11,7.0000,"f080020b1e0901400c0f1e0f0830030f0e01040f0d30060f0b70070f0b70060f0b70030f0e00040f0d400c0f1e0f0840010b1e08f080"},
+[100]={12,16,-2,-14,8.0000,"f0d0011f0170011f0170011f0140040d0e081f0130010e0f0e2f0130050f0e01041f0130070f0b00011f0130070f0b00011f0130060f0b00011f0130040f0e01041f01400e0f0e2f0140030d0e070e0f01f090"},
+[101]={12,13,-2,-11,8.0000,"f0a0010a1e0a01500b0f1e0f0940021f01021f40051f181f0230065f0330050f0d80021f02000203500b0f0e0d0f0d5001091e0c04f0a0"},
+[102]={10,16,-2,-14,5.0000,"f070081e0140061f0d0140090f0a500b2f0d40072f08500a0f08600a0f08600a0f08600a0f08600a0f08600a0f08600a0f08f070"},
+[103]={12,16,-2,-11,8.0000,"f0a0030c0f0a0c0f04400e0f1e1f0430041f111f0430060f0c101f0430070f0b101f0430060f0c101f0430040f0e111f04400d0f1e1f0440030c0f091f04401200031f0240090f0c0e0f0c50040c1e0a01f0a0"},
+[104]={12,16,-2,-14,8.0000,"f090040f0e80040f0e80040f0e80040f0e090e0c0340041f1e0f0c40041f01041f40041f00021f0130041f00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f01f090"},
+[105]={8,17,-2,-15,4.0000,"f0201340021f0230011d01b0011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f02f010"},
+[106]={9,20,-3,-15,4.0000,"f0501350021f0140011d01d0011f0240011f0240011f0240011f0240011f0240011f0240011f0240011f0240011f0240031f0130060e0f0d40060f0c03f040"},
+[107]={12,16,-2,-14,8.0000,"f090031f80031f80031f80031f00071f0230031f010e0f0740031f090f0c50033f0350033f0650033f0d50031f010e0f0640031f00080f0d40031f00011f06f090"},
+[108]={8,16,-2,-14,4.0000,"f010011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f0230011f02f010"},
+[109]={16,13,-2,-11,12.0000,"f0f010030f0e080e0d03090e0c0340031f1e1f1e0f0b40031f02041f02041f40031f00021f00021f0130031f00021f00021f0130031f00021f00021f0130031f00021f00021f0130031f00021f00021f0130031f00021f00021f01f0f010"},
+[110]={12,13,-2,-11,8.0000,"f090040f0d080e0d0340041f1e0f0c40041f01041f40041f00021f0130041f00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f01f090"},
+[111]={12,13,-2,-11,8.0000,"f0a0010a1e0a01500b0f1e0f0a40031f121f0230050f0c100d0f0430060f0b100c0f0630050f0c100d0f0430031f121f02400b0f1e0f0a50010a1e0901f0a0"},
+[112]={12,16,-2,-11,8.0000,"f090030f0d080e0d0440031f1e0f0e40031f111f0330031f100d0f0530031f100c0f0630031f100d0f0530031f111f0330031f1e0f0d40031f080e0d0340031f80031f80031ff0e0"},
+[113]={12,16,-2,-11,8.0000,"f0a0040d0e080e0f0230010e0f0e2f0230050f0e01031f0230070f0b00011f0230070f0b00011f0230060f0b00011f0230040f0e01031f02400e0f0e2f0240040d0e091f0270011f0270011f0270011f02f090"},
+[114]={9,13,-2,-11,5.0000,"f030030f0e090e30033f30031f070330031f50031f50031f50031f50031f50031ff050"},
+[115]={11,13,-2,-11,7.0000,"f080030c0e0d0740010e0f0b0e0f0630040f0d00060a0630021f0a0360060e1f0a015001081f0830050c0700080f0a30031f0b0e0f0640040c0f0d07f080"},
+[116]={9,15,-2,-13,5.0000,"f0400c0f05500c0f05400c2f0830082f05400c0f05500c0f05500c0f05500c0f05500c0f06500a0f0e0740030c0f07f030"},
+[117]={12,13,-2,-11,8.0000,"f090040f0e00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f0130040f0e00021f0130030f0e00021f0130021f01051f01400e0f0e2f0140040d0e071f01f090"},
+[118]={11,13,-2,-11,7.0000,"f0700a0f0900070f0c30060f0c00090f0830020f0e000c0f05400d0f031f01400a0f080f0c50060f0e0f0850022f04600d1f0160090f0bf090"},
+[119]={14,13,-2,-11,10.0000,"f0d00a0f07001f00050f0b30070f09011f03070f0830040f0b041f060a0f0530010f0e081f090c0f02400d0f0c0d0c0d1e500a1f0a081f0c50071f06051f0950041f03011f0650011f101f03f0e0"},
+[120]={12,13,-2,-11,7.0000,"f090060f0d00090f0b40010e0f060e0f0350072f0b60010e1f03700b0f0e70022f0560090f0e0f0c50010e0f040e0f0440080f0c00080f0cf0a0"},
+[121]={11,16,-2,-11,7.0000,"f0700b0f0900060f0d30070f0c000a0f0830021f010d0f04400d0f050f0e50090f0c0f0b50052f0650012f02600c0f0d700b0f09700b0f0450010d0f0e60010e0d04f0a0"},
+[122]={11,13,-2,-11,7.0000,"f070044f0830031c0d1f0660060f0d60010e0f0460080f0a60021f02600b0f0860041f0d1c0730064f09f070"},
+[123]={9,19,-2,-14,5.0000,"f050030c0240011e0240050f0950070f0750070f0750090f0640070f0e01400d0f0a50010c0f0450080f0750070f0750070f0750050f0950011e0250030c02f030"},
+[124]={8,18,-2,-14,4.0000,"f0200a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0b500a0bf020"},
+[125]={9,19,-2,-14,5.0000,"f030050b0250040f0c600c0f02500b0f04500b0f04500a0f0550041f0440010d0f0840070f08500a0f04500b0f04500b0f03500d0f0140050f0b50050a01f050"},
+[126]={13,11,-2,-9,9.0000,"f0c0021d0300080f01400b0f1e010b0e40010f0a021e0f0a40020f0700040e0c01f0f0f0f030"},
+[8212]={15,11,-2,-9,11.0000,"f0f0018d0130018f01f0f0f0f0f0f0a0"},
+[183]={9,11,-2,-9,5.0000,"f0400305600d0f05500a0e03f0f0f080"},
+},
+[17]={
+[32]={8,4,-2,-2,4.0000,"f0f0"},
+[33]={8,16,-2,-14,4.0000,"f0200e0f07400e0f07400d0f06400d0f06400c0f05400c0f05400b0f04400b0f04c0090e03400e0f0840090e03f010"},
+[34]={9,17,-2,-15,5.0000,"f030070f030c0e30070f030c0d30070f011c30070f000c0b30070e000c09f0f0f0f0f0b0"},
+[35]={13,16,-2,-14,9.0000,"f0e00a0c010f05700c0a040f03700e08060f015006080f0c1f0703400d5f0650060f010c0970080e000f0750065f0d4002071f0b0f0906600f07060f70020f05080d70040f021bf0e0"},
+[36]={13,20,-2,-16,9.0000,"f0e0010f0390010f0380060d1f0460054f02500b0f0a010c0f09500c0f0800080f0b50090f0e0380020e1f09017001091f0d0180030e0f0940031f0200090f0b40011f07000b0f0a50094f0560081f0d0680040fa0040ff0f0"},
+[37]={15,16,-2,-14,11.0000,"f0f000040d0e06a00e0c0b0f0100070250020f05030f04050f0250020f05030f050d09700e0c0a0f080e0170041e070e07b0080d070e0d0370020e080f0a0c0d70090c060f02070f0150030f04060f02070f0150040900030f0a0c0da0070e0d03f0f000"},
+[38]={14,16,-2,-14,10.0000,"f0f0050d0f0b0270033f0b70070f0a010e0f70070f0a011e70033f06802f0780062f09020f0d40021f071f090f0b40051f00092f0740041f04012f02500d5f0750020a1e0a091f03f0d0"},
+[39]={7,17,-2,-15,3.0000,"f0070f0430070f0430070f0330070f0230070f01f0f0f0f070"},
+[40]={10,21,-2,-15,6.0000,"f080030a60010e0c60090f0250020f0a60070f06600b0f03600d0f01600e0f700f0e700e0f700d0f01600b0f0360070f0660020f0a700a0f0260010e0c70030af060"},
+[41]={10,21,-2,-15,6.0000,"f050040870050f08700a0f0360030f0a700e0f01600b0f0460090f0760080f0860070f0960080f0860090f07600b0f04600e0f0150030f0a600a0f0350050f08600409f090"},
+[42]={12,16,-2,-14,8.0000,"f0c00d0b6001100c0a60080e080c0b080e053003080d1f0d0903500a0e0f0560070f05090f0350050800010b03f0f0f0f0f060"},
+[43]={12,14,-2,-12,8.0000,"f0b0011f0270011f02500103041f05030130075f0830075f0850011f0270011f0270011f02f0f0f030"},
+[44]={8,9,-2,-4,4.0000,"f0200c0f03400d0f03400e0f0130040f0a40050c02f020"},
+[45]={10,10,-2,-8,6.0000,"f0603e01403f01f0f0f0d0"},
+[46]={9,7,-2,-5,5.0000,"f040030802500d0f0a50090e06f040"},
+[47]={10,17,-2,-14,6.0000,"f080070f03600c0e60010f0a60050f0560090f01600d0c60030f0860070f04600b0e60010f0a60050f0660090f02601df090"},
+[48]={13,16,-2,-14,9.0000,"f0d0070d0e0b0360063f0e01500d0f08010d0f0640011f0300090f0a40031f0200080f0b40031f0200080f0c40031f0200080f0c40021f0200080f0c40011f0300090f0a500d0f08010d0f0750063f0e0160060d0f0c03f0d0"},
+[49]={13,16,-2,-14,9.0000,"f0e002080d70040b1f0e700a0f0e0f0e700604060f0e90060f0e90060f0e90060f0e90060f0e90060f0e90060f0e90060f0e90060f0ef0e0"},
+[50]={13,16,-2,-14,9.0000,"f0d0080d0f0c0460094f0340021f05010e0f0840051f100b0f09900e0f0680060f0e0170020e0f0670010d0f0a800b0f0d0170081f0370022f2e0d40035f0ef0c0"},
+[51]={13,16,-2,-14,9.0000,"f0c0020a1e0b03600d3f0e0240041f03010e0f07900b0f0980010e0f0560022f0a70032f0b0180020d0f0790090f0b40061f02010d0f0a40010e4f0350020a1e0b03f0d0"},
+[52]={13,16,-2,-14,9.0000,"f0f02f80032f800b2f70040f0d1f700c0e071f60060f08051f50010d0f02051f50061f0e2f0e40066f80051f90051f90051ff0d0"},
+[53]={13,16,-2,-14,9.0000,"f0c0064f0750084f0750090f08900b0f06900c0f0c0e0d06600e0f1e1f0450020501000c0f0a90080f0c40021f0300080f0c500e0f08010c0f0950064f0260060d0f0c03f0d0"},
+[54]={13,16,-2,-14,9.0000,"f0e0050b0e0670082f0660041f0801700a0f0a900e0f0a0d0e0850015f0640021f0a000b0f0c40021f0300060f0e501f0400060f0e500c0f09010b0f0b50044f0360050d0f0c04f0d0"},
+[55]={13,16,-2,-14,9.0000,"f0b0075f0d40063e1f0c900c0f0780021f0280080f0b900e0f0680051f01800a0f0a80011f0580070f0e900d0f0980031f03f0f0"},
+[56]={13,16,-2,-14,9.0000,"f0d0080d0f0c0460073f0e02500d0f09010e0f07500e0f06000c0f08500b0f09010e0f0550033f0b60043f0b01500d0f08010d0f0840021f0300090f0b40011f07010c0f0a500a4f045001090e0f0c05f0d0"},
+[57]={13,16,-2,-14,9.0000,"f0d0060d0e0b0260073f0d600e0f07010e0f0540021f02000a0f0840031f02000d0f0a40011f06001f0b500a1f0e1f0950010a0f0c0d0f0880010e0f036001030b0f0c700b1f0e02700b0d0901f0e0"},
+[58]={9,14,-2,-12,5.0000,"f040030802500d0f0a50090e06f0f090030802500d0f0a50090e06f040"},
+[59]={8,17,-2,-12,4.0000,"f020030802400d0f0a40090e06f0f0c00c0f03400d0f03400e0f0130040f0a40050c02f020"},
+[60]={12,13,-2,-11,8.0000,"f0d001176001070e0f084001070e1f0c04400c1f0a04600c1f0a036001070e1f0c046001070e0f08800117f0f060"},
+[61]={13,12,-2,-10,9.0000,"f0c00d4e06500d4f06f0200d4f06500d4f06f0f0f0f030"},
+[62]={12,13,-2,-11,8.0000,"f0a00b04901f0c0470080e1f0c0470060c1f035001060d1f0340080e1f0c05501f0c04700b04f0f0a0"},
+[63]={12,16,-2,-14,8.0000,"f0a0050c0f0e090140034f0940080f0e01090f0e80070f0d70010d0f08700b0f0c70040f0e0170060f0af04002070380090f0c80060e08f0c0"},
+[64]={17,20,-2,-14,13.0000,"f0f070070c1e0b0480010b0f09160b0f07700a0f0330070f0450030f07500c0b50090e10060d0f0a01060f01400e0a00050f0b1f130f0330010f07000c0d00080f01020f0530030f05020f0900090f00020f0430050f140f07000b0e00030f0330040f05040f08000f0d00070e40030f06010f0e0a0f0e060e08500f0a00060e0c040d0f09600a0e01d0030f0b01d0070f0e0807090ba0040b0e0f0d07f0f070"},
+[65]={14,16,-2,-14,10.0000,"f0f000031f0590081f0a900c1f0e80021f0e0f0470070f0b090f09700c0f07050f0e60011f03011f0450060f0e100c0f08500b5f0d40017f0330051f02200e0f08300a0f0d300b0f0cf0d0"},
+[66]={14,16,-2,-14,10.0000,"f0e03f0e0a03605f0e01501f0601041f07501f06100e0f08501f0600021f05505f0b605f0b01501f0600020e0f08501f06100b0f0a501f0600030e0f09506f04503f0e0c05f0f0"},
+[67]={14,16,-2,-14,10.0000,"f0f0040b1e0c0560045f05500c0f0c02010a0f0d40011f0510041f0130031f0390041f0390041f0390031f0390011f0510051f01400c0f0b02010b0f0d50045f0560040b1e0c05f0f0"},
+[68]={14,16,-2,-14,10.0000,"f0e03f0c06705f0a601f0701061f04501f06100c0f09501f06100a0f0c501f0610090f0c501f0610090f0c501f06100a0f0c501f06100c0f09501f0601061f04505f0a603f0c07f0f000"},
+[69]={12,16,-2,-14,8.0000,"f0a05f0d405f0d401f07801f06801f06802f2e03405f03401f06801f06801f06805f0e405f0ef090"},
+[70]={12,16,-2,-14,8.0000,"f0a05f0a405f0a401f07801f06801f06805f03405f03401f06801f06801f06801f06801f06f0d0"},
+[71]={14,16,-2,-14,10.0000,"f0f0040b1e0c0660045f06500c0f0d02010a0f0d40011f0610041f0230031f0490031f03003c0230031f03003f0330031f0410041f0330011f0610041f03400c0f0d0301071f0340035f0d0150030b0e0f0d0801f0e0"},
+[72]={14,16,-2,-14,10.0000,"f0e01f06201f07401f06201f07401f06201f07401f06201f07401f06201f07407f07407f07401f06201f07401f06201f07401f06201f07401f06201f07401f06201f07f0d0"},
+[73]={9,16,-2,-14,5.0000,"f0400e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08500e0f08f040"},
+[74]={12,16,-2,-14,8.0000,"f0d0011f0670011f0670011f0670011f0670011f0670011f0670011f0670011f0630090f0d00011f0530061f03071f0330010e3f0b50030b1e0901f0a0"},
+[75]={14,16,-2,-14,9.0000,"f0e01f06100c0f0e02401f0600061f06501f06010e0f0b601f06080f0e02601f091f07704f02704f09702f0c1f02601f0c011f09601f0600091f02501f0600021f0a501f0610091f03f0d0"},
+[76]={12,16,-2,-14,8.0000,"f0a01f06801f06801f06801f06801f06801f06801f06801f06801f06801f06805f0a405f0af090"},
+[77]={17,16,-2,-14,13.0000,"f0f0402f0220041f0d502f0620081f0d502f0b200d1f0d503f0100022f0d503f0500070f0c0f0d501f0b0f09000b0f080f0d501f060f0e010f0e060f0d501f050d0f090f09070f0d501f05082f05070f0d501f05042f01070f0d501f05000e0f0c00070f0d501f0500090f0700070f0df0f040"},
+[78]={14,16,-2,-14,10.0000,"f0e01f08200d0f06401f0e01100d0f06402f08100d0f06402f0e01000d0f06401f0e0f08000d0f06401f071f020d0f06401f040b0f090d0f06401f04031f0e0f06401f04000a2f06401f0400032f06401f04100a1f06401f0410031f06f0d0"},
+[79]={14,16,-2,-14,10.0000,"f0f0030a0e0f0c0560030e4f06500b0f0d03020b0f0e0130011f0610021f0430031f04201f0630031f03200e0f0730031f03200e0f0730031f04201f0730011f0610021f05400c0f0d03020a0f0e0140035f0760030b0e0f0c05f0f0"},
+[80]={14,16,-2,-14,10.0000,"f0e03f0e0b03606f03501f0600020e0f0b501f0610080f0e501f0610081f501f0600020d0f0c506f04503f0e0c04601f06a01f06a01f06a01f06f0f030"},
+[81]={14,18,-2,-14,10.0000,"f0f0030b1e0c0560030e4f06500c0f0d03020b0f0e0130011f0610031f0430031f03201f0630041f03200e0f0730041f03200e0f0730031f03201f0630011f0610031f04400c0f0d03020b0f0e0140035f0660030b0e2f05a0091f04a018f0e0"},
+[82]={14,16,-2,-14,9.0000,"f0e03f0e0b03605f0e02501f0700041f08501f06100c0f0a501f06100c0f0a501f0701051f06505f0c605f02601f06021f07601f06000a0f0e01501f0600031f06501f06100b0f0df0e0"},
+[83]={13,16,-2,-14,9.0000,"f0d0070c0e0d0860094f0a40011f0800071f0230031f0400011f06400d0f0d0580030d1f0e067001070d1f0a90071f0430051f02100e0f0730021f0801041f0640084f0d0150060c0e0d0a02f0c0"},
+[84]={13,16,-2,-14,9.0000,"f0b0086f0c30086f0c600a0f0c90090f0c90090f0c90090f0c90090f0c90090f0c90090f0c90090f0c90090f0c90090f0cf0e0"},
+[85]={14,16,-2,-14,10.0000,"f0d0021f0510090f0c40021f0510090f0c40021f0510090f0c40021f0510090f0c40021f0510090f0c40021f0510090f0c40021f0510090f0c40021f0510090f0c40011f0510090f0c500e0f0b01020e0f0950075f0360060c0f0e0b04f0f0"},
+[86]={14,16,-2,-14,10.0000,"f0d00a0f0e20011f0830061f0210051f0330021f0610090f0e500c0f09100c0f0a50080f0d00011f0550041f02051f01600e0f05080f0b700a0f090c0f0770050f0d1f0370012f0d900c1f0990071f05f0f000"},
+[87]={17,16,-2,-14,13.0000,"f0f030080f0d100b0f0700011f0430051f101f0a00031f0230031f121f0d00060f0e501f05042f01080f0b500c0f172f040a0f09500a0f090a0f0b0f070d0f0650070f0c0d0f050f0a1f0350042f0d013f0150012f0a000d1f0d700e1f07000b1f0a700b1f0400081f0870081f0100051f05f0f050"},
+[88]={14,16,-2,-14,10.0000,"f0d0061f05100b0f0d500d0f0c00021f0750061f03080f0e01600d0f0a0e0f0770062f0e01800d1f0780010e1f0880082f0e0160010e0f080e0f0860071f01090f0e0140010e0f0900031f0740071f03100c0f0e01f0d0"},
+[89]={14,16,-2,-14,9.0000,"f0d00a0f0e200b0f0d40031f0400011f07500c0f0900060f0e0150060f0e000b0f09700e0f061f0370080f0e0f0b80022f05900a0f0ea0090f0ca0090f0ca0090f0ca0090f0cf0f010"},
+[90]={13,16,-2,-14,9.0000,"f0b0066f0630066f04800b0f0c80041f03800c0f0980060f0e0270010e0f0780090f0d0170031f05800b0f0c80046f0730056f07f0b0"},
+[91]={9,21,-2,-16,4.0000,"f030012f0230011f0d0230011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0440011f0d0230012f02f030"},
+[92]={11,17,-2,-14,6.0000,"f0700b0f0970060f0e70011f04700c0f0970070f0e70021f04700c0f0970070f0e70021f04700c0f0870070f0d70021f03700d0f08f070"},
+[93]={8,21,-2,-16,4.0000,"f0100b1f0830091f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f08400c0f0830091f08300b1f08f010"},
+[94]={11,16,-2,-14,7.0000,"f0900b0f0560011f0b60060f0d0f01500b0e050f0640010f0a010e0b40060f06000b0f01f0f0f0f0f090"},
+[95]={11,6,-2,-2,7.0000,"f0700c4f09300b4d08f070"},
+[96]={10,17,-2,-15,6.0000,"f050031f0560060f0d700a0f06f0f0f0f0f0f0f0a0"},
+[97]={12,13,-2,-11,8.0000,"f0a001091e0b02500c0f1e0f0d40021d03041f0270031f0240040b0e2f0230020e0f191f0230051f00041f0230031f0e2f0340050d0e080e0f06f090"},
+[98]={12,17,-2,-15,8.0000,"f090021f0370021f0370021f0370021f0370021f081e0840025f0630021f07000c0f0a30021f0300080f0c30021f0300070f0d30021f0300080f0c30021f08000b0f0a30025f0530021f061e08f0a0"},
+[99]={12,13,-2,-11,8.0000,"f0a0010a1e0b03500b3f0e0130021f03010e0f0430050f0e80060f0e80050f0e80031f03010e0f04400b3f0d5001091e0b02f0a0"},
+[100]={12,17,-2,-15,8.0000,"f0e00c0f08800c0f08800c0f08800c0f0840030c0f0a0c0f08400e4f0830041f04011f0830060f0e101f0830070f0d101f0830060f0e101f0830041f04011f08400d4f0840020c0f1a0f08f090"},
+[101]={12,13,-2,-11,8.0000,"f0a001090e0f0c0450093f0e0130021f05000c0f0730041f1a0d0f0930055f0a30041f0170021f0600020850094f0550080d0f0d07f0a0"},
+[102]={10,17,-2,-15,6.0000,"f070060d0f0540032f0540080f0d0150090f0b500a3f0230082f0b0240090f0b60090f0b60090f0b60090f0b60090f0b60090f0b60090f0bf070"},
+[103]={13,16,-2,-11,9.0000,"f0c0030c0f0c090f0b500d4f0b40031f05001f0b40060f0e101f0b40060f0e100e0f0b40050f0e101f0b40031f05011f0b500c4f0b50020b0f0c0b0f0a50020500010d0f0950080f1e1f0350030b1e0c04f0d0"},
+[104]={12,17,-2,-15,8.0000,"f090031f0270031f0270031f0270031f0270031f081e0740035f0330031f06010e0f0730031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f08f090"},
+[105]={8,17,-2,-15,4.0000,"f020040640011f05400c0e02c01f04401f04401f04401f04401f04401f04401f04401f04401f04f010"},
+[106]={9,20,-3,-15,4.0000,"f050040650021f0440010c0d02e01f05501f05501f05501f05501f05501f05501f05501f05501f0540031f0430071f0e0130060f0d05f040"},
+[107]={13,17,-2,-15,8.0000,"f0b0021f0380021f0380021f0380021f0380021f131f0840021f030c0f0c50021f091f0350023f0960023f0b60024f0450021f040a0f0c50021f131f0540021f03000b0f0df0c0"},
+[108]={8,17,-2,-15,4.0000,"f0201f04401f04401f04401f04401f04401f04401f04401f04401f04401f04401f04401f04401f04f010"},
+[109]={17,13,-2,-11,13.0000,"f0f030021f070d0e08040d0e0a50029f0640021f08010e1f000c0f0a40021f03000d0f0b00090f0b40021f03000d0f0700090f0b40021f03000d0f0700090f0b40021f03000d0f0700090f0b40021f03000d0f0700090f0b40021f03000d0f0700090f0bf0f040"},
+[110]={12,13,-2,-11,8.0000,"f090031f060d0e0840035f0430031f07010e0f0730031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f08f090"},
+[111]={12,13,-2,-11,8.0000,"f0a001090e0f0c04500a3f0e0230021f05010d0f0930051f10080f0c30060f0e10070f0d30051f10080f0c30021f05010c0f09400a4f0250080e0f0c03f0a0"},
+[112]={12,16,-2,-11,8.0000,"f090021f071e0840025f0530021f07000c0f0a30021f0300080f0c30021f0300070f0d30021f0300080f0c30021f08000c0f0a30025f0430021f081e0840021f0370021f0370021f03f0d0"},
+[113]={12,16,-2,-11,8.0000,"f0a0030c0f0b0a0f0830010e4f0830041f03011f0830060f0e101f0830070f0d101f0830060f0e101f0830041f03011f08400d4f0840030c0f0a0c0f08800c0f08800c0f08800c0f08f090"},
+[114]={10,13,-2,-11,6.0000,"f050021f070e0430023f0430021f0e060230021f0550021f0350021f0350021f0350021f0350021f03f070"},
+[115]={12,13,-2,-11,8.0000,"f0a0030b1e090140010e0f0d0e0f0b40031f01041c40011f0c0570050e1f0d036001060d0f0e40060e0c00041f0130020e0f0d0e0f0c50030b1e0a02f0a0"},
+[116]={9,15,-2,-13,5.0000,"f0400b0f09500b0f09400c2f0c30092f09400b0f09500b0f09500b0f09500b0f09500b0f0a50091f0c40020b0e0bf030"},
+[117]={12,13,-2,-11,8.0000,"f090031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000c0f0830031f02000e0f0830031f02001f0830011f05021f08400d4f0840030c0e0a0b0f08f090"},
+[118]={12,13,-2,-11,8.0000,"f0900a0f0b00021f0430060f0e00050f0e40011f02080f0b500c0f060b0f0650080f090e0f0250040f0e0f0d702f09700b1f0570071f01f0b0"},
+[119]={15,13,-2,-11,11.0000,"f0f0090f09000b0f05000d0f0530060f0c000d0f08001f0230030f0e011f0c030f0e501f062f060f0b500c0f0c0f0a0f0c0f0850091f0e032f0550061f0b000e1f0250021f07000b0f0e701f0300070f0af0f010"},
+[120]={12,13,-2,-11,8.0000,"f090061f02041f02400d0f090b0f0950063f02600d1f0870091f0360010e1f0a60070f0e1f0340010e0f070b0f0a40070f0e01041f03f090"},
+[121]={12,16,-2,-11,8.0000,"f0900b0f0b00021f0430060f0e00060f0e40021f03090f0a500c0f070d0f0650080f0c1f0150032f0c700e1f0770091f0270071f800a0f08702f03701e06f0d0"},
+[122]={12,13,-2,-11,8.0000,"f090045f40042e1f0e70031f04700c0f0a70070f0e0160020e0f06700a0f0c70042f2e40055ff0a0"},
+[123]={9,20,-2,-15,5.0000,"f050010a05500c0f0540030f0d50050f0b50060f0b50060f0a50080f0840080f0e02400c0f0d0140010b0f0750060f0a50060f0b50050f0b50030f0d600c0f0550020a05f030"},
+[124]={8,18,-2,-14,4.0000,"f020080d50080d50080d50080d50080d50080d50080d50080d50080d50080d50080d50080d50080d50080df020"},
+[125]={9,20,-2,-15,5.0000,"f030040b0250050f0d600c0f04500a0f0650090f0750090f0750070f0950010d0f09500b0f0e40060f0b0140090f0750090f07500a0f06500c0f0440050f0d50040b02f050"},
+[126]={13,11,-2,-9,9.0000,"f0c0010c0e0700010f09400a2f06050f07400f0c010c2f0230020f0900020c0e06f0f0f0f030"},
+[8212]={15,11,-2,-9,11.0000,"f0f0008e0a408f0bf0f0f0f0f0f0a0"},
+[183]={9,12,-2,-10,5.0000,"f040030802500d0f0950090e05f0f0f0f010"},
+},
+[20]={
+[32]={9,4,-2,-2,5.0000,"f0f030"},
+[33]={9,18,-2,-16,5.0000,"f0400c1f02400b1f01400a1f01400a1f50091f50090f0e50080f0d50080f0d50070f0cf070060e0a500c1f0240060e0bf040"},
+[34]={10,19,-2,-17,6.0000,"f050060f09030f0c30060f08030f0b30060f07030f0a30060f05030f0830060f04030f07f0f0f0f0f0f0f090"},
+[35]={15,18,-2,-16,11.0000,"f0f020010f0a010f0a80030f08030f0880050f150f0680070f03070f0360070a1f0b1f0b09500a6f0d700e0b000e0c80010f09010f0960047f0440030b5f0b0360080f02080f03800a0f000a0f01800c0d000c0d900f0b000e0bf0f030"},
+[36]={14,22,-2,-18,10.0000,"f0f010060f01a0060f018001091f0d0460010d4f0350061f0a061f0b50091f02000b1f0140081f0400091f0240041f0d0490092f0b0280050d1f0e0390071f0c40011f0a100b1f01400e0f0d10091f02400a1f08060e0f0e50020e4f0760020a1f0c0690090db0090df0f010"},
+[37]={17,18,-2,-16,13.0000,"f0f040020b0f0c03b00a0f0b0f0d100301700f0d000a0f03000d0b60010f0b00080f04070f04700f0d00090f040e0a800a0f0b0f0d090f0280010b0f0c060f09d00a0e060d0e0a0180040f090f0e0c0f08800c0d060f07010f0c70050f05070f05000e0d700d0c00060f07000e0c70060400020f0e0c0f08b0050d0e0a01f0f040"},
+[38]={16,18,-2,-16,12.0000,"f0f03001091e0a01900b3f0c80021f0a071f0370041f03001f0470021f160f0e01800b3f0690052f0590020e2f08000d0f06500c0f1d1f041f0540031f08020e3f0240041f0900062f0c50011f0e162f0a60086f0e0260060d0f0e0a061f0cf0f020"},
+[39]={7,19,-2,-17,3.0000,"f0060f0a30060f0a30060f0930060f0830060f06f0f0f0f0f050"},
+[40]={10,24,-2,-18,6.0000,"f090050860040f0b50010e0f0250070f09600e0f0350030f0e60070f0b600a0f09600b0f08600c0f07600c0f07600b0f08600a0f0960070f0b60030f0e700e0f0360070f0960010e0f0260040f0b700508f050"},
+[41]={10,24,-2,-18,6.0000,"f050020a0160040f0b700a0f0760030f0e01600c0f0760070f0c60041f0150021f0350011f0550011f0650011f0650011f0550021f0350041f0150070f0c600b0f0750020f0e01500a0f0750040f0b60020a01f080"},
+[42]={13,18,-2,-16,9.0000,"f0e0040f0890040f0860020601030f0700030430080f0e0a0f0b0c0f0b3003070c2f0e0a0550020e1f02700c0f070f0c60080f0a00090f0950010a0100010b02f0f0f0f0f0d0"},
+[43]={14,16,-2,-14,10.0000,"f0f000081f0190081f0190081f0190081f016003182f09080740056f0c40056f0c70081f0190081f0190081f0190081f01f0f0e0"},
+[44]={9,10,-2,-4,5.0000,"f040090f0b50090f0b500a0f0a500d0f0740040f0e0140040c04f050"},
+[45]={11,12,-2,-10,7.0000,"f0800334500c2f0e500c2f0ef0f0f0f0f0"},
+[46]={10,8,-2,-6,6.0000,"f0f000050e0d01500b1f0650050e0c02f060"},
+[47]={11,19,-2,-16,7.0000,"f0b00d0f0260020f0d70060f09700b0f04700e0f0160040f0b70090f06700d0f0260020f0d70060f09700b0f0460011e0160040f0b70090f06700d0f02f0b0"},
+[48]={14,18,-2,-16,10.0000,"f0f0020a1e0a0260010d3f0e0250081f08071f09500c0f0d100c0f0e501f0b10091f0130011f0a10091f0230011f0a10081f0330011f0a10081f0330011f0a10081f02401f0b10091f01400c0f0d100c0f0e50081f08071f0950010d3f0e0260020a1e0b03f0f0"},
+[49]={14,18,-2,-16,10.0000,"f0f01002080e80050b2f70074f70070e090d1f7002100b1fa00b1fa00b1fa00b1fa00b1fa00b1fa00b1fa00b1fa00b1fa00b1ff0f000"},
+[50]={14,18,-2,-16,10.0000,"f0f0030b1e0b0460030e4f04500b1f07081f0b40011f0a100d0f0e40041f07100c0f0e90021f0a900a1f0480051f0980030e0f0c0170010d0f0e02800b1f0580091f0c340130017f0530017f05f0d0"},
+[51]={14,18,-2,-16,10.0000,"f0f0040c1e0a0360055f03500d1f06081f0b40021f09100d0f0ea00d0f0d700203081f07700e2f09800c2f0e0390040e0f0ca00a1f0130041f08100b1f0130011f0e06071f0d50075f0460060c1e0a03f0f0"},
+[52]={14,18,-2,-16,10.0000,"f0f0202f0380052f03800d2f0370063f03700d0f0b1f0360070f0c081f0350010e0f05081f0350070f0d00081f0340010e0f09040c1f080230057f0630057f0680081f0390081f0390081f03f0e0"},
+[53]={14,18,-2,-16,10.0000,"f0e0025f0c50035f0c50051f07250450061f0190081fa0091f0b0e0d07600b5f0750051a03050e0f0ea0091f0290081f03401f0c100a1f02400b1f07061f0d50020e4f0460020a1e0c04f0f0"},
+[54]={14,18,-2,-16,10.0000,"f0f010060c0e0870010c2f08700a1f0c060360041f0a90091f02900c0f0d081e0901500e5f09502f08060e1f01402f10081f04400e0f0d10051f05400c0f0e10081f0440061f09060e0f0e01500c4f066001090e0f0c05f0f0"},
+[55]={14,18,-2,-16,10.0000,"f0d0057f0430057f033001440c0f0e90011f0890071f03900d0f0d90041f0790091f0280010e0f0b90061f06900c1f0180021f0a90081f05900e0f0ef0f020"},
+[56]={14,18,-2,-16,10.0000,"f0f0030b1e0b0460020e4f0350091f09081f0a500b1f100e0f0d500b1f100e0f0c50061f09071f0760093f0b60010d3f0e03500a1f04030e0f0c501f0c100a1f01401f0c100b1f01400c1f07061f0d50045f0660040b1e0c05f0f0"},
+[57]={14,18,-2,-16,10.0000,"f0f0020b1e0a0160020e3f0d01500a1f181f07500e0f0c100d0f0c40011f0a100b1f501f0b102f01400c1f06052f0140056f60050d0f0a0c0f0da00e0f0a90071f056002060a1f0c70052f0d0270050e0c0701f0f000"},
+[58]={9,16,-2,-14,5.0000,"f0d0050e0d01400b1f0640050e0c02f0f0f010050e0d01400b1f0640050e0c02f030"},
+[59]={9,20,-2,-14,5.0000,"f0d0050e0d01400b1f0640050e0c02f0f0f0a0090f0b50090f0b500a0f0a500d0f0740040f0e0140040c04f050"},
+[60]={13,15,-2,-13,9.0000,"f0f010050980040c0f0b60030b2f0a40020b2f0e0701400b1f0d06700b1f0d0670020b2f0e070160040b2f0a80040c0f0ba00509f0f090"},
+[61]={14,14,-2,-12,10.0000,"f0e0035403500a5f0b500a5f0bf0f0100a5f0b500a5f0b50035503f0f0f0a0"},
+[62]={13,15,-2,-13,9.0000,"f0c00905a00c0f0c04800c2f0b036001070e2f0a0270060d1f0b6001070e1f0b4001070e2f0b02400c2f0b03600c0f0c04800905f0f0e0"},
+[63]={13,18,-2,-16,9.0000,"f0c001090d0f0d07600c4f0840041f0c060e0f0e0130071f0500091f02800a1f0270031f0b70010d0f0e0370091f05800d0f0a901f07f050010b0e0480041f0a80010c0e05f0e0"},
+[64]={19,22,-2,-16,15.0000,"f0f0b001070c1e0c080190020d0f0d1a0c0f0d0370010d0f0630041e01600a0f0550040f0850030f0b10050d0f0b03000b0e50080f0500040f0e0d1f00070f03400d0f01000d0f03020f0b00040f06400f0d00030f0c00030f0a00030f0730020f0b00070f0900050f0900030f0730030f0a00090f0700060f0800040f0630030f0b00090f07000c0f0600060f0330010f0c00080f0a001f06000c0d501e00031f0d1f0d0a0f06500a0f0400070e0c03081e0760040f0cf0000b0f0b02201190010b1f0c0b0c0f06b0060b0e0f0d0a02f0f0b0"},
+[65]={16,18,-2,-16,12.0000,"f0f050071f06b00c1f0ba0023f0190073f06900b0f0b0c0f0b80011f07081f0170061f03041f05700b0f0e00011f0a60012f151f0e60057f05500a7f09500e0f0d300e0f0e40051f09300a1f0430091f0530061f09f0f010"},
+[66]={15,18,-2,-16,11.0000,"f0f0000d3f0d0a03600d6f05500d1f160a1f0d500d1f200d1f500d1f200d1f500d1f12061f0a500d5f0c01500d5f0e05500d1f10030e0f0e01400d1f20091f04400d1f200a1f03400d1f0605081f0e01400d6f07500d3f0e0c06f0f010"},
+[67]={15,18,-2,-16,11.0000,"f0f020070c1e0c05700b5f0850061f0d170d1f03400c1f0210041f08401f0d20011f0b30011f0ba0011f0ba0011f0ba0011f0bb01f0c20021f0b400c1f0210051f0840061f0c06070d1f03500b5f0870070d0f0e0b05f0f010"},
+[68]={15,18,-2,-16,11.0000,"f0f0000d2f0e0c06700d5f0b600d1f06070c1f08500d1f200d0f0e500d1f20091f04400d1f20071f05400d1f20071f06400d1f20071f06400d1f20071f05400d1f20091f04400d1f200d0f0e01400d1f160c1f08500d5f0b600d2f0e0c06f0f020"},
+[69]={14,18,-2,-16,10.0000,"f0e00d6f04400d6f04400d1f4602400d1fa00d1fa00d1f3502500d5f07500d5f07500d1fa00d1fa00d1fa00d1f063502400d6f05400d6f05f0d0"},
+[70]={14,18,-2,-16,10.0000,"f0e00d6f500d6f500d1f46500d1fa00d1fa00d1f062503500d5f07500d5f07500d1fa00d1fa00d1fa00d1fa00d1fa00d1ff0f030"},
+[71]={16,18,-2,-16,12.0000,"f0f040070c1e0c06800b5f0960061f0e170d1f03500b1f0310041f08500e0f0d301f0b40011f0cb0011f0c104240011f0c00013f0c40011f0c00013f0c500e0f0e20011f0c500b1f0410011f0c50051f0e0806091f0c600a6f0870060c0e0f0d0a04f0f030"},
+[72]={16,18,-2,-16,12.0000,"f0f0200d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f362f02400d8f02400d8f02400d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f300b1f02400d1f300b1f02f0f010"},
+[73]={9,18,-2,-16,5.0000,"f0400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02400b1f02f030"},
+[74]={14,18,-2,-16,10.0000,"f0f020031f0a90031f0a90031f0a90031f0a90031f0a90031f0a90031f0a90031f0a90031f0a90031f0a40071f0600051f0940051f0d060d1f05500c4f0b6001080d0f0d08f0f000"},
+[75]={16,18,-2,-16,11.0000,"f0f0200d1f200b1f0b500d1f10041f0e02500d1f100d1f06600d1f00071f0b700d1f020e0f0e02700d1f0a1f06800d4f03800d4f0a800d5f03700d1f161f0b700d1f100d1f04600d1f10071f0c600d1f10010e1f05500d1f20071f0df0f020"},
+[76]={14,18,-2,-16,10.0000,"f0e00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1fa00d1f0635500d6f01400d6f01f0d0"},
+[77]={19,18,-2,-16,15.0000,"f0f0800d1f0c400a2f500d2f02300e2f500d2f0620043f500d2f0b20093f500d3f01100d3f500d0f0d1f0500031f0b1f500d0f1c0f0a00070f0c0a1f500d0f0d080f0e000c0f080b1f500d0f0d031f051f030b1f500d0f0e000d0f0e0f0e000b1f500d0f0e00092f0a000c1f500d0f0e00042f05000c1f500d0f0e100e1f01000c1f500d0f0e100a0f0c100c1ff0f080"},
+[78]={16,18,-2,-16,12.0000,"f0f0200d1f0220091f01400d1f0a20091f01400d2f0210091f01400d2f0a10091f01400d3f0300091f01400d0f1e0f0a00091f01400d0f0d071f03091f01400d0f0d010e0f0a091f01400d0f0d00071f0c1f01400d0f0d00010e3f01400d0f0d10073f01400d0f0d10010e2f01400d0f0d20072f01400d0f0d300d1f01f0f010"},
+[79]={16,18,-2,-16,12.0000,"f0f040050c1e0c0680095f0a60051f0e170e1f06500b1f0410031f0c500e0f0d300d1f40011f0c300b1f0230011f0c300b1f0230011f0c300b1f0230011f0c300b1f02401f0d300c1f01400c1f0310021f0c50051f0e170d1f06600a5f0b80060c1e0c07f0f040"},
+[80]={15,18,-2,-16,11.0000,"f0f0000d3f0e0c05600d6f07500d1f16072f02400d1f20081f07400d1f20051f09400d1f20071f08400d1f16080e1f03400d6f09500d3f0e0c06600d1fb00d1fb00d1fb00d1fb00d1ff0f060"},
+[81]={16,21,-2,-16,12.0000,"f0f040060c1e0c0680095f0a60051f0e170e1f06500c1f0310031f0c501f0d300d1f40011f0b300b1f0230021f0b300b1f0230021f0b300b1f0230011f0b300b1f02401f0d300d1f500b1f0310031f0c50051f0e172f06600a5f0a80060c0e2f09b0010c1f09b0010d0f0cc0020b01f0f020"},
+[82]={15,18,-2,-16,11.0000,"f0f0000d3f0e0b04600d6f05500d1f16091f0d500d1f200c1f02400d1f200a1f03400d1f200c1f02400d1f160a1f0c500d5f0e03500d5f05600d1f00041f0b600d1f100d1f03500d1f10071f09500d1f10010e1f01400d1f20091f08f0f0"},
+[83]={15,18,-2,-16,11.0000,"f0f010020a0e0f0d090160045f0d02500c1f0a060b1f09501f0d10011f0d500e0f0e02a0081f0e070190092f0e090180030a2f0d0190020b1f0940031f09200e0f0e40011f0c200e1f500b1f0a05091f0c50020e5f046002090d0f0e0a02f0f010"},
+[84]={15,18,-2,-16,11.0000,"f0f0078f0530078f053003262f2602701f0cb01f0cb01f0cb01f0cb01f0cb01f0cb01f0cb01f0cb01f0cb01f0cb01f0cf0f030"},
+[85]={15,18,-2,-16,11.0000,"f0f0000e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0d20071f06400e0f0e20071f06400d1f0110091f0440091f0b06081f0e0140020e5f066002090d0f0e0b05f0f010"},
+[86]={16,18,-2,-16,12.0000,"f0f0100a1f06300d1f0330051f0920011f0e40011f0d20051f09500b1f0210091f0550071f05100d1f0150031f0900011f0b700d0f0d00051f0770091f01091f0270051f050c0f0d80011f0a1f08900b3f0490072f0ea0022f0ab00d1f06f0f050"},
+[87]={19,18,-2,-16,15.0000,"f0f070071f05100c0f0c10051f0730041f08102f10071f0530021f0a00022f0300091f02400e0f0c00052f06000c0f0e500b0f0e00082f08000e0f0b50081f020b2f0b011f0950061f040e0f0a0f0e041f0650031f081f041f081f03601f0d0f0e000e0f0d1f01600c2f0b000b2f0d700a2f0800082f0a70072f0500052f0770042f0200022f0570011f0e200e1f02f0f090"},
+[88]={15,18,-2,-16,11.0000,"f0f0051f0d20091f08400c1f0500010e0f0e0140051f0b00061f08600c1f030c1f0160051f0c1f08800c3f0280052f0990072f0a900e3f0270071f0b1f09700d0f0e010d1f0250061f0900071f09500d1f0300012f0230061f0b200a1f09f0f0"},
+[89]={15,18,-2,-16,11.0000,"f0f0091f0720091f0730031f0c200e1f01400c1f0200041f0950051f0700091f03600d0f0c000e0f0b70071f071f0570013f0d90092f0790031f0e01a01f0db01f0db01f0db01f0db01f0df0f030"},
+[90]={15,18,-2,-16,11.0000,"f0f0047f0d40047f0c4002460d1f0690021f0ca00a1f0390041f0aa00d0f0e0290071f0790010e0f0d0190091f0590031f0ba00e1f084540038f40048ff0f000"},
+[91]={9,24,-2,-19,5.0000,"f0400e1f0d400e1f0d400e0f0d02400e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0c500e0f0d02400e1f0d400e1f0df030"},
+[92]={12,19,-2,-16,8.0000,"f0900b1f0170061f0670011f0b800b1f0170061f0670011f0b800b1f0170061f0670011f0b800b1f0170061f0670011f0b800b1f0170061f0670011f0bf090"},
+[93]={9,24,-2,-19,5.0000,"f0300a2f02300a2f0230020a1f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0240091f0230020a1f02300a2f02300a2f02f030"},
+[94]={12,18,-2,-16,8.0000,"f0b0041f0270091f07700e1f0c60040f0a0c0f02500a0f06080f0740010e0f01030f0d40050f0c100e0f03f0f0f0f0f0f0d0"},
+[95]={12,7,-2,-2,8.0000,"f0900c5f0c300c5f0c30025302f090"},
+[96]={11,19,-2,-17,7.0000,"f070020e0f0d0160030e0f0870041f03f0f0f0f0f0f0f0f0f0c0"},
+[97]={13,15,-2,-13,9.0000,"f0d0050c0f0e0a0250064f0d500e0f0d030a1f0440150400051f0650070d3f0640091f0c2f0630021f0b00051f0630041f0800061f0630031f0c032f06400c5f0740020a0e0d061f0af0b0"},
+[98]={14,19,-2,-17,10.0000,"f0e01f0ba01f0ba01f0ba01f0ba01f0c091e08606f08502f07061f0e502f100a1f02402f10081f03402f10071f04402f10081f03402f10091f02402f160e0f0e506f08501f191e09f0f0"},
+[99]={13,15,-2,-13,9.0000,"f0d0050c0f0e0a0250054f0d01400d0f0e06091f0630021f08101f0930041f0780051f0680041f0780021f08101f09400d0f0e05091f0640054f0c0150050c0f0e0901f0c0"},
+[100]={14,19,-2,-17,10.0000,"f0f0300d0f0da00d0f0da00d0f0da00d0f0d60091e080d0f0d50085f0d40010e0f0e06081f0d40031f09101f0d40051f06101f0d40051f06101f0d40051f06101f0d40031f08101f0d40010e0f0e06071f0d50085f0d60091e070a0f0df0e0"},
+[101]={14,15,-2,-13,10.0000,"f0f0040b1e0b0460045f03500c1f06071f0a40011f0a100b0f0d40032f1e2f40037f40031f0890011f0b2001600c1f0805070e0450035f0960030b1e0c07f0f0"},
+[102]={11,19,-2,-17,7.0000,"f090010a1e04500c2f0540031f0d050240051f0750094f0130094f013001061f070150051f0660051f0660051f0660051f0660051f0660051f0660051f0660051f06f090"},
+[103]={14,19,-2,-13,10.0000,"f0f0080d0e0a091f0140076f01400e1f07062f0130031f0a102f0130041f07102f0130051f06102f0130041f07102f0130031f09102f01400e1f07062f0140076f0150071e0a0b1f01900c1f50010d0604071f0b50065f0460070c0f0e0b03f0f0"},
+[104]={14,19,-2,-17,10.0000,"f0d0011f0a90011f0a90011f0a90011f0a90011f0b080e0d0750016f0540012f06081f0a40012f100e0f0c40012f100d0f0d40011f0b100d0f0d40011f0a100d0f0d40011f0a100d0f0d40011f0a100d0f0d40011f0a100d0f0d40011f0a100d0f0df0e0"},
+[105]={9,19,-2,-17,5.0000,"f040070d07500e0f0e50080e09e00d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0df040"},
+[106]={10,23,-3,-17,5.0000,"f070080d07601f0e60090e08f0000d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0e600d0f0d4003071f0b40082f0640070f0e07f070"},
+[107]={14,19,-2,-17,10.0000,"f0e01f0ba01f0ba01f0ba01f0ba01f0b00041f0e01401f0b000c1f04501f0b061f09601f0d0e0f0d01604f07704f0b705f04602f031f0c601f0b000a1f04501f0b00031f0c501f0b100c1f05f0d0"},
+[108]={9,19,-2,-17,5.0000,"f0400d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0d500d0f0df040"},
+[109]={19,15,-2,-13,15.0000,"f0f0801f0a081e0801090e0d0860bf05502f07092f07081f0a502f102f101f0c502f100e1f100e0f0c501f0d100e0f0c100e0f0c501f0c100e0f0c100e0f0c501f0c100e0f0c100e0f0c501f0c100e0f0c100e0f0c501f0c100e0f0c100e0f0c501f0c100e0f0c100e0f0cf0f080"},
+[110]={14,15,-2,-13,10.0000,"f0d0011f09081e0850016f0640012f07081f0b40012f100e0f0c40012f100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0df0e0"},
+[111]={14,15,-2,-13,10.0000,"f0f0040b1e0b0360044f0e03500c1f07081f0b40021f0a100b1f0130041f0710081f0330041f0710081f0430041f0710081f0330021f0a100b1f01400c1f06071f0b50045f0360040b1e0b03f0f0"},
+[112]={14,19,-2,-13,10.0000,"f0e01f191e08606f07502f171f0e502f100a1f02402f10081f03402f10081f03402f10081f03402f100a1f01402f161f0d506f07501f0c091e08601f0ba01f0ba01f0ba01f0bf0f030"},
+[113]={14,19,-2,-13,10.0000,"f0e001091e08090f0d50095f0d40011f0e06071f0d40031f09101f0d40051f06101f0d40051f06101f0d40051f06101f0d40031f08101f0d500e0f0e06071f0d50085f0d60091e080d0f0da00d0f0da00d0f0da00d0f0da00d0f0df0e0"},
+[114]={11,15,-2,-13,7.0000,"f0801f0a090e03404f03402f0e0c03402f01602f701f0b701f0b701f0b701f0b701f0b701f0bf0a0"},
+[115]={13,15,-2,-13,9.0000,"f0d0070d0f0d080150094f0b501f0b020a1f0330011f0b00021501400c1f0d070160020c2f0e0470050c1f0e013003170200081f0530031f0902091f04400b4f0c60080d0f0d0801f0c0"},
+[116]={10,17,-2,-15,6.0000,"f060081f0350081f03400c3f09300c3f093001091f040140081f0350081f0350081f0350081f0350081f0350071f090340042f0a50080e0f08f050"},
+[117]={14,15,-2,-13,10.0000,"f0d0011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b100d0f0d40011f0b101f0d501f0b101f0d500d1f06081f0d50085f0d60091e070b0f0df0e0"},
+[118]={13,15,-2,-13,9.0000,"f0b0091f0300041f0830051f0600071f0430011f09000a1f01400c0f0c000d0f0b50081f011f0750041f071f0350011f0c0f0e700b2f0b70072f0770032f03800e0f0ef0e0"},
+[119]={17,15,-2,-13,13.0000,"f0f030081f01001f0600061f0330051f03001f0a00081f40021f05031f0d000b0f0c500e0f08072f010d0f09500b0f1a2f051f0650080f0c0e0f090f0b1f0350052f0d043f60022f0a002f0c700e1f06000b1f09700b1f0200081f0670081f10041f03f0f050"},
+[120]={13,15,-2,-13,9.0000,"f0b0051f0900061f07400d0f0e010c0f0e50061f0b1f06600d2f0d70062f0670022f0270082f0860010e2f0e0150071f0a1f0840010e0f0d000c0f0e0130071f0700061f08f0b0"},
+[121]={13,19,-2,-13,9.0000,"f0b00a1f0300041f0930061f0600071f0530021f0a000b1f01400d0f0d000e0f0b50081f041f0750041f0a1f03600e2f0d700b2f0970072f0570022f01801f0c80010e0f0770040a1f02700c1f0b800b0f0a01f0f0"},
+[122]={13,15,-2,-13,9.0000,"f0b0026f0330026f024024071f0b800b0f0e0270051f0770010e0f0d80081f0470031f0a800d1f06240130036f0430036f04f0b0"},
+[123]={10,24,-2,-18,6.0000,"f080030c0150031f04500b0f0a600e0f0650011f0550011f0550011f0550021f0450090f0e01400a1f05500a1f0560090f0e0150031f0450011f0550011f0550011f05600e0f06600b0f0a60031f0460030c01f050"},
+[124]={9,21,-2,-16,5.0000,"f040040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f0650040f06f040"},
+[125]={10,24,-2,-18,6.0000,"f050020c0360050f0e03600b0f0a60070f0e60061f0150061f0150061f0150051f0250010e0f0860051f0950061f0940010e0f0850051f0250061f0150061f0150061f0150070f0e600b0f0a50050f0e0350020c03f080"},
+[126]={15,12,-2,-10,11.0000,"f0f010080e0d06100d0f0240063f09080f0e500c0f09083f08500e0f0100040c0e0af0f0f0f0f0d0"},
+[8212]={17,13,-2,-11,13.0000,"f0f040a403400c9f09400c9f09f0f0f0f0f0f0f0f090"},
+[183]={10,13,-2,-11,6.0000,"f0f000050e0c01500a1f0450040e0c01f0f0f0f080"},
+},
+[21]={
+[32]={9,4,-2,-2,5.0000,"f0f030"},
+[33]={9,19,-2,-17,5.0000,"f0400b1f05400a1f04400a1f0440091f0340091f0340081f0240071f0240071f0140061f0140061ff070050e0c01400b1f0540050e0c01f030"},
+[34]={11,20,-2,-18,7.0000,"f070050f0b001f0130050f0b001f0130050f0a001f40050f08000f0d40050f07000f0c40050f05000f0bf0f0f0f0f0f0f0f060"},
+[35]={15,19,-2,-17,11.0000,"f0f0300d0e000a0f02800f0c000c0e80020f0a000f0c80040f08020f0a60070c5f0c0540097f06600b0f01080f04800d0e000a0f01800f0c000d0e60037f0b40030c2f0e1f0c0960070f05040f0880090f03060f05800b0f01080f03800d0e000b0f01f0f020"},
+[36]={15,23,-2,-19,11.0000,"f0f030020f06b0020f06a0082f07800b4f0960041f0d070e1f0350081f0600061f0750081f0600041f0950051f0c0190010d1f0e0690020c2f0c0290050d1f0d0190010b1f06501f0d10051f09500d1f0100051f0850091f0b070d1f0550010d4f0c7001092f080190050f03b0050f03f0f030"},
+[37]={17,19,-2,-17,13.0000,"f0f040010a0e0d06b0090f0d0e0f031003701e01060f0800060f04600f0d00040f09010e0c701e01060f180f0470090f0d0e0f050e0b80010a0e0d06090f03c0020f0ad00a0f040b0e0d0580030f090b0f0c1f02700b0e020f0d00080f0660040f08020f0c00060f07600c0e110f0d00070f06600305100b0f0c0e0f02a0020b0e0d05f0f040"},
+[38]={16,19,-2,-17,12.0000,"f0f040070d0f0c0490084f0270010e0f0d070e0f0970031f06000a0f0a70021f08000d0f08800c1f0d0f0e0280052f0e0390062f0900070f0e50064f03090f0d40010e0f0d051f1d0f0b40031f0a00093f0740031f0c00010e2f02500e1f09073f0150067f0b60050c1e0b040c1f06f0f010"},
+[39]={7,20,-2,-18,3.0000,"f0050f0c30050f0c30050f0b30050f0a30050f0930050f08f0f0f0f0f050"},
+[40]={11,26,-2,-19,7.0000,"f0b0020a70010d0f01600a0f0860030f0e01600a0f09700e0f0460041f0160070f0d70090f0b700a0f0a700b0f0a700b0f0a700a0f0a70090f0b70070f0d70041f01700e0f04700a0f0870030f0e01700a0f0870010d0f0170020af080"},
+[41]={11,26,-2,-19,7.0000,"f070010a0170050f0b800c0f0770030f0e01700c0f0870080f0d70041f0260021f06701f08700e0f09700d0f0a700d0f0a700e0f09701f0860021f0660041f0260070f0d700c0f0860030f0e02600b0f0860040f0c70010b01f0b0"},
+[42]={14,19,-2,-17,10.0000,"f0f000010f0da0010f0c70020701000f0b00020640081f0a0f0c0b1f023002070b3f0b070250010c1f07800a0f080d0f0360060f0c00050f0d0150010903100906f0f0f0f0f0f0f030"},
+[43]={14,17,-2,-15,10.0000,"f0f000061f0590061f0590061f0590061f0560031a3f1a0330057f0430057f0460061f0590061f0590061f0590061f05f0f0f0c0"},
+[44]={9,10,-2,-5,5.0000,"f040080f0e50080f0e50090f0d500c0f0940031f0340040c06f050"},
+[45]={12,12,-2,-10,8.0000,"f0a0043601500b3f04500b3f04f0f0f0f0f060"},
+[46]={10,8,-2,-6,6.0000,"f0701160051f05500a1f0950040e0d03f060"},
+[47]={11,20,-2,-17,7.0000,"f0b0090f07700e0f0360030f0e70070f09700b0f0560011f0160050f0c70090f07700d0f0360030f0e70070f0a700b0f0660011f0160040f0c70090f08700d0f04f0b0"},
+[48]={15,19,-2,-17,11.0000,"f0f01001091e0c05800c4f0660061f0c070e0f0e01500b1f0200081f05500d0f0e10051f08501f0d10041f09501f0d10041f0a501f0d10041f0a501f0d10041f0a501f0d10041f09500e0f0e10051f08500b1f0200081f0550061f0c070e0f0e01600c4f067001080d0f0c05f0f020"},
+[49]={15,19,-2,-17,11.0000,"f0f040050c058002080e1f0570054f0570060f0d0c1f0570030500081f05a0081f05a0081f05a0081f05a0081f05a0081f05a0081f05a0081f05a0081f05a0081f05a0081f05f0f020"},
+[50]={15,19,-2,-17,11.0000,"f0f01002091e0d0770020e4f09600a1f0a072f0240011f0d100a1f0540031f0a10081f06a00a1f0390021f0da00b1f0590071f0a90041f0d0180020e1f0380010c1f07900a1f0e3604507f0c507f0cf0f000"},
+[51]={15,19,-2,-17,11.0000,"f0f010030b1e0c0670045f09600d1f09082f0240021f0c10091f05a0091f05700205071f0d800a2f0e0280093f07a0020c1f03a0061f07a0051f0840041f0a10081f0740010e1f09072f0250065f0870050b1e0c05f0f020"},
+[52]={15,19,-2,-17,11.0000,"f0f0400c1f0990012f0990082f0980010e2f0980080f0e1f0970010e0f071f0970080f0c041f0960010e0f05041f0960080f0e00041f0950010e0f0b060a2f0540057f0d40047f0d90041f09a0041f09a0041f09f0f010"},
+[53]={15,19,-2,-17,11.0000,"f0f0106f0450026f0450031f0a370250051f04a0061f03a0081f0b1e090160095f0c60060c0e150e1f05a0061f08a0031f0aa0031f0a500e0f0e10061f08500a1f0b070e1f0350020e4f097001090e0f0d06f0f020"},
+[54]={15,19,-2,-17,11.0000,"f0f030040a1d90082f0d80071f0e090670010e0f0e0290061f07a00a1f070d0e0b02600d5f0d01500e1f0b070d1f06502f0100041f0a500e1f10011f0c500d1f10011f0c500a1f0300041f0a50041f0d070d1f0560094f0a80070d0f0d07f0f020"},
+[55]={15,19,-2,-17,11.0000,"f0f0047f0b40047f0a4002460a1f06a00b1f0190021f0ba0071f05a00d0f0e0190031f0aa0091f04a00e0f0ea0051f09a00b1f0490021f0da0071f08a00d1f03f0f040"},
+[56]={15,19,-2,-17,11.0000,"f0f010020a0e0f0d0770010e4f0960081f0c070e1f02500a1f0300091f04500a1f0300091f0450041f0c070e0f0d70074f03700c4f0760071f06010c1f02500d1f10061f07500e0f0e10051f08500d1f0200071f0750091f0b070e1f0350020e4f0a70020a0e0f0d07f0f020"},
+[57]={15,19,-2,-17,11.0000,"f0f01001091e0b04800c4f0360071f0c081f0c600d1f01000a1f03501f0d10061f06501f0d10061f08500e1f01000a1f08500a1f0a062f0850036f0760040c0f0c0a1f04a00b1f0190051f0a7001080b1f0e0270032f0e0480030f0d0802f0f030"},
+[58]={10,16,-2,-14,6.0000,"f0701160051f05500a1f0950040e0d03f0f0e01160051f05500a1f0950040e0d03f060"},
+[59]={9,19,-2,-14,5.0000,"f0501150051f05400a1f0940040e0d03f0f0f010080f0e50080f0e50090f0d500c0f0940031f0340040c06f050"},
+[60]={13,15,-2,-13,9.0000,"f0f010030a0170030a1f0150030a3f0130020a3f0902400a1f0e0801600a1f0e080160020a3f090360030a3f0170030a1f0190030b01f0f080"},
+[61]={15,15,-2,-13,11.0000,"f0f00004660150096f0350096f03f0f030096f0350096f0350046701f0f0f0f0d0"},
+[62]={14,15,-2,-13,10.0000,"f0e00906b00b0f0d06900b2f0d067001060d2f0d0580050b2f80050c2f5001070d2f0d05500b2f0d06700b0f0d06900906f0f0f020"},
+[63]={13,19,-2,-17,9.0000,"f0d0080d0f0e0901500b4f0d0130031f0e080d1f0630061f0800061f0980061f0870010d1f03700a1f0770061f09800b0f0e900d0f0bf07002a00c0f0a80011f0e900a0e08f0e0"},
+[64]={20,24,-2,-17,16.0000,"f0f0e0040a0e0f0e0a04b0091f0c0b0c1f0990090f0c0220020b0f0770050f0c01500c0f02600d0f0300010a0f0d0700040f0850040f0b100c0f0d1f07000e0d50090f0600070f0a000b0f04000b0f01400c0f02000d0f03000c0f0300090f03401f00020f0e100d0f0200080f0330010f0d00050f0d100e0f0100080f0330020f0c00060f0c101f100a0f0130020f0c00060f0c00010f0e101d40010f0d00040f0e01070f0e00040f08500e0f100e0f0e2f0b1e02500b0f0400040d0e07020c0f0c0360070f09f000010e0f04f000060f0e06200104b0071f0e0c0d0f0ec003090d0f0e0c06f0f0e0"},
+[65]={17,19,-2,-17,13.0000,"f0f070041f0cc0082f01b00d2f06a0033f0ba0071f0c1f01900c0f0d051f0580021f09011f0a80061f06000c0f0e800b1f0200081f0460012f170c1f0960067f0e600a8f03500e1f0120081f0840051f0c30041f0d40091f08400e1f03f0f030"},
+[66]={16,19,-2,-17,12.0000,"f0f0200c3f0e0c0701600c6f0c600c1f0908092f05500c1f0310091f08500c1f0310081f07500c1f0805070e1f02500c6f05600c6f0b600c1f0300010b1f06500c1f0310041f0b500c1f0310031f0c500c1f0310071f0a500c1f0b07080e1f06500c6f0c600c3f0e0d0801f0f030"},
+[67]={16,19,-2,-17,12.0000,"f0f040050b0e0f0d080170085f0d0250032f09080c1f0a500a1f06200e1f01400e1f01200b1f04402fb0011f0eb0011f0eb0011f0ec01f0ec00e1f01200b1f04400a1f0610010e1f0140042f09080c1f0b60085f0d0270050b1e0d0801f0f030"},
+[68]={16,19,-2,-17,12.0000,"f0f0200c3f0d0801700c5f0e03600c1f0b080c1f0d01500c1f03100a1f06500c1f0310041f0a500c1f0310021f0c500c1f0310011f0d500c1f0310011f0d500c1f0310011f0d500c1f0310021f0c500c1f0310041f0a500c1f03100a1f06500c1f0b080b1f0d01500c5f0e03600c3f0d0801f0f040"},
+[69]={14,19,-2,-17,10.0000,"f0e00c6f0b400c6f0b400c1f0b3806400c1f03900c1f03900c1f0a36500c5f0e500c5f0e500c1f03900c1f03900c1f03900c1f03900c1f0b3706400c6f0c400c6f0cf0d0"},
+[70]={14,19,-2,-17,10.0000,"f0e00c6f07400c6f07400c1f0b3803400c1f03900c1f03900c1f03900c1f0a2706500c5f0d500c5f0d500c1f03900c1f03900c1f03900c1f03900c1f03900c1f03f0f020"},
+[71]={16,19,-2,-17,12.0000,"f0f040040b0e0f0d090270075f0e0250032f0a080c1f0b50091f08200d1f01400d1f02200a1f04402fc02f10033401402f100c3f05402f100c3f05402f300a1f05400d1f02200a1f0540091f09200a1f0540032f0b080a2f0550076f0c0160040b0e0f0e0b06f0f030"},
+[72]={17,19,-2,-17,13.0000,"f0f0400c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0b270c1f0a500c8f0a500c8f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0a500c1f0320051f0af0f040"},
+[73]={10,19,-2,-17,6.0000,"f0600a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05500a1f05f060"},
+[74]={14,19,-2,-17,10.0000,"f0f0300d1f02900d1f02900d1f02900d1f02900d1f02900d1f02900d1f02900d1f02900d1f02900d1f0230071f08100e1f0130061f0a00021f0e40012f090c1f0a50074f0e0260060c1e0a02f0f0"},
+[75]={16,19,-2,-17,12.0000,"f0f0200c1f0310052f04400c1f03100d1f0a500c1f0300071f0e01500c1f03010e1f05600c1f03091f0b700c1f061f0e02700c4f0a800c4f0c800c5f05700c2f091f0d700c1f09010e1f05600c1f0300071f0d600c1f0300010e1f06500c1f0310081f0d500c1f0310022f07f0f010"},
+[76]={14,19,-2,-17,10.0000,"f0e00c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f03900c1f0b3704400c6f08400c6f08f0d0"},
+[77]={20,19,-2,-17,16.0000,"f0f0a00c2f0130022f0b500c2f0530072f0b500c2f0a300b2f0b500c2f0e20013f0b500c3f0410053f0b500c3f08100a0f0c1f0b500c1f0b0f0d100e0f081f0b500c1f071f02031f051f0b500c1f031f06080f0e021f0b500c1f010d0f0b0c0f0a031f0b500c1f02083f05031f0b500c1f02043f01031f0b500c1f02000e1f0c00031f0b500c1f0200091f0800031f0b500c1f0200051f0300031f0bf0f0a0"},
+[78]={17,19,-2,-17,13.0000,"f0f0400c1f0520031f0a500c1f0c20031f0a500c2f0510031f0a500c2f0c10031f0a500c3f0500031f0a500c1f0e0f0c00031f0a500c1f081f05031f0a500c1f020e0f0c031f0a500c1f01071f081f0a500c1f110e0f0e1f0a500c1f0100073f0a500c1f0100010e2f0a500c1f0110082f0a500c1f0110010e1f0a500c1f0120081f0af0f040"},
+[79]={17,19,-2,-17,13.0000,"f0f060040a0e0f0d090180065f0e0260032f0b090d1f0c60091f0810010d1f04500d1f0220071f08502f30051f0a501f0e30041f0a501f0e30041f0b501f0e30041f0b502f30051f0a500d1f0220071f0850091f08200d1f0450032f0a080c1f0d70075f0e0380040b0e0f0d0902f0f060"},
+[80]={16,19,-2,-17,12.0000,"f0f0200c4f0d0701600c6f0c01500c1f09180e1f08500c1f0310041f0e500c1f03202f01400c1f03200e1f01400c1f0310031f0e500c1f0b07080d1f09500c6f0d01500c4f0d0801600c1f03b00c1f03b00c1f03b00c1f03b00c1f03f0f080"},
+[81]={17,22,-2,-17,13.0000,"f0f060040b0e0f0d080180065f0d0260032f0b090d1f0c60091f0810010d1f04500d1f0220081f08501f0e30051f0940011f0e30041f0a40011f0e30041f0a40011f0e30041f0a501f0e30051f09500d1f0220071f0850091f0810010d1f0450032f0a080d1f0c70066f0280040b0e3f03c0071f0e03c0081f05d00906f0f050"},
+[82]={16,19,-2,-17,12.0000,"f0f0200c3f0e0c0801600c6f0c01500c1f0908092f06500c1f0310071f0a500c1f0310041f0b500c1f0310071f09500c1f0b08092f04500c6f08600c5f0d700c1f03022f01600c1f03000b1f07600c1f0300051f0d600c1f03100e1f04500c1f0310091f0a500c1f0310032f01f0f010"},
+[83]={15,19,-2,-17,11.0000,"f0f01001090d0f0e0a0260020e4f0e03500a1f0d080b1f0c500e1f02100d1f03402f02100a1f05400b1f0c0490020d2f0c0580010a3f0b018002092f0ca0020e1f0430031f0c20081f0730011f0e0110091f07400a1f0d08092f0340020d5f096001080d0f0e0c06f0f010"},
+[84]={15,19,-2,-17,11.0000,"f0f0078f0d30078f0d3004282f0a1806700c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02a00c1f02f0f020"},
+[85]={16,19,-2,-17,12.0000,"f0f0200e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500e1f0110011f0e500d1f0210021f0d500b1f0510051f0b50071f0e190e1f0750010c5f0c016001070c1e0c0701f0f030"},
+[86]={16,19,-2,-17,12.0000,"f0f0100a1f0830071f0c30051f0c300a1f0730012f01200e1f03400c1f0410021f0e50071f0810061f0950031f0b100a1f05600e0f0e100d1f01600a1f03021f0b70051f07051f0770011f0b091f03800c0f0e0d0f0e90073f0990033f05a00e2f01a0091f0bf0f050"},
+[87]={20,19,-2,-17,16.0000,"f0f090071f0810071f03100b1f0330041f0a100a1f06100d1f0130011f0c100d1f0900011f0d500e0f0e102f0c00031f0a500b1f02033f00051f0750081f04063f03071f0550061f06090f0d1f050a1f0250031f090c0f090c0f080c0f0e701f0b0e0f06090f0b0e0f0c700d3f03073f09700a3f00043f0770072f0c00013f0470052f09100d2f0170022f06100a1f0e900e1f0310071f0bf0f0c0"},
+[88]={16,19,-2,-17,12.0000,"f0f010052f0110032f02400c1f0710091f0950051f0e00010e1f02600d1f05061f0a70051f1c1f02800d3f0a90053f0390012f0da0073f0480010e3f0b80071f090d1f0360010e1f02081f0b60071f0b00022f03500d1f05100a1f0a40061f0e20042f03f0f010"},
+[89]={16,19,-2,-17,11.0000,"f0f010091f0920031f0e0130031f0e20081f09500c1f04100d1f0350051f0900031f0b700e0f0e00081f0570081f040d0f0d80021f0c1f07900a3f0190042f0ab00d1f04b00c1f03b00c1f03b00c1f03b00c1f03b00c1f03f0f050"},
+[90]={15,19,-2,-17,11.0000,"f0f0048f0530048f05300248092f01900a1f0690041f0ca00c1f0490061f0a90010e1f0290081f0890021f0e01900a1f0690041f0da02f0c470330038f0730038f07f0f0"},
+[91]={10,24,-2,-19,6.0000,"f0600d2f02400d2f02400d1f05500d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f600d1f04500d2f02400d2f02f050"},
+[92]={13,20,-2,-17,8.0000,"f0b00b1f0380061f0880011f0d900b1f0380061f0880011f0d900c1f0380071f0780021f0c900c1f0280071f0780021f0c900c1f0280071f0780021f0c900c1f02f0b0"},
+[93]={10,24,-2,-19,6.0000,"f0500a2f05400a2f0540030a1f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0550081f0540030a1f05400a2f05400a2f05f060"},
+[94]={12,19,-2,-17,8.0000,"f0b0021f0570071f0b700c2f0150030f0d090f0750090f08040f0c500e0f04000e0f0330050f0e100a0f08f0f0f0f0f0f0f090"},
+[95]={13,7,-2,-2,8.0000,"f0b00c6f03300c6f0330046501f0b0"},
+[96]={11,20,-2,-18,7.0000,"f070020d0f0e0260020e0f0c70030e0f07f0f0f0f0f0f0f0f0f0f070"},
+[97]={14,15,-2,-13,10.0000,"f0f0030b1e0c0460045f04500d1f06081f0a50180700011f0c60060c0e2f0d50081f0e0c1f0d40011f0d111f0d40031f0a00011f0d40021f0e05091f0d500b5f0e50010a1e070c1f02f0d0"},
+[98]={14,20,-2,-18,10.0000,"f0e00e0f0ea00e0f0ea00e0f0ea00e0f0ea00e0f0ea00e0f0e071e0b02500e5f0d01400e1f0a070d1f05400e1f10051f09400e1f10031f0a400e1f10021f0b400e1f10031f0a400e1f10051f09400e1f0a070d1f05400e5f0d01400e0f0c071e0b03f0e0"},
+[99]={14,15,-2,-13,10.0000,"f0f0040b1e0c0560045f05500c1f181f0d40021f0b100b1f40031f0990041f0990031f0990021f0b100b1f500c1f181f0c50045f0460040b1e0b04f0f0"},
+[100]={14,20,-2,-18,10.0000,"f0f030081f0590081f0590081f0590081f0590081f0550080d0e1a1f0540076f05400e1f09082f0530031f0c102f0530041f09100c1f0530051f08100c1f0530041f09100c1f0530031f0b102f05400e1f09072f0540076f0550080d0e0a061f05f0d0"},
+[101]={14,15,-2,-13,10.0000,"f0f0030a0e0f0d0760020e4f09500a1f0a070d1f01401f0e10071f0530027f0630037f0730031f0b90011f0e200102500b1f0b06070d0b50020e4f0e0250020a0e0f0d0902f0e0"},
+[102]={11,20,-2,-18,7.0000,"f0a0080d0f0850092f0a40012f080440031f0a60041f0950094f0530094f053002061f0c030140041f0960041f0960041f0960041f0960041f0960041f0960041f0960041f09f090"},
+[103]={15,19,-2,-13,11.0000,"f0f010060d0f0c061f0850066f08500d1f0a072f0840021f0d10091f0840041f0a10061f0840041f0910061f0840041f0a10061f0840021f0c10091f08500d1f0a072f0850066f0860060d0f0c081f07600120071f06600d0a05070e1f0350055f0a70060c1e0c06f0f020"},
+[104]={14,20,-2,-18,10.0000,"f0e01f0da01f0da01f0da01f0da01f0da01f0d060d0e0b02506f0b502f0a082f02402f100a1f04402f10091f04402f10091f04401f0d10091f04401f0d10091f04401f0d10091f04401f0d10091f04401f0d10091f04f0d0"},
+[105]={9,20,-2,-18,5.0000,"f0d0080f0c500d1f0240070e0be00c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01f030"},
+[106]={10,24,-3,-18,5.0000,"f0f010090f0b600e1f0250080e0af0000c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500c1f01500d1f013004081f0e40082f0840070f0e08f070"},
+[107]={15,20,-2,-18,10.0000,"f0f0000e0f0eb00e0f0eb00e0f0eb00e0f0eb00e0f0eb00e0f0e00010e1f06500e0f0e00091f0b600e0f0e031f0e01600e0f0e0c1f04700e4f800e4f02700e4f09700e1f020d1f02600e0f0e00061f0b600e0f0e100e1f04500e0f0e10071f0cf0f000"},
+[108]={9,20,-2,-18,5.0000,"f0400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01400c1f01f030"},
+[109]={20,15,-2,-13,16.0000,"f0f0a00e0f0c050d0e0b02040c0e0c04600e5f0e3f0e01500e1f0a082f0e070d1f05500e1f100b1f0600071f07500e1f100a1f0300061f07500e1f100a1f0300061f07500e1f100a1f0300061f07500e1f100a1f0300061f07500e1f100a1f0300061f07500e1f100a1f0300061f07500e1f100a1f0300061f07f0f0a0"},
+[110]={14,15,-2,-13,10.0000,"f0e01f0b060d0e0b02506f0c502f0a082f02402f100a1f04402f10091f04402f10091f04401f0d10091f04401f0d10091f04401f0d10091f04401f0d10091f04401f0d10091f04f0d0"},
+[111]={14,15,-2,-13,10.0000,"f0f0030a0e0f0c0660030e4f09500b1f0a070e1f0330011f0d10071f0830031f0a10031f0a30041f0910031f0b30031f0a10031f0a30011f0d10061f08400b1f0a070e1f0340030e4f0960030a0e0f0c07f0f0"},
+[112]={14,19,-2,-13,10.0000,"f0e00e0f0c071e0b02500e5f0d01400e1f0a070e1f05400e1f10061f09400e1f10031f0a400e1f10031f0b400e1f10031f0a400e1f10061f08400e1f09070e1f05400e5f0d500e0f0e071e0b02500e0f0ea00e0f0ea00e0f0ea00e0f0ef0f030"},
+[113]={14,19,-2,-13,10.0000,"f0f0080e0f0b061f0540086f05400e1f09072f0530031f0c102f0530041f09100c1f0530051f08100b1f0530041f09100c1f0530031f0b102f05400e1f09072f0540076f0550080e0f1a1f0590081f0590081f0590081f0590081f05f0d0"},
+[114]={11,15,-2,-13,7.0000,"f0800e0f0c070e08400e3f08400e2f0e07400e1f04600e1f700e1f700e0f0e700e0f0e700e0f0e700e0f0e700e0f0ef0a0"},
+[115]={14,15,-2,-13,10.0000,"f0f0060c1e0a0360074f0e02500e0f0d04091f09501f0d111705500b1f0e090270010b3f0980040a2f0740031a0400041f0b40021f0c04061f0a50095f0360070c0f0e0b03f0f0"},
+[116]={10,18,-2,-16,6.0000,"f060071f0650071f0650071f06400b3f0e300b3f0e3002091f090240071f0650071f0650071f0650071f0650071f0650061f0c0740023f50060d0f0df050"},
+[117]={14,15,-2,-13,10.0000,"f0e01f0d10091f05401f0d10091f05401f0d10091f05401f0d10091f05401f0d10091f05401f0d10091f05401f0d100d1f05401f0e102f05400d1f09082f0540076f0550081e0a071f05f0d0"},
+[118]={14,15,-2,-13,9.0000,"f0d0091f06100e0f0e40051f0900031f0b40011f0c00061f06500b1f00091f0250071f030c0f0d60031f061f09700e0f0c1f05700a3f0170052f0c80012f07900c1f03f0f000"},
+[119]={17,15,-2,-13,13.0000,"f0f030081f0300081f100e0f0c30051f06000b1f111f0930021f08000e1f141f06400e0f0a032f08061f03400a0f0d072f0b090f0e50071f0b0f090f0e0b0f0b50043f030d2f0850012f0e000a2f05600d1f0a00062f02600a1f0600021f0e70071f03101f0bf0f050"},
+[120]={14,15,-2,-13,10.0000,"f0d0051f0b00021f0d500c1f04081f0550051f0c0e0f0c700c3f0470052f0b900e1f0680062f0d800d3f0660061f0a1f0d600d1f02091f0740061f0a00021f0e01f0d0"},
+[121]={14,19,-2,-13,9.0000,"f0d00a1f06100e1f0130061f0900031f0b40011f0c00071f06500c1f010a1f0250071f040e0f0c60031f0a1f08700d3f0470092f0e80042f0a80012f05902f01900d0f0b80050b1f06800b1f0d01800a0f0c02f0f020"},
+[122]={14,15,-2,-13,10.0000,"f0d0016f0940016f085026072f0280091f0780031f0c900c1f0380071f0980020e0f0d01800d1f0b260440026f0a40036f0af0e0"},
+[123]={10,24,-2,-18,6.0000,"f080020b0550020e0f0850090f0e01500d0f0a601f09601f08601f0850011f074001091f03400a1f0750091f0960081f0450011f07601f08601f08601f09600d0f0a60090f0e0150020e0f0960020b05f050"},
+[124]={9,22,-2,-17,5.0000,"f040030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f08f040"},
+[125]={10,24,-2,-18,6.0000,"f050010c0460051f05600b0f0d60061f0250051f0450041f0450041f0450031f05600e0f0c0250042f50052f40010e0f0b0140031f0550041f0450041f0450051f0450061f02500b0f0d50051f0550010c04f080"},
+[126]={16,13,-2,-11,12.0000,"f0f030060e0d0510070f0950033f05000a0f0850090f0d090f0e081f05500c0f0500092f0d600d0f0310090e0c03f0f0f0f0f0f030"},
+[8212]={18,13,-2,-11,14.0000,"f0f06005a601400baf04400baf04f0f0f0f0f0f0f0f0f010"},
+[183]={10,14,-2,-12,6.0000,"f0701160051f0350091f0750030e0d02f0f0f0f0f020"},
+},
+[23]={
+[32]={9,4,-2,-2,5.0000,"f0f030"},
+[33]={10,21,-2,-19,6.0000,"f060091f0b50081f0b50081f0a50071f0a50071f0950071f0950061f0850061f0850051f0750051f0750041f0750041f06f090030d0e0550091f0b50030d0e05f060"},
+[34]={11,21,-2,-19,7.0000,"f070041f00090f0a30041f00090f0930040f0d00090f0830040f0c00090f0730040f0a00090f0530040f0900090f04f0f0f0f0f0f0f0f0f000"},
+[35]={16,21,-2,-19,12.0000,"f0f050070f08000e0f90090f06020f0d900b0f140f0b900d0f01060f09900f0e00080f0660060e2f0e2f0e0640078f0660060f08000e0f90080f06010f0d900b0f140f0b60028f0a40021e1f0e2f0e0960020f0c000a0f0480040f0a000c0f0280060f08000e0f90080f06010f0d900a0f04030f0bf0f050"},
+[36]={16,25,-2,-21,12.0000,"f0f0600a0fd00a0fb0040b1f0c0580055f0760010e1f1c2f0150041f0e100d1f0650061f0b100a1f0850051f0db0022f09b0092f0d05a0093f0a0190040b2f0ab0072f03b00c1f07500e1f04100a1f08500c1f08100d1f0650072f0a0c2f02600b5f0780070c1f0b05b00e0cd00e0cf0f060"},
+[37]={19,21,-2,-19,15.0000,"f0f090071e0a01c0063f0b2001800c0f06021f0100070e03700d0f03000d0f03011e01700d0f03000d0f03070f07800c0f06021f021e0180063f0b080f06a0071e0a020e0df0090f06e0020f0d030c0f0d05a0090f060d0f0e1f0380020f0d050f0d000a0f08800a0f05070f0900060f0a70020f0c00070f0900060f0a70080f0400050f0d00090f08800510010d0f0e1f03c0030c0f0d05f0f090"},
+[38]={17,21,-2,-19,13.0000,"f0f060030b1e090190030e3f0c900a1f0c0d1f05800e0f0e00031f08801f0d00021f07800d1f02091f0380074f0990013f0aa0043f0290020e3f0b000a1f500c1f070e1f070c0f0e40012f01064f0c40022f01000a3f0740012f0500013f01500b1f0e0a0c3f0350020e7f0d6002090e0f0d09030e1f08f0f030"},
+[39]={8,21,-2,-19,4.0000,"f010041f0130041f0130041f40040f0e40040f0d40040f0cf0f0f0f0f0f0a0"},
+[40]={11,27,-2,-20,7.0000,"f0c0070570080f0a60041f03600d0f0860051f01600b0f0b60011f0760041f0460061f0260081f0160091f700a1f70091f70081f0160061f0260041f0460011f07700b0f0b70051f01700d0f0870040f0e0270080f0a800705f070"},
+[41]={11,27,-2,-20,7.0000,"f0800b0270040f0d01700b0f0b70021f05700a0f0d70051f0460011f09700d0f0c700b1f700a1f0260091f0360091f0460091f03600a1f02600b1f700d0f0c60011f0960051f04600a0f0d60021f06600b0f0b60040f0d02700b02f0b0"},
+[42]={15,21,-2,-19,10.0000,"f0f0300b0f06b00a0f0570010410090f04100340050f0d07090f05081e40060e6f0e025003091f0e070370010c0f0e0f05800a0f0b040f0e0260050f0e02000a0f0c701610010b02f0f0f0f0f0f0f0f0a0"},
+[43]={15,17,-2,-15,11.0000,"f0f0301f0eb01f0eb01f0eb01f0e70042e2f2e0230048f0230048f02701f0eb01f0eb01f0eb01f0eb01f0ef0f0f020"},
+[44]={10,11,-2,-5,6.0000,"f060061f0550061f0550071f0450081f02500d0f0c50041f0550020a08f080"},
+[45]={12,13,-2,-11,8.0000,"f0a0063908500a3f0c500a3f0cf0f0f0f0f0f020"},
+[46]={11,8,-2,-6,7.0000,"f09004060160051f0d60082f0150020c0e08f090"},
+[47]={12,22,-2,-19,8.0000,"f0d0031f0170070f0c800b0f0870011f0470041f0170090f0b800d0f0770021f0370060f0e800a0f0a800e0f0570031f0170070f0c800c0f0870011f0470050f0e80090f0b800d0f07f0e0"},
+[48]={16,21,-2,-19,12.0000,"f0f040050c1e0a0280064f0e0260020e1f0b0d1f0b60071f0a00012f01500a1f06100c1f05500d1f04100a1f07500d1f0310091f08500e1f0310091f08500e1f0310091f08500e1f0310091f08500e1f0310091f08500d1f04100a1f07500b1f06100b1f0550071f0a00012f0150022f0b0d1f0a70064f0e0280050c1e0a02f0f040"},
+[49]={16,21,-2,-19,12.0000,"f0f06001070d019003092f0170020c4f0170035f0170030e09042f01700110022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01a0022f01f0f040"},
+[50]={16,21,-2,-19,12.0000,"f0f03001070d1e0b0370010c5f0460081f0e0a0d1f0d600e1f0500032f0340022f01100e1f04b00e1f03a0032f01a0091f0aa0032f0390010d1f08a00a1f0ca0071f0e0290032f0690010d1f0ba00b2f0b3906500e7f0b500e7f0bf0f020"},
+[51]={16,21,-2,-19,12.0000,"f0f03002090d0f0d090270030e4f0e03600b1f0e0a0e1f0c602f0300032f02b00e1f04b00e1f04a0031f0e01700108090d1f0680033f0890024f06a001052f02b00b1f0640032f200b1f0740012f0500010e1f05500a1f0e0a0d1f0e0150020e5f057001090d0f0e0a03f0f040"},
+[52]={16,21,-2,-19,12.0000,"f0f060012f07a0082f0790010e2f0790083f0780010e3f0780080f0e0b1f0770010e0f070b1f0770081f010b1f0760010e0f09000b1f0760081f03000b1f0750011f0e193f0840048f0d40038f0da00b1f07b00b1f07b00b1f07b00b1f07f0f030"},
+[53]={16,21,-2,-19,12.0000,"f0f0300c6f02600e6f02601f0e4b0150021f0bb0031f0ab0041f09b0061f1c0f0d0670076f0860070e0f0c070c2f027003200d1f06b0091f08b0081f09500d1f04100a1f08500a1f0900010e1f0550042f0b0d1f0e0160085f0480050c0f0e0b03f0f040"},
+[54]={16,21,-2,-19,12.0000,"f0f05001070c0e0a90020d2f0a80010d2f0c0780091f0d0290012f02a0061f0ab0091f080a1e0901600c6f0b600d2f0a0c2f04500d1f0d100c1f08500d1f0710071f0a500c1f0510051f0c500a1f0710071f0b50061f0c100c1f0750010d1f1c1f0e0260045f0680030b1e0b04f0f040"},
+[55]={16,21,-2,-19,12.0000,"f0f010048f0a40048f0a4002590d1f06b00e1f01a0051f0bb00a1f06a0012f01a0061f0bb00c1f06a0022f01a0081f0ab00d1f05a0031f0e01a0091f0ab00e1f05a0051f0e01a00a1f0af0f070"},
+[56]={16,21,-2,-19,12.0000,"f0f040060c1e0a0380084f0e0360022f0b0d1f0c60071f0c00032f0150091f09102f0350081f09102f0250041f0c00031f0e700b1f0b0d1f0670014f0a800b5f0660071f0c01042f01500c1f06100c1f06500d1f05100b1f07500c1f0900010e1f0650072f0a0c2f0150010c5f0780070c1e0b04f0f040"},
+[57]={16,21,-2,-19,12.0000,"f0f040050c0f0e080180084f0c0160032f0b0e1f08600a1f0900031f0e600d1f04100d1f03500e1f03100b1f05500d1f04102f06500b1f08102f0750062f090c2f0650010d6f0560020a1e080c1f03b00e1f01a0051f0ba0040e1f04800a0d2f09900e2f0aa00d0e0a04f0f060"},
+[58]={10,17,-2,-15,6.0000,"f07004060150051f0d50082f0140020c0e08f0f0f08004060150051f0d50082f0140020c0e08f060"},
+[59]={10,21,-2,-15,6.0000,"f07004060150051f0d50082f0140020c0e08f0f0f0f010061f0550061f0550071f0450081f02500d0f0c50041f0550020a08f080"},
+[60]={14,16,-2,-14,10.0000,"f0f040060a8001070d0f0d6001080e2f0d4001093f0d070140082f0b0470082f0a047001093f0d07016001080e2f0d8001070d0f0db0060af0f0f0a0"},
+[61]={16,15,-2,-13,12.0000,"f0f020057a60087f60087ff0f060087f60087f60057af0f0f0f0f030"},
+[62]={14,16,-2,-14,10.0000,"f0e0080701a0090f0e080280093f0a0370050b3f0b037002083f7002093f50050b3f0b0440093f0a0360090f0e090280080701f0f0f0f0"},
+[63]={14,21,-2,-19,10.0000,"f0f0040b1e0c0560055f07500e1f1d2f0130041f0e110e1f0530061f0c100c1f06900e1f0580061f0e0170030e1f06800c1f0a80041f0d0180071f0690081f03f070010604a00a1f05900c1f0890050e0d02f0f000"},
+[64]={22,25,-2,-18,18.0000,"f0f0f02001070c0e0f0d0a04c0030d1f0e0d0e1f09a0031f0a0220050d0f0a80010e0f0750010c0f0570080f0b70030f0c60010e0f0310040c0f0d06100c0f0350050f0c10044f0800070f06500a0f08100e0f08001f0500050f08500d0f0500060f0d100d0f0400050f0a500e0f03000a0f0a100e0f0300040f0a40011f01000d0f0800011f0200050f0940011f01001f0600021f0100060f07501f01000e0f0700071f100a0f03500e0f03000c0f0c010d1f01020f0d600c0f0600072f0e1f0d0e0f0560080f0a10090e0d04030c0f0d0570031f02f0200b0f0c01f010020e0f0d050100010407c0030d6f01c001060b0e0f0d0b05f0f0f030"},
+[65]={18,21,-2,-19,14.0000,"f0f0a00c1f08c0012f0cc0063f02b00a3f06b00e3f0ba0041f090d1f0190091f05091f05900d1f02061f0a80031f0d00021f0e80071f09100d1f04703f1b2f0860018f0d60069f02500a1f09300d1f0740010e1f0530091f0b40042f0130052f0130091f0d40022f05f0f050"},
+[66]={17,21,-2,-19,13.0000,"f0f0400a4f0e0a04700a7f07600a1f0d1b0e2f02500a1f0910022f06500a1f09200c1f08500a1f09200c1f08500a1f0910010e1f05500a2f1c2f0c600a6f0e01600a7f0b01500a1f0910020e1f07500a1f0920081f0b500a1f0920081f0c500a1f09200c1f0a500a2f1b0d2f06500a7f0b600a4f0e0c06f0f060"},
+[67]={17,21,-2,-19,13.0000,"f0f06001080d0f0e0c0680030e5f0a700d2f1c2f0750051f0e0210071f0d500a1f0920012f03400d1f06300d1f05400e1f05c02f05c02f05c02f05c00e1f05c00d1f06300e1f05400a1f0820012f0340061f0e0110071f0e50010d1f0e0b0c2f0760030e5f0a8002090d0f0e0b06f0f060"},
+[68]={17,21,-2,-19,13.0000,"f0f0400a3f0e0b05800a6f0b01600a2f0b0d2f0a600a1f0910042f03500a1f09200a1f08500a1f0920071f0c500a1f0920061f0d500a1f0920051f0e500a1f0920051f0e500a1f0920051f0e500a1f0920061f0d500a1f0920071f0c500a1f09200a1f08500a1f0910042f03500a2f0b0d2f0a600a6f0b01600a3f0e0b05f0f070"},
+[69]={15,21,-2,-19,11.0000,"f0f0000a7f0a400a7f0a400a2f4b07400a1f09a00a1f09a00a1f09a00a1f09a00a2f3a07500a6f0b500a6f0b500a1f09a00a1f09a00a1f09a00a1f09a00a2f4b08400a7f0b400a7f0bf0f0"},
+[70]={15,21,-2,-19,11.0000,"f0f0000a7f05400a7f05400a2f4b04400a1f09a00a1f09a00a1f09a00a1f09a00a2f3b08500a6f0b500a6f0b500a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09f0f050"},
+[71]={17,21,-2,-19,13.0000,"f0f06001080d0f0e0d080170030e5f0e02600d2f0c0b2f0c50052f0310042f02400a1f0a300d1f05400c1f07c00d1f06c00e1f05c00e1f0500014703400e1f0500034f06400d1f0600034f06400c1f07300d1f06400a1f0b300d1f0640052f04200d1f06500c2f0d0b0e2f0650020d6f0b016001080c0e0f0d0a05f0f050"},
+[72]={18,21,-2,-19,14.0000,"f0f0600a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a2f3b2f0c500a9f0c500a9f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0c500a1f0930071f0cf0f060"},
+[73]={10,21,-2,-19,6.0000,"f060081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0b50081f0bf060"},
+[74]={15,21,-2,-19,11.0000,"f0f050042fa0042fa0042fa0042fa0042fa0042fa0042fa0042fa0042fa0042fa0042fa0052f40071f0d10061f0d40052f02000a1f0b40010e1f0e0c2f0550055f0970040b1e0c06f0f020"},
+[75]={17,21,-2,-19,13.0000,"f0f0400a1f0920082f06400a1f0910022f0c500a1f09100a2f03500a1f0900032f08600a1f09000b1f0d01600a1f09042f04700a1f090d1f0a800a5f03800a5f08800a5f0e01700a2f0d2f08700a2f02091f0e01600a1f0c00022f08600a1f09100a1f0e01500a1f0910032f08500a1f09200b1f0e01400a1f0920042f08f0f030"},
+[76]={15,21,-2,-19,11.0000,"f0f0000a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a1f09a00a2f4b04400a7f06400a7f06f0f0"},
+[77]={21,21,-2,-19,17.0000,"f0f0c00a2f0840023f01400a2f0c40063f01400a3f01300a3f01400a3f06300e3f01400a3f0a20044f01400a3f0e20081f0e1f01400a1f0e1f04100c0f0c0e1f01400a1f0a1f0800021f080e1f01400a1f071f0c00061f042f01400a1f070b1f020a0f0e012f01400a1f07061f060e0f0b012f01400a1f07021f0d1f07012f01400a1f08000d3f03012f01400a1f0800082f0d00012f01400a1f0800042f0900012f01400a1f08100e1f0500012f01400a1f08100a1f0100012f01f0f0b0"},
+[78]={18,21,-2,-19,14.0000,"f0f0600a1f0a30061f0b500a2f0320061f0b500a2f0a20061f0b500a3f0210061f0b500a3f0910061f0b500a4f0200061f0b500a1f0e1f0900061f0b500a1f080e1f01061f0b500a1f07081f08061f0b500a1f07010e0f0e071f0b500a1f0700081f0d1f0b500a1f0700014f0b500a1f0710093f0b500a1f0710023f0b500a1f0720092f0b500a1f0720022f0b500a1f07300a1f0bf0f060"},
+[79]={18,21,-2,-19,14.0000,"f0f08001070c1e0c0690020d5f0c01700c2f1d2f0a60042f0410062f0250091f0a300c1f07500c1f0730091f0a500e1f0530071f0c500e1f0530071f0c500e1f0530071f0c500e1f0530071f0c500e1f0530071f0c500d1f0630081f0b500a1f0a300c1f0850052f0310052f03600c2f0c0d2f0b70020d5f0c018001080c1e0c0701f0f080"},
+[80]={17,21,-2,-19,13.0000,"f0f0400a4f0e0b05700a7f09600a1f0d1b0d2f06500a1f09200b1f0d500a1f0920042f01400a1f0920022f03400a1f0920042f02400a1f09200a1f0e500a2f1b0d2f07500a7f0b600a4f0e0c06700a1f09c00a1f09c00a1f09c00a1f09c00a1f09c00a1f09f0f0b0"},
+[81]={18,24,-2,-19,14.0000,"f0f08001070c1e0c0690020d5f0b01700c2f1d2f0960052f0410062f02500a1f0a300d1f07500d1f0630091f0a500e1f0530071f0b502f0430071f0c502f0430071f0c502f0430071f0c500e1f0530071f0b500d1f0630091f0a500a1f0a300d1f0750052f0410062f02600c2f0c0d2f0a70020d6f018001080c0e3f05d00a2f05d00a1f06e00a05f0f070"},
+[82]={17,21,-2,-19,13.0000,"f0f0400a4f0e0b04700a7f07600a1f0e1b0e2f03500a1f0910010e1f08500a1f09200a1f0a500a1f0920081f0b500a1f09200a1f0a500a1f0910010e1f07500a2f1b0e1f0e01500a7f04600a6f0a700a1f0900081f0e01600a1f0900022f06600a1f09100a1f0d600a1f0910042f04500a1f09200d1f0b500a1f0920072f02f0f030"},
+[83]={16,21,-2,-19,12.0000,"f0f040050b0e0f0d0801700a5f0d0250062f0c0b2f0b500c1f0b10052f02400d1f06200e1f05400c1f0bb0072f0c05a00b3f0d0690074f0b018002080e2f0aa0010a2f03b00e1f0730022f03200c1f08400e1f0810020e1f0640082f0d0b0e1f0e0140010b6f0570060b0e0f0e0a03f0f030"},
+[84]={16,21,-2,-19,12.0000,"f0f010069f0e30069f0e30042b3f2b0a70071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0db0071f0df0f050"},
+[85]={17,21,-2,-19,13.0000,"f0f0400c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500c1f0720051f0e500b1f0820061f0d50081f0d01100b1f0a50032f0e0b0d2f0460076f0980040a0e0f0e0b05f0f060"},
+[86]={18,21,-2,-19,13.0000,"f0f050091f0d40091f0e40052f02300d1f0a40012f0520012f05500c1f0920052f0150081f0c20081f0c60032f01100c1f08700e1f04102f04700a1f0700031f0e80061f0b00071f0a80021f0e000a1f06900d1f030e1f0290091f091f0da0044f09a0014f05b00b3f01b0072f0bc0032f07f0f0a0"},
+[87]={21,21,-2,-19,17.0000,"f0f0b0061f0d200c1f0210081f0a30032f202f04100b1f0830012f0200032f07100d1f05400d1f0400062f0a102f02400b1f0600082f0d00022f50081f08000b3f00041f0c50061f0b000e3f03061f0a50031f0d011f0b1f06091f0750012f041f061f080b1f05600d1f091f020d0f0b0d1f02600a1f0e0f0e000a0f0e1f0e70083f0b00073f0c70053f0900043f0970033f0600023f07803f03100e2f04800c2f200b2f01800a1f0c20081f0ef0f0e0"},
+[88]={17,21,-2,-19,13.0000,"f0f030042f0620062f03400c1f0c200c1f0b50052f0400032f04600d1f0a00091f0c70062f020e1f05800d1f0c1f0d90064f0690010e2f0db00a2f09a0023f0e0190084f0780010e1f0b1f0d80081f0d022f0660010e1f07000a1f0d60072f0100042f05500d1f0a200d1f0c40062f0420072f04f0f030"},
+[89]={17,21,-2,-19,12.0000,"f0f030091f0e30072f0230032f04200c1f0a500c1f0810012f0450061f0d10061f0d60010e1f03000b1f0770091f08012f0170031f0d061f0a900c1f0d1f0490063f0db00e2f06b0082f01b0061f0dc0061f0dc0061f0dc0061f0dc0061f0dc0061f0df0f080"},
+[90]={16,21,-2,-19,12.0000,"f0f010039f0530039f0530025b3f01a00c1f07a0051f0e01a00d1f06a0071f0da0010e1f05a0081f0ca0022f04a00a1f0aa0032f02a00b1f09a0041f0e02a03f5b0530029f0730029f07f0f010"},
+[91]={10,27,-2,-21,6.0000,"f0600b2f09400b2f09400b1f0b05400b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f06500b1f0b04400b2f09400b2f09f050"},
+[92]={14,22,-2,-19,9.0000,"f0d00b1f0790061f0c90012f02900b1f0790071f0b90022f01900c1f0690071f0b90032f01900d1f0590081f0a90031f0ea00d1f0590091f0990041f0ea00e1f0490091f0990051f0df0e0"},
+[93]={10,27,-2,-21,6.0000,"f050092f0b40092f0b40050b1f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b50061f0b40050b1f0b40092f0b40092f0bf060"},
+[94]={13,21,-2,-19,9.0000,"f0e00d0f0d80022f0370082f08700d0f0b0f0d60031f021f0450080f0c000b0f09500e0f0700070f0e40041f0300021f04f0f0f0f0f0f0f0f0f000"},
+[95]={13,7,-2,-2,9.0000,"f0b00c6f0e300c6f0e300678f0b0"},
+[96]={12,21,-2,-19,8.0000,"f090010c1f0870010c1f0470010c0f0e01f0f0f0f0f0f0f0f0f0f0f0f020"},
+[97]={15,16,-2,-14,11.0000,"f0f01001090d0f0d090260020e4f0d01500a1f0c080e1f07500c1d0400081f0aa0071f0a60040b0e3f0a50062f0e2f0a500e1f0600071f0a40022f0100091f0a40012f0a092f0a50096f0c60080d0e0b052f01f0f0"},
+[98]={15,22,-2,-20,11.0000,"f0f0000c1f05a00c1f05a00c1f05a00c1f05a00c1f05a00c1f05a00c1f070b1e0901500c6f0a500c2f0a0c2f03400c1f0a100c1f07400c1f0510091f09400c1f0510081f09400c1f0510081f09400c1f0510091f09400c1f0a100c1f07400c2f0a0c2f03400c6f0b500c1f040b0f0e0901f0f000"},
+[99]={15,16,-2,-14,11.0000,"f0f01002090d0f0d090160010d4f0c60091f0e0a0e1f07500e1f0300051f0c40022f10011f0d40031f0ea0031f0ea0022fb00e1f0300021f0d50091f0e0a0d1f0a50010d4f0e026002090d0f0e0902f0f010"},
+[100]={15,22,-2,-20,11.0000,"f0f0600e1f03a00e1f03a00e1f03a00e1f03a00e1f03a00e1f0350050c0f0d050e1f0340047f03400c1f0e0a0d2f0330012f0400012f0330032f202f0330041f0e202f0330041f0e202f0330031f0e202f0330012f0400012f03400c1f0e0a0d2f0340047f0350040c0f0d050a1f03f0f0"},
+[101]={15,16,-2,-14,11.0000,"f0f01001080d0f0e0b03700c5f0350071f0e0a0d1f0c500d1f0600010e1f0230012f05130c1f0430028f0530028f0530012f01a00d1f0720060250082f0b0a0c0f0b600c5f0c0160070c0e0f0c07f0f010"},
+[102]={12,22,-2,-20,8.0000,"f0c0040c1e0350043f04500c1f0e0a03502f0460012f0160012f0150085f40085f4003072f070550012f0160012f0160012f0160012f0160012f0160012f0160012f0160012f0160012f01f0b0"},
+[103]={16,21,-2,-14,12.0000,"f0f030040b1e09081f0650037f06500b2f0a0c2f06502f06102f0640022f01102f0640031f0e202f0640031f0e202f0640022f01102f06502f05102f06500b2f0b0c2f0650030e6f0660030b1e070b1f06b00c1f0660030110010e1f04600c0e0a090d1f0e60036f0570030a0d0f0d0a03f0f040"},
+[104]={15,22,-2,-20,11.0000,"f0f0000e1f04a00e1f04a00e1f04a00e1f04a00e1f04a00e1f04a00e1f050a0e0d08600e6f08500e2f0a0d1f0e500e1f0800022f02400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03f0f0"},
+[105]={10,21,-2,-19,6.0000,"f070040360091f05500c1f0850050e0d03f00a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07f060"},
+[106]={11,26,-3,-19,6.0000,"f0a00403700a1f04600d1f0760060e0d02f0100a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600a1f07600c1f0640060b2f0340092f0c50080f0e0a01f090"},
+[107]={16,22,-2,-20,11.0000,"f0f0200c1f05b00c1f05b00c1f05b00c1f05b00c1f05b00c1f05b00c1f0500052f05500c1f05010e1f09600c1f05091f0d01600c1f082f03700c4f08800c4f07800c4f0e01700c2f0d1f09700c1f07042f02600c1f05000c1f0a600c1f0500052f03500c1f05100c1f0bf0f020"},
+[108]={10,22,-2,-20,6.0000,"f0600a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07500a1f07f060"},
+[109]={21,16,-2,-14,17.0000,"f0f0c00c1f040a1e0900040c0e0c06600c6f0c4f04500c2f0b0d2f0e0a0e1f0a500c1f0b00032f0500061f0c500c1f0600012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0d500c1f0500012f0100041f0df0f0c0"},
+[110]={15,16,-2,-14,11.0000,"f0f0000e1f030a0e0d09600e6f09500e2f0b0d1f0e500e1f0900022f02400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03f0f0"},
+[111]={15,16,-2,-14,11.0000,"f0f01001080d0f0e0a0360010c5f0550082f0a0d1f0e01400e1f0600010e1f0530022f01100a1f0830032f20081f0930032f20081f0930022f0110091f08400e1f0600010d1f0540082f0a0d1f0e0140010c5f056001080d0f0e0b03f0f010"},
+[112]={15,21,-2,-14,11.0000,"f0f0000c1f040b0f0e0901500c6f0a500c2f0a0c2f03400c1f09100d1f07400c1f0510091f09400c1f0510081f09400c1f0510081f09400c1f0510091f08400c1f0a100d1f06400c2f0a0c2f02400c6f09500c1f070b0f0e08600c1f05a00c1f05a00c1f05a00c1f05a00c1f05f0f050"},
+[113]={15,21,-2,-14,11.0000,"f0f010050c0f0d060a1f0340047f03400c1f0e0a0d2f0330012f0400012f0330032f202f0330041f0e202f0330041f0e202f0330032f202f0330012f0400012f03400b1f0e0a0d2f0340047f0350050c0f0d060e1f03a00e1f03a00e1f03a00e1f03a00e1f03a00e1f03f0f0"},
+[114]={12,16,-2,-14,8.0000,"f0a00c1f040c0f02400c1f0e1f02400c4f02400c2f040301400c1f09700c1f06700c1f05700c1f05700c1f05700c1f05700c1f05700c1f05f0c0"},
+[115]={14,16,-2,-14,10.0000,"f0f0030b0e0f0d0760055f0b500d1f0a070e1f05402f0200081c06400c1f0d0680030e2f0e080160020a3f0c017002092f0730041f0b10081f0930010e1f09070d1f0740055f0d0150040b1e0d0801f0e0"},
+[116]={11,19,-2,-17,7.0000,"f080041f0c60041f0c60041f0c500b4f07300b4f0730040a2f060340041f0c60041f0c60041f0c60041f0c60041f0c60041f0d60032f0b06500d2f0850030c0f0e06f070"},
+[117]={15,16,-2,-14,11.0000,"f0f0000e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400e1f04102f03400d1f0600022f03400a1f0e0a0e2f0340047f0350060c0f0c050c1f03f0f0"},
+[118]={14,16,-2,-14,10.0000,"f0d0091f0a10061f0d30041f0e10091f0830012f02000c1f04400b1f05002f0140071f08031f0b50031f0b061f07600d0f0e091f0360093f0e70053f0970013f05800c2f0180081f0cf0f000"},
+[119]={19,16,-2,-14,15.0000,"f0f070081f08101f08100e1f0130041f0a00031f0b00021f0d40011f0c00072f00041f09500d1f000b2f04071f06500a1f020e2f07091f0350071f081f0c0f0b0c1f60041f0e0f0e050f1e0f0c60013f0a023f09700c2f06000d2f0570092f0300092f0270061f0e10051f0e80031f0a10021f0bf0f0a0"},
+[120]={15,16,-2,-14,10.0000,"f0f0042f0200081f0b500b1f09010e1f0350042f081f0a700b4f0270043f09900b2f02900c2f0380053f0b800d4f0460061f0d071f0c600d1f06010e1f0540061f0e0100071f0df0f000"},
+[121]={15,21,-2,-14,10.0000,"f0f00a1f0a10061f0d40061f0e10091f0940012f02000d1f05500c1f05012f0150081f08051f0b60031f0c081f07700e1f0c1f03700a3f0d80053f0980013f05900c2f0190081f0ba0071f07a00c1f0280060c1f0c90092f0590080f0d05f0f050"},
+[122]={14,16,-2,-14,10.0000,"f0e07f06407f0640390e2f0170010d1f0680091f0b80032f02800d1f0780071f0c80022f03800e2f390430017f0730017f07f0d0"},
+[123]={11,26,-2,-20,7.0000,"f0b0070b700a1f0250041f0860091f02600c1f700c1f700c1f700c1f700e0f0d50020a1f0750091f0a60081f0d0160061f09700e0f0e700c1f700c1f700c1f700b1f0160091f0360041f0970091f0270070bf080"},
+[124]={10,24,-2,-19,6.0000,"f060010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0e60010f0ef070"},
+[125]={11,26,-2,-20,7.0000,"f0800c0670041f08700b1f0260051f0760031f0960021f0a60021f0a60021f0a701f0d70091f090150010c1f0650030e1f04500b1f0450011f0c60021f0a60021f0a60021f0a60031f0960051f07600b1f0250041f07700c05f0b0"},
+[126]={17,13,-2,-11,13.0000,"f0f050030c0f0b02100a0f0950010e2f0e02000d0f0850071f0b1f0e0c1f04500a0f0b00040e2f0c600c0f0810030c0f0b02f0f0f0f0f0f090"},
+[8212]={19,14,-2,-12,15.0000,"f0f08006ba05400abf08400abf08f0f0f0f0f0f0f0f0f0f0c0"},
+[183]={11,14,-2,-12,7.0000,"f09004060160051f0b60071f0d60010c0e06f0f0f0f0f0b0"},
+},
+[24]={
+[32]={10,4,-2,-2,6.0000,"f0f070"},
+[33]={10,21,-2,-19,6.0000,"f060081f0e50071f0e50071f0d50061f0d50061f0c50051f0b50051f0b50041f0a50041f0a50031f0950021f09f090010c0e0650081f0e50081f0e50010c0e06f060"},
+[34]={12,22,-2,-20,8.0000,"f090041f02060f0e40041f02060f0e40041f00060f0c40040f0e00060f0b40040f0c00060f0940040f0b00060f08f0f0f0f0f0f0f0f0f0f0a0"},
+[35]={17,21,-2,-19,13.0000,"f0f070030f0c00090f0690060f0a000c0f0490080f08000e0f02900a0f05011fa00d0f140f0d70068f0d50068f0d70040f0c000a0f0690060f09000c0f0490080f07000e0f0260029f0240029f0260011f01060f0a90020f0d00080f0890050f0b000a0f0590070f09000c0f0390090f07001f01f0f070"},
+[36]={16,25,-2,-21,12.0000,"f0f060070f05c0070f05a0030a2f0680045f09700d1f0e0c2f0450032f03000b1f0a50051f0e10061f0d50042f0200042f50012f0c02a0072f0e080190073f0d0390020a2f0e02a0030e1f0a500d1f0610071f0e500c1f0810052f50081f0d0100091f0d50022f0d0c2f0860075f0d0170040b1f0e0801a00a0f01c00a0f01f0f050"},
+[37]={19,21,-2,-19,15.0000,"f0f090060d0e0c03c0053f0e011001800b0f09010d0f0600010e08700d0f05000a0f0800080f07700d0f05000a0f08020f0e01700b0f09010d0f060a0f0680053f0e040f0da0060d0f0c030b0f05e0040f0bf00c0f04091e0a0190060f0a093f0b900d0f030e0f05031f0270070f09021f01000e0f0460011e01021f01000e0f0460060f07100e0f06021f0270040110093f0bd0091e0a01f0f080"},
+[38]={18,21,-2,-19,14.0000,"f0f080020a1e0b03a0020e4f0390091f0e0d1f0b900d1f03000d0f0e900e1f01000c0f0d900c1f05041f0990064f0e02a00e2f0d02a0033f0700041f0850020e3f0e02051f07500b1f090c1f0c091f0540012f03020e4f0240022f0400063f0c602f09103f05600a2f0c0d3f0a60010d8f066001080d0f0e0a03091f0e02f0f050"},
+[39]={8,22,-2,-20,4.0000,"f010041f0330041f0330041f0230041f0130041f40040f0ef0f0f0f0f0f0f020"},
+[40]={12,28,-2,-21,8.0000,"f0e0040980040f0e70020e0f08700a0f0d70021f0670081f01700d0f0b70021f0870041f0670071f0470081f0370081f0370081f0370081f0370071f0470041f0670021f08800d0f0b80081f0170021f06800a0f0c80020e0f0780050f0e900409f0a0"},
+[41]={12,28,-2,-21,8.0000,"f0a00b0280030f0e02800b0f0c80021f07800a0f0e0170051f0670011f0b800c1f01700a1f0370081f0570071f0770071f0770071f0770071f0770081f06700a1f03700c1f01701f0b70041f06700a0f0e0160021f07700b0f0c70030f0e02800b02f0e0"},
+[42]={15,21,-2,-19,11.0000,"f0f030080f0ab0070f0970010510060f0910030130050f0e08070f08060c0f0530060e7f085003082f090501700b0f0e0f0980080f0d020e0f0760041f0400061f03600508200a06f0f0f0f0f0f0f0f0a0"},
+[43]={15,19,-2,-17,11.0000,"f0f0300d1f04a00d1f04a00d1f04a00d1f0470210d1f051140048f0930048f0930048f09700d1f04a00d1f04a00d1f04a00d1f04a00d1f04f0f0f0f000"},
+[44]={10,11,-2,-5,6.0000,"f060051f0850051f0850051f0750071f05500c0f0e0140041f0750021af080"},
+[45]={13,13,-2,-11,9.0000,"f0c0064b0150094f0250094f02f0f0f0f0f0f0a0"},
+[46]={11,8,-2,-6,7.0000,"f09006090460052f0250072f0450010c0e0af090"},
+[47]={12,22,-2,-19,8.0000,"f0e00e0f0670041f0270080f0c800d0f0870021f0470060f0e800b0f0a800e0f0670041f0270090f0c800d0f0870021f0470060f0e800b0f0a70010e0f0670041f0270090f0d800d0f08f0e0"},
+[48]={16,21,-2,-19,12.0000,"f0f040040b1e0c0580055f0760010e1f1d2f0250061f0d01000c1f08500a1f0910071f0c500c1f0710051f0e500d1f0610042f500d1f0610042f500d1f0610042f500d1f0610042f500d1f0610042f500c1f0710051f0e500a1f0910071f0c50061f0e01000c1f0850010e1f1d2f0260055f0780040b1e0c05f0f040"},
+[49]={16,21,-2,-19,12.0000,"f0f070050c069002080e1f0670010b4f0670025f0670020e09040d1f068001100d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f06f0f040"},
+[50]={16,21,-2,-19,12.0000,"f0f040050b1e0c0680075f0a60032f1d2f05500a1f0b00010d1f09502f0510091f0b40022f0310091f0ab00d1f07a0052f0190010d1f08a00b1f0da0081f0e0290052f0590030e1f0990010d1f0d01900b2f0d4b02400d8f03400d8f03f0f010"},
+[51]={16,21,-2,-19,12.0000,"f0f040060c1e0b05800b5f0860072f0c0d2f03500d1f0a00010d1f08502f0510091f0ab0091f0aa0010d1f0680090a0d1f0c904f01904f0c01a0030d1f09b0071f0d40022f0310061f0e40012f08100b1f0c500a2f0c0e2f0650010d5f0a7001080d0f0e0b05f0f040"},
+[52]={16,21,-2,-19,12.0000,"f0f0702f0da0042f0da00c2f0d90053f0d900d3f0d80061f091f0d70010e0f0b071f0d70071f04071f0d60010e0f0c00071f0d60081f0500071f0d50022f1b3f0b0330039f0530029f0590071f0db0071f0db0071f0db0071f0df0f030"},
+[53]={16,21,-2,-19,12.0000,"f0f0300b6f08600c6f08600e1f4c07601f0eb0021f0db0031f0cb0051f0d0b1e090160066f0d0150071f0e090b2f0860010502100a1f0db0042fb0032f01400c1f0710052f500a1f0d01000a1f0c50032f1d2f0660075f0a80040b1e0c06f0f040"},
+[54]={16,21,-2,-19,12.0000,"f0f060050a0d0f90010b3f900c2f0e0c80082f0690010e1f06a0051f0db0081f0a081e0b03600b6f0e03500c2f0d0c2f0b500c2f0100092f500c1f0d10022f02400b1f08202f0440091f0a10022f0340051f0e0200091f0e600c1f0e0d2f0860030e4f0b80020a0e0f0d07f0f040"},
+[55]={16,21,-2,-19,12.0000,"f0f010039f0230039f0230025b0d1f0db0091f08a0010e1f03a0061f0cb00b1f07a0022f02a0081f0bb00d1f06a0042f01a00a1f0aa0012f05a0061f0eb00c1f09a0032f04a0081f0df0f070"},
+[56]={16,21,-2,-19,12.0000,"f0f040040b1e0c0680065f0960012f1d2f0350061f0e110d1f0850081f0c100a1f0a50071f0c100a1f0950031f0e01000e1f05600a1f1d1f0c70015f02700b5f0c0150061f0e120d1f08500b1f0810071f0d500c1f0810061f0e500b1f0c100b1f0c50062f1d2f08600a5f0c0170060c1e0c0701f0f030"},
+[57]={16,21,-2,-19,12.0000,"f0f040040b1e0b0380065f0460022f0d0e1f0d0150091f0d110e1f05500c1f0710091f0a500e1f0510071f0c500d1f06100a1f0d500b1f0b102f0d50062f0c0b2f0d600c6f0c6001091e0a081f0ab00a1f07a0022f0290040d1f0a800a0e2f0e01800c2f0d02900b0e0b0601f0f050"},
+[58]={11,18,-2,-16,7.0000,"f09006090460052f0250072f0450010c0e0af0f0f0f09006090460052f0250072f0450010c0e0af090"},
+[59]={10,22,-2,-16,6.0000,"f07006090450052f0240072f0440010c0e0af0f0f0f0b0051f0850051f0850051f0750071f05500c0f0e0140041f0750021af080"},
+[60]={15,17,-2,-15,11.0000,"f0f060020a0490030a1f0470030a3f0450030b3f0e080140063f0c0670082f0790053f0c0580030b3f0e080170030a3f0490030a1f04b0020a04f0f0f0e0"},
+[61]={16,16,-2,-14,12.0000,"f0f020057b0550077f0750077f07f0f0f050077f0750077f0750057c05f0f0f0f0f020"},
+[62]={15,17,-2,-15,11.0000,"f0f0001701b0080f0e080190082f0e08017002094f09027001070d3f0180010a2f026001070e3f024002094f090250082f0e090270080f0e0801901701f0f0f0f040"},
+[63]={15,21,-2,-19,11.0000,"f0f010030a0e0f0d080160045f0c600d2f0d2f0640032f04000b1f0b40051f0e10081f0ca0091f0b90022f0680010d1f0b90091f0d0180012f0390051f0aa0061f08f09001070801a0081f0aa00a1f0ca0030d0e05f0f030"},
+[64]={22,26,-2,-19,18.0000,"f0f0f030040a0d0f0e0c0701b0010b2f0e2f0e0490010d0f0d060110030a0f0e03800b0f0c0150080f0d70050f0e02700b0f06600c0f0710010a1e0a0200040f0c50031f0100010d4f100e0f0140070f0b10090f0d03071f100b0f03400b0f0800010e0f0500060f0d100a0f05400d0f0600051f0100070f0b100a0f06401f0400080f0d10090f0a10090f05401f03000b0f0c100a0f09100a0f04401f03000b0f0b101f08100d0f02400e0f04000b0f0c101f0700020f0d500d0f0600081f05081f0900090f08500a0f0900023f0c1f0e0f0d0150060f0e10050d0e0800081e0a0260011f07f020081f04f010010c1f09040102040804b0010b6f09d0040a0d0f0e0c0802f0f0f020"},
+[65]={19,21,-2,-19,14.0000,"f0f0c0081f0de00d2f03c0033f08c0073f0cc00c4f02a0021f0d081f07a0071f09041f0ca00b1f05012f0180012f02000c1f0680061f0d10081f0b800c2f1d3f0160019f0560059f0a600a1f0c30071f0e600e1f0830032f0540042f04400e1f0940092f01400a1f0ef0f080"},
+[66]={17,21,-2,-19,13.0000,"f0f040094f0e0c070160097f0c0150092f1d3f0950091f0c10010c1f0e50091f0c20062f0140091f0c20062f50091f0c200a1f0c50098f0450097f0660098f0550091f0c10010a1f0e0140091f0c20032f0440091f0c20022f0540091f0c20092f0340092f1d0e2f0d50097f0e0350094f0e0d0902f0f050"},
+[67]={18,21,-2,-19,14.0000,"f0f08001070c1e0d080280020d5f0e04700c2f0e0d2f0d0150042f0610030e1f0650091f0c300a1f0b500c1f0930081f0d500d1f08d00e1f07d00e1f07d00e1f07d00d1f08d00c1f0930081f0d50091f0c300a1f0b50052f0510032f07600c2f1d2f0e0160020d5f0e048001080c1e0d0802f0f080"},
+[68]={18,21,-2,-19,14.0000,"f0f060093f0e0c080180096f0e0470092f0d0e2f0e0260091f0c10030d1f0a60091f0c20052f0150091f0c20012f0550091f0c302f0650091f0c302f0750091f0c302f0750091f0c302f0750091f0c302f0650091f0c20012f0550091f0c20052f0150091f0c10030d1f0a60092f0d0e2f0e0260096f0e0470093f0e0c0801f0f090"},
+[69]={16,21,-2,-19,12.0000,"f0f020098f0240098f0240092f5d0240091f0cb0091f0cb0091f0cb0091f0cb0092f4c0250097f0350097f0350091f0cb0091f0cb0091f0cb0091f0cb0092f5d0240098f0340098f03f0f010"},
+[70]={15,21,-2,-19,11.0000,"f0f000097f0c40097f0c40092f4d0a40091f0ca0091f0ca0091f0ca0091f0ca0092f4c0240097f0240097f0240091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0cf0f050"},
+[71]={18,21,-2,-19,14.0000,"f0f08001070c1e0d090380020d6f05700c3f0d2f0e0150042f0810030e1f0750091f0d30091f0b500c1f0a30061f0d500d1f09d00d1f08d00d1f08100849500d1f08100d4f500d1f09100d4f500b1f0a30072f50091f0e30072f50042f090110092f600b3f0d0e3f60010c6f0e0580060b0e0f0e0c0701f0f070"},
+[72]={19,21,-2,-19,15.0000,"f0f080091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550092f3d0e2f055009af055009af0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f0550091f0c30012f05f0f080"},
+[73]={10,21,-2,-19,6.0000,"f060071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0e50071f0ef060"},
+[74]={16,21,-2,-19,12.0000,"f0f0802f06b02f06b02f06b02f06b02f06b02f06b02f06b02f06b02f06b02f06b02f06b02f0640062f10022f0540042f0600072f02500e2f0d2f0b60045f0d0270030a0e0f0d0801f0f040"},
+[75]={18,21,-2,-19,13.0000,"f0f060091f0c20032f0d0140091f0c200b2f0450091f0c10052f0a60091f0c100d1f0e0160091f0c00072f0570091f0c010e1f0a80091f0c0a1f0e0180095f0b90095f0d90096f0780092f1e1f0e0170092f142f0770092f100c1f0e0160091f0c10052f0860091f0c200d1f0e0250091f0c20062f0950091f0c300d2f02f0f050"},
+[76]={15,21,-2,-19,11.0000,"f0f000091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0091f0ca0092f4d0b40097f0d40097f0df0f0"},
+[77]={22,21,-2,-19,18.0000,"f0f0e0092f0b50092f0c50093f01400d2f0c50093f0530033f0c50093f0a30073f0c50093f0e300c3f0c50094f0410011f0e1f0c50091f0e1f0810061f0b1f0c50091f0a1f0d100a1f071f0c50091f090c1f02000e0f0c061f0c50091f09071f07041f08071f0c50091f0a031f0b091f03071f0c50091f0a000d1f0e0f0e00081f0c50091f0a00093f0a00081f0c50091f0a00043f0600081f0c50091f0a100e2f0100081f0c50091f0a100a1f0c10081f0c50091f0a10051f0810081f0cf0f0e0"},
+[78]={19,21,-2,-19,15.0000,"f0f080091f0d400e1f0550092f06300e1f0550092f0d300e1f0550093f06200e1f0550093f0d200e1f0550094f06100e1f0550091f0d1f0d100e1f0550091f0a0c1f06000e1f0550091f0a041f0d000e1f0550091f0a000c1f060e1f0550091f0a00041f0d2f0550091f0a100c4f0550091f0a10044f0550091f0a200b3f0550091f0a20043f0550091f0a300b2f0550091f0a30042f05f0f080"},
+[79]={18,21,-2,-19,14.0000,"f0f090060b0e0f0d090280010c6f05700a3f0e3f0350032f0910030e1f0a50081f0e30072f01400c1f0a30032f04400d1f0830012f05400e1f08402f06400e1f08402f06400e1f08402f06400d1f0830012f05400c1f0a30022f0440091f0d30062f0140042f0910030e1f0b600b3f0e3f0360010c6f0690060c0e0f0d0903f0f080"},
+[80]={18,21,-2,-19,14.0000,"f0f060094f0e0d080170097f0e0360092f1d0e2f0d60091f0c20072f0550091f0c300e1f0950091f0c300c1f0b50091f0c300d1f0a50091f0c20062f0650092f2d2f0e0150097f0e0460095f0d090270091f0cd0091f0cd0091f0cd0091f0cd0091f0cd0091f0cf0f0e0"},
+[81]={18,24,-2,-19,14.0000,"f0f090060b0e0f0d090280010c6f05700b3f0e3f0350042f0810030e1f0a50091f0d30072f01400c1f0930032f03400d1f0830012f05400e1f0730012f05400e1f0730012f05400e1f0730012f05400d1f0830012f05400c1f0930032f0340091f0d30072f0140042f0810030e1f0a600b3f0e3f0360010c6f0690060c0e3f0c01c0052f0d02c0051f0c01d0040b01f0f060"},
+[82]={17,21,-2,-19,13.0000,"f0f040094f0e0c070160097f0d0150092f1d0e2f0a50091f0c200b2f0140091f0c20042f0340091f0c20032f0440091f0c20052f0340091f0c10010c1f0e50092f1d0e2f0750097f0960097f0160091f0c00032f0760091f0c100c1f0d60091f0c10052f0550091f0c200e1f0c50091f0c20072f0340091f0c20012f0af0f030"},
+[83]={17,21,-2,-19,13.0000,"f0f060040a0e0f0d0a0380096f0760053f0d0e2f03500b1f0d0100020e1f0a500d1f0920091f0c500c1f0d01b0062f0d06b00a3f0e080190050e3f0d03a0060c2f0e02b0062f0a40012f0520081f0e502f0720072f500b1f0e02100b1f0d50043f0d0e2f0860076f0b0170030a0d0f0e0b06f0f060"},
+[84]={17,21,-2,-19,13.0000,"f0f03006af063006af0630052d4f2d0570042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03b0042f03f0f070"},
+[85]={18,21,-2,-19,14.0000,"f0f0600b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500b1f0a300e1f07500a1f0c20012f0650072f0310072f0350023f1e2f0c70056f0e028003090d0f0e0c0801f0f080"},
+[86]={18,21,-2,-19,14.0000,"f0f050092f0130032f0730052f0430072f0330012f08300a1f0d500b1f0c300e1f0950072f20032f0550022f0410062f01600d1f07100a1f0b70091f0b100d1f0770041f0e00022f0270010e1f03061f0d900b1f07091f0990061f0b0d1f0490024f0eb00d3f0bb0083f06b0043f02c00e1f0df0f0a0"},
+[87]={22,21,-2,-19,18.0000,"f0f0d0062f20081f08200e1f0630032f02100a1f0b10022f03402f05100d1f0e10042f01400d1f0700013f0200061f0d500a1f0900043f0500091f0a50071f0b00073f07000b1f0750051f0e000a3f0a000d1f0550022f010c0f1d0f0d012f02600e1f041f1a1f041f0e700b1f091f171f091f0c70091f0e1f141f0e1f0970064f114f0670033f0d100d3f0470013f0a100a3f01800d2f0710072f0d900a2f0410042f0b90072f0110012f08f0f0f000"},
+[88]={18,21,-2,-19,13.0000,"f0f050042f0920012f0b500c2f0110072f0350042f07100d1f0b700c1f0d00042f0470042f050a1f0b900c1f0c2f0490044f0cb00c3f04b0072f0ec00d3f06a0064f0da00d1f0b2f0580062f020c1f0c800d1f0b00062f0560062f04100e1f0c600d1f0d20082f0440052f0720022f0cf0f060"},
+[89]={17,21,-2,-19,13.0000,"f0f030092f0120012f0930032f0620062f03400b1f0c200b1f0c50052f0200012f05600d1f0700061f0d70071f0c000b1f0770012f032f01800a1f0d1f0a90034f03a00c2f0cb0052f06b0032f04b0032f04b0032f04b0032f04b0032f04b0032f04f0f070"},
+[90]={17,21,-2,-19,13.0000,"f0f030029f0d40029f0d40026d2f08b0071f0e01a0010e1f06b00a1f0db0032f04b00c1f0bb0062f02a0010d1f09b0081f0e01a0022f06b00a1f0db0042f04b03f5d0c4001af4001aff0f040"},
+[91]={10,28,-2,-22,6.0000,"f0600a2f0d400a2f0d400a1f0d08400a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f09500a1f0d08400a2f0d400a2f0df050"},
+[92]={14,22,-2,-19,9.0000,"f0d00b1f0a90061f0e90012f05900b1f0a90061f0e90012f05900b1f0a90061f0e90012f05900b1f0990061f0e90012f04900b1f0990061f0e90012f04900b1f0990061f0e90012f04f0d0"},
+[93]={10,28,-2,-22,6.0000,"f050092f0e40092f0e40060b1f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e50051f0e40050b1f0e40092f0e40092f0ef060"},
+[94]={13,21,-2,-19,9.0000,"f0e00a1f01800e1f0670042f0b70090f0e1f01600e0f060e0f0550041f020a0f0a50090f0d00061f01400e0f0900021f0530041f05100d0f0af0f0f0f0f0f0f0f030"},
+[95]={14,7,-2,-2,10.0000,"f0d00c7f05300c7f0530077a03f0d0"},
+[96]={12,22,-2,-20,8.0000,"f090010d1f0970032f0370051f0b80081f05f0f0f0f0f0f0f0f0f0f0f0f020"},
+[97]={15,17,-2,-15,11.0000,"f0f020070d0f0e0b0460010c5f0450091f0e0a0d1f0c500d1f0700052f502110032f025002090d4f0240030e6f02400c1f0b01032f0230012f0400032f0230012f0400062f02400e1f0d0a3f0240067f0350060c0e0c040e1f07f0f0"},
+[98]={16,22,-2,-20,12.0000,"f0f0200c1f08b00c1f08b00c1f08b00c1f08b00c1f08b00c1f08091e0b03600c6f0e02500c2f1d2f08500c2f100a1f0d500c1f0c10052f500c1f0a10032f01400c1f0a10032f01400c1f0a10032f01400c1f0c10042f500c2f10091f0d500c2f0d0c2f08500c6f0e02500c1f05091e0b03f0f030"},
+[99]={15,17,-2,-15,11.0000,"f0f01001070d0f0e0b03700c5f0450072f0c0e1f0d500d1f0800020e1f0330012f03100c1f0530022f0290032f0290022f0290012f03100b1f05400d1f0700010e1f0340072f0c0e1f0c600c4f0e036001080d0f0e0a02f0f010"},
+[100]={16,22,-2,-20,12.0000,"f0f0800a1f0ab00a1f0ab00a1f0ab00a1f0ab00a1f0a60030b1e070a1f0a50020e6f0a500a2f0d0e2f0a500e1f0900012f0a40022f03102f0a40032f01100e1f0a40032f01100d1f0a40032f01100e1f0a40022f03102f0a500e1f08102f0a500a2f0d0e2f0a50020e6f0a60030b1e07061f0af0f020"},
+[101]={15,17,-2,-15,11.0000,"f0f020060c1e0c0570095f0750042f1d2f02400b1f0a100c1f07400e1f0510071f0a30012f0815091f0b30018f0c30018f0c402f05a00b1f0c0110050850052f0e0c0d1f0450095f0e0460050b0e0f0d0902f0f000"},
+[102]={12,22,-2,-20,8.0000,"f0c0030b0e0f0850033f09500a2f0c07500e1f08702f0450085f0430085f043004072f0c0702502f04702f04702f04702f04702f04702f04702f04702f04702f04702f04f0b0"},
+[103]={16,22,-2,-15,12.0000,"f0f030020a1e0a041f0d50010e6f0d50092f1d2f0d500e1f0a102f0d40012f0410081f0d40022f0210071f0d40032f0210071f0d40022f0210071f0d40012f0410081f0d500d1f0a102f0d50082f1d2f0d50010d6f0d60020a1e0a071f0db0071f0c6014200c1f0a600c0f0c0a0d2f0550020e5f097002090d0f0e0b05f0f040"},
+[104]={16,22,-2,-20,12.0000,"f0f0200d1f06b00d1f06b00d1f06b00d1f06b00d1f06b00d1f07081e0a02600d6f0d600d2f0c0e2f05500d2f100d1f08500d1f08100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09500d1f06100a1f09f0f020"},
+[105]={10,23,-2,-21,6.0000,"f0701660091f09500b1f0b50040d0e04f090091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0af060"},
+[106]={11,28,-3,-21,6.0000,"f0900116700a1f08600c1f0a60050e0d03f0c0091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a60091f0a600a1f0a600c1f0940080d2f0640092f0d0140080f0e0a02f090"},
+[107]={16,22,-2,-20,11.0000,"f0f0200c1f08b00c1f08b00c1f08b00c1f08b00c1f08b00c1f0800010e1f0c500c1f08000a2f03500c1f08042f07600c1f080c1f0b700c4f0e02700c4f0e800c5f02700c5f09700c2f062f02600c1f0a000d1f0a600c1f0800062f03500c1f08100e1f0b500c1f0810072f04f0f010"},
+[108]={10,22,-2,-20,6.0000,"f060091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0a50091f0af060"},
+[109]={22,17,-2,-15,18.0000,"f0f0e00c1f06070d0e0b0301091e0b02600c6f0d0c3f0d600c2f0d0e3f0d0e2f04500c2f00010e2f00010e1f07500c1f0c100b1f0e100b1f08500c1f0a100b1f0b100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08500c1f08100b1f08100b1f08f0f0e0"},
+[110]={16,17,-2,-15,12.0000,"f0f0200d1f04080d0f0b03600d6f0d01500d2f0d0e2f05500d2f100d1f08500d1f09100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09500d1f07100a1f09f0f020"},
+[111]={16,17,-2,-15,12.0000,"f0f040060c1e0c05800a5f0960062f1d2f04500c1f0b100c1f0b40012f0510061f0e40022f0310042f0130022f0210032f0130022f0310042f0130012f0410051f0e500c1f0a100b1f0b50062f1d2f05600a5f0980060c1e0c06f0f040"},
+[112]={16,22,-2,-15,12.0000,"f0f0200c1f05091e0b03600c6f0e02500c2f1d2f08500c2f100b1f0c500c1f0b10052f500c1f0a10032f01400c1f0910032f01400c1f0910042f01400c1f0b10052f500c2f100a1f0c500c2f1d2f08500c6f0d01500c1f08091e0b02600c1f08b00c1f08b00c1f08b00c1f08b00c1f08f0f080"},
+[113]={16,22,-2,-15,12.0000,"f0f030030b1e08051f0a50030e6f0a500a2f0c0d2f0a500e1f08102f0a40022f03102f0a40032f01100d1f0a40032f01100d1f0a40032f01100d1f0a40022f03102f0a500e1f08102f0a50092f0c0d2f0a50020e6f0a60030b1e080a1f0ab00a1f0ab00a1f0ab00a1f0ab00a1f0ab00a1f0af0f020"},
+[114]={12,17,-2,-15,8.0000,"f0a00c1f060a0e07400c1f0e1f07400c4f07400c2f080503400c2f700c1f0c700c1f08700c1f08700c1f08700c1f08700c1f08700c1f08700c1f08f0c0"},
+[115]={15,17,-2,-15,11.0000,"f0f01002090e0f0d090260030e4f0e02500b1f0d080e1f0b500e1f0400061f0e500c1f0b0290073f0a0380084f098002093f0840012200020b1f0e40031f0e10042f500d1f0c090c1f0c50040e5f0460030a0e0f0e0902f0f010"},
+[116]={11,20,-2,-18,7.0000,"f080032f0150032f0150032f01400b4f0b300b4f0b30050b2f080540032f0150032f0150032f0150032f0150032f0150032f0150032f0250012f0e0a500b2f0c50020b1e0af070"},
+[117]={16,17,-2,-15,12.0000,"f0f0200d1f07100a1f0a500d1f07100a1f0a500d1f07100a1f0a500d1f07100a1f0a500d1f07100a1f0a500d1f07100a1f0a500d1f07100a1f0a500d1f07100e1f0a500d1f07102f0a500c1f0a00012f0a50082f0c0e2f0a50027f0a60040c0f0d171f0af0f020"},
+[118]={15,17,-2,-15,11.0000,"f0f0081f0d10012f0430042f0100042f0130012f0400071f0b500b1f07000a1f0750071f0a000d1f0350031f0d011f0e700e1f051f0a700a1f0b1f0670064f0270023f0d900d2f0990092f0590052f01f0f020"},
+[119]={19,17,-2,-15,15.0000,"f0f070071f0a100e1f10071f0a30041f0c102f0200091f0730011f0e00032f05000c1f04400d1f02062f09000e1f01400a1f04092f0c011f0d50071f060d3f051f0a50041f0a1f081f0a1f0750014f020e3f04600d2f0d000a3f01600a2f0900072f0d70072f0600032f0970042f02100e1f0670011f0e200b1f03f0f090"},
+[120]={15,17,-2,-15,11.0000,"f0f0042f0400042f03400c1f0b000a1f0a50042f052f02600c1f0e1f0970054f02800c2f0990082f05900e2f0b80064f04700d1f0e1f0c60061f0e032f04500d1f09000a1f0c40062f0200032f04f0f0"},
+[121]={15,22,-2,-15,11.0000,"f0f00a1f0d10012f0530062f0100052f0130012f0400081f0b500c1f07000c1f0750081f0a002f0350041f0e031f0e700e1f091f0a700a4f0570064f0170023f0c900d2f0890082f0390042fa0051f0aa00b1f0680070d1f0e0180092f0790070f0e07f0f050"},
+[122]={15,17,-2,-15,11.0000,"f0f0000e6f0c500e6f0c500a2b0c2f0790081f0d90022f04900b1f0a90051f0e0280010e1f0790091f0d90032f04900e2f3b0a40017f0d40017f0df0f000"},
+[123]={11,27,-2,-21,7.0000,"f0b0050c0160061f0650011f0d0150071f07600a1f04600b1f03600b1f03600b1f03600b1f03600e0f0e0140020b1f0850091f0c60071f0e0460051f0d700d1f02600b1f03600b1f03600b1f03600a1f0460071f0660021f0c0160071f0670050c01f070"},
+[124]={10,24,-2,-19,6.0000,"f0701f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01601f01f060"},
+[125]={11,27,-2,-21,7.0000,"f0800c0670041f08700b1f0360051f0960021f0c60011f0d60011f0d60011f0d701f0e700d1f0260061f0c0360091f0d50020e1f0a500a1f07601f0e60011f0d60011f0d60011f0d60021f0c60041f0a600b1f0450031f09700c06f0b0"},
+[126]={17,13,-2,-11,13.0000,"f0f050020b0f0c0510041f0240010d3f0600081f0140061f0d2f0d1f0c500a0f0e00020d3f04500b0f0a10020a0e0d06f0f0f0f0f0f090"},
+[8212]={20,14,-2,-12,16.0000,"f0f0a007cb014009cf024009cf02f0f0f0f0f0f0f0f0f0f0f050"},
+[183]={11,14,-2,-12,7.0000,"f09006090360041f0e0150062f0250010b0e08f0f0f0f0f0b0"},
+},
+[32]={
+[32]={11,4,-2,-2,7.0000,"f0f0b0"},
+[33]={12,27,-2,-25,8.0000,"f0a0013f09603f08603f08600e2f07600e2f07600d2f07600d2f06600c2f06600c2f05600b2f05600b2f04600a2f04600a2f0360092f0360092f0260082f02f0e0030c0e09700d2f0750013f09600d2f0760030d0e09f0b0"},
+[34]={14,28,-2,-26,10.0000,"f0e02f02000e1f04402f02000e1f04402f02000e1f03402f01000e1f02401f0e100e1f501f0d100e0f0e501f0b100e0f0d501f0a100e0f0b501f09100e0f0af0f0f0f0f0f0f0f0f0f0f0f0f0f0f000"},
+[35]={21,27,-2,-25,17.0000,"f0f0f010091f01000c0f0ec00c0f0e100e0f0cc00e0f0c00011f0ab0011f0a00031f07b0031f0800061f05b0051f0600081f0380091b2f0e0b2f1b09600dbf0d600dbf0d900e0f0c00021f09b0011f0a00041f07b0031f0700061f05b0051f0500081f03b0081f03000a1f01800cbf0c600cbf0c60091b2f0b0c2f1b0980011f0900041f07b0041f0700061f05b0061f0500081f02b0081f03000b1fc00a1f01000d0f0dc00c0f0e101f0bf0f0f010"},
+[36]={20,33,-2,-28,16.0000,"f0f0f000090f0bf000090f0bf000090f0be0050b2f0a04a0010b6f08900a8f0770043f0d0a0e2f0e0160092f0e0100043f05600b2f0a200d2f09600c2f09200b2f0a600a2f0ce0073f07d0020e3f0a02c0065f0901b0050e4f0e04b001095f04c0020a3f0de0073f05e00e2f0850082f0d300b2f0a50063f01200d2f0950033f0810043f07600d3f0c0a0e3f0260049f0980050e6f0aa002080c2f0a04e00e0f06f0000e0f06f0000e0f06f0f0f0"},
+[37]={24,27,-2,-25,20.0000,"f0f0f040050c1e0a02f000064f0d01e0010e1f0a0d1f08201390051f0a00021f0d200b0f0980071f07100e1f10041f0680071f06100d1f100c0f0d90071f07100d1f00051f0590051f0a00021f0d000d0f0ca0010e1f0a0d1f08071f04b0064f0d020e0f0bd0050c1e0a02081f03f020010e0f0af030091f02050c1e0902c0021f09064f0d01b00a0f0e020e1f0a0d1f08a0031f08051f0a00021f0da00b0f0e01071f06100d1f90041f0700081f06100d1f900c0f0d10071f07100d1f80041f0610051f0b00011f0d90060b20010e1f0b0c1f08f0064f0d01f000050c1e0a02f0f0f030"},
+[38]={23,27,-2,-25,19.0000,"f0f0f040050b1e0c07f0095f0bd0057f08c00c2f0d0b2f0e01a0022f0e0100092f03a0032f0b10052f04a0032f0b10072f02a0013f120e1f0cc00a3f0e2f04c0036f06e00b4f05e0030e4fe0030e5f08102f0b60010d7f04012f0a60072f0d010d2f0d052f08600b2f0900037f06600d2f0810086f02600c2f0b200c4f0b70093f0310044f0370043f0e0a0b5f07800acf0370010bbf0d0180050b0d0f0e0b0600053f09f0f0f000"},
+[39]={9,28,-2,-26,5.0000,"f0402f04402f04402f04402f03402f02402f01402f501f0e501f0df0f0f0f0f0f0f0f0f0b0"},
+[40]={14,36,-2,-27,10.0000,"f0f040030aa0040e0f0280020e1f04800c1f0880061f0d900e1f0680061f0e01800c1f0a80012f0580052f0280091f0e900b1f0c900e1f0b902f0a80012f0980012f0980012f0980012f09902f0a900e1f0b900b1f0c90091f0e90052f0280012f05900c1f0a90061f0e01900e1f0690061f0da00c1f0890020e1f0490040e0f02a0030af0e0"},
+[41]={14,36,-2,-27,10.0000,"f0e017b00c0f09a00e1f0790042f0490091f0c90022f06900a1f0d90052f0480012f09900d1f0d900a2f0280082f0580062f0780052f0880042f0980042f0a80042f0a80042f0980052f0880062f0780082f05800a2f02800d1f0d80012f0980052f04800a1f0d80012f0680081f0d80032f04800d1f08900c0f09a017f0f040"},
+[42]={19,27,-2,-25,15.0000,"f0f0c0011f0ef01f0df00e0f0ca003300e0f0b3001501e0802000d0f0b0002080e0a40043f0b0e0f0c0b2f0e40040baf0c02500104090e2f0e0a060190033f0bb0010d1f0c1f07a00b1f08010e1f0480081f0d0100061f0e0270081f04200c0f0e0380030830030b01f0f0f0f0f0f0f0f0f0f0f0f0f050"},
+[43]={19,23,-2,-21,15.0000,"f0f0c0072f0ad0072f0ad0072f0ad0072f0ad0072f0a9031082f0b3150cf0240cf0240cf0240cf0280072f0ad0072f0ad0072f0ad0072f0ad0072f0ad0072f0af0f0f0f0f0f050"},
+[44]={12,14,-2,-6,8.0000,"f0b00c2f700c2f700c2f700c1f0e700d1f0d60012f0960062f04600c1f0c60042f0370040c05f0d0"},
+[45]={16,16,-2,-14,12.0000,"f0f020016a0560026f0860026f0860026f08f0f0f0f0f0f0f0f0f0f030"},
+[46]={13,9,-2,-7,9.0000,"f0d001090c0902700b2f0c704f700c2f0d70030c0e0c03f0d0"},
+[47]={16,29,-3,-25,11.0000,"f0f080041f0eb0081f0ab00c1f06a0012f02a0061f0cb00a1f08b00e1f04a0032f01a0071f0bb00b1f07a0012f03a0041f0eb0091f09b00d1f05a0022f01a0061f0cb00a1f08b00e1f04a0031f0eb0081f0bb00c1f07a0012f02a0051f0db0091f09b00d1f05f0f080"},
+[48]={20,27,-2,-25,16.0000,"f0f0e0070c0e0f0d0801a0010c5f0e03900c7f0e0170063f0c0b3f08700c2f0a10082f0e60013f0310013f0450043f300d2f0750062f0e300b2f0950072f0d300b2f0a50082f0d300b2f0a50082f0d300b2f0a50082f0d300b2f0a50082f0d300b2f0a50082f0d300b2f0a50072f0d300b2f0950062f0e300b2f0950043f01200d2f0650013f0410013f04600c2f0a10072f0e70063f0c0b3f08800c7f0e0180010c5f0e03a001070c1e0d0801f0f0d0"},
+[49]={20,27,-2,-25,16.0000,"f0f0f01001070d03d0040a2f03a001060d4f0390050e6f0390087f0390081f0e0a3f0390080b0500033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03f0f0d0"},
+[50]={20,27,-2,-25,16.0000,"f0f0d002080c1e0d0903a0067f0680059f0460010e3f0b0c3f0c60063f0310093f02500b2f0b20033f04500c2f0920013f05d0023f04d0053f01d00b2f0bd0043f05c0010d2f0cd00a3f02c0073f06c0043f09c0020e2f0cd00c2f0e02c0093f06c0063f0bc0034f0b5a095008bf0d5008bf0d5008bf0df0f0a0"},
+[51]={20,27,-2,-25,16.0000,"f0f0d0040a0d0f0e0c0701a0096f0e0580099f0360033f0e0a0c3f0b60083f0310093f01500a2f0b20033f03d0023f04d0033f02d0092f0da005180b3f04a00c5f06b05f0e03b0096f04d0020b2f0e01d0023f05e00d2f08500e2f07300c2f09500c2f0a300e2f0850093f0310073f0450034f0a0c3f0d70099f0480096f0e05a0040a0d0f0e0c0701f0f0d0"},
+[52]={20,27,-2,-25,16.0000,"f0f0f0100c3f02c0014f02c0084f02b0025f02b0095f02a0026f02a0096f0290022f083f0290091f0d043f0280022f06043f02800a1f0e01043f0270022f0800043f02700a2f0200043f0260032f0a10043f02600a2f0b1a0d3f0c0a0140df01400ecf01400dcf01b0043f02d0043f02d0043f02d0043f02d0043f02f0f0b0"},
+[53]={20,27,-2,-25,16.0000,"f0f0c00e9f016001af016002af0160042f0e6b0160052f09e0072f08e0082f07e00a2f06e00b2f080b1e0c06900c8f0b01700e9f09700e2f0a06084f027002060720043f06e00d2f09e00a2f0be0092f0c50072f0e300a2f0b50053f02200d2f0950013f0910053f0560093f0c0b3f0d70010d8f0480020d6f06b0070c1e0d0902f0f0d0"},
+[54]={20,27,-2,-25,16.0000,"f0f0f00003080c0e0fc0010a4fb0020d5fa0010d4f0d0ba0083f0a02b0013f09d0072f0de00c2f07e03f03070d0f0d090170033f0c4f0e026005af0c60064f0c0a0e3f0550063f0810043f0a50063f01200a2f0d50063f30073f50053f30063f50033f0120072f0e600e2f05200a2f0c600a2f0c10043f0860033f0d0b4f0270088f0790096f08b0040a0e0f0d0a03f0f0d0"},
+[55]={20,27,-2,-25,16.0000,"f0f0a00ebf0c500ebf0c500ebf0c50097a0e2f07d0023f02d0072f0be00d2f06d0033f01d0092f0be00e2f05d0052f0e01d00b2f0ad0013f05d0072f0ee00c2f09d0033f04d0092f0de00e2f08d0053f03d00a2f0dd0013f08d0073f02d00c2f0cf0f0f010"},
+[56]={20,27,-2,-25,16.0000,"f0f0d001070c1e0d0802a0030e5f0e0580010e8f0370083f0c0b3f0b700d2f0b10093f01603f0710043f02603f0510033f03600e2f0710043f0160092f0c10092f0c70020e2f0c0b3f0480040e6f0690020e6f0480020e8f03700b2f0c02010a2f0d60023f0310013f0450053f300d2f0750062f0e300c2f0950053f01200e2f0850033f0810063f05600c3f0c0b3f0e0160049f0780060e6f08a002080c1e0d0903f0f0d0"},
+[57]={20,27,-2,-25,16.0000,"f0f0e0070c1e0c06b0010c5f0b01900c7f0a80073f1c3f04700e2f0b100b2f0b60043f0310043f0150072f0e303f0450082f0d300d2f0650092f0c300d2f0750082f0d303f0850063f02203f0850023f0810053f07600c3f09080e3f066005af0570084f0e3f0380050b1e0a052f0ee0082f0ad0033f04b001060e2f0ba0080d4f0e02a00a5f04b00a3f0c03c00a0e0d0904f0f0f000"},
+[58]={13,22,-2,-20,9.0000,"f0d001090c0902700b2f0c704f700c2f0d70030c0e0c03f0f0f0f0f0f0f001090c0902700b2f0c704f700c2f0d70030c0e0c03f0d0"},
+[59]={12,28,-2,-20,8.0000,"f0b001090c0902600b2f0c604f600c2f0d60030c0e0c03f0f0f0f0f0f0f0200c2f700c2f700c2f700c1f0e700d1f0d60012f0960062f04600c1f0c60042f0370040c05f0d0"},
+[60]={18,21,-2,-19,14.0000,"f0f0f0020905c002091f05a002093f058002095f056002096f0b0250095f0e090260014f0e070180013f0b01a0014f0d070190095f0e09028002096f0b028002095f05a002093f05c002091f05e0020905f0f0f0f0a0"},
+[61]={20,20,-2,-18,16.0000,"f0f0b009aa700eaf700eaf700eaff0f0f0f0300eaf700eaf700eaf7009aaf0f0f0f0f0f0f0f0f0"},
+[62]={19,21,-2,-19,15.0000,"f0f080010b03f0011f0b03d0013f0b04b0015f0b04a0090e5f0b049001070d5f0c03a0050b4f0bc0063f0da0050c4f0b7001070d5f0c0360090e5f0c0470015f0c0490013f0b04b0011f0b04d0010b03f0f0f0f0f080"},
+[63]={18,27,-2,-25,14.0000,"f0f08002090d1e0d080280066f0e0560049f03500b3f0d0c3f0a503f0a100a2f0e40023f0410063f01b0053f01b0082f0eb0020e2f09b00b2f0e02a0093f05a0053f08b00b2f0ab0013f01b0032f0cc0042f0af0f0f010060b0a02c0052f0dc0093f01b0072f0ed0090e0d04f0f0a0"},
+[64]={29,33,-2,-24,25.0000,"f0f0f0f03001060b0d1e0d0a06f020070e7f0d05e0010b2f0e0b190b0e2f08d00b1f0e064001070e1f07b0091f0d0270020e1f0390031f0e0290041f0b900b1f06b00a1f0270031f0d30020a0e0f0d080110041f0770091f0620040e5f03100e0f0b700d1f0110020e1f0e0c2f04100b0f0e60021f0c200a1f0b01000d1f0310091f0150051f0910022f02100e1f0210071f0250081f0710071f0c202f20071f0350091f05100a1f0810011f0e20071f03500a1f04100d1f0610021f0d20081f02500a1f04102f0510041f0c200a1f600a1f0400012f0510091f0b200d0f0c600a1f05102f06100e1f0a10021f0860081f06100c1f0c00032f0b100a1f0260061f0910072f0e4f090b1f0970031f0c10010d3f0a094f0c01800e1f0210020b1e0810090e0f0d080190091f09f080032f03f0800a1f0e03f070010d1f0e080230010605f0020d3f0d1b0d1f0af000010a8f0bf02002080b0d1f0d0a05f0f0f0f040"},
+[65]={23,27,-2,-25,19.0000,"f0f0f0600a2f0cf000010e3f01f0054f06f0094f0bf00e5f01d0036f05d0082f0c2f0ad00d2f042f0ec0022f0e000c2f04b0072f0a00092f09b00c2f0600052f0da0013f0200013f0390062f0d200c2f08900b2f0a20082f0d80014f2c4f027005cf07700acf0c700edf0150043f0540033f0650083f01500e2f0b500d2f0d600b3f0130033f0960073f0530073f0560033f0af0f0f0"},
+[66]={22,27,-2,-25,18.0000,"f0f0e0026f0e0d0a069002af0d037002bf0e0160023f0d1c0d4f0960023f0620030e2f0d60023f0630093f0150023f0630073f0150023f0630083f60023f06300d2f0a60024f190b0e3f036002af0e057002af0c037002bf0e0460023f0620030d2f0d60023f0630053f0350023f0630023f0650023f0630023f0650023f0630043f0550023f0620010c3f0250024f2c0e3f0c6002cf046002af0e0570027f0e0c0702f0f0f010"},
+[67]={22,27,-2,-25,18.0000,"f0f0f02001070c0e0f0d0c0702b0060e6f0e059006af0570020e3f0e0c0e3f0e0160093f0620053f0750010e2f09400a2f0d50043f0440063f0140063f0140053f0340073ff000083ff000083ff000083ff000083ff000083ff000083ff000063f0140053f0340043f0440073f0140013f08400b2f0d600a3f0420053f0860034f0d0c0e3f0e027007af0690077f0e05b002080c0e0f0d0c0701f0f0f010"},
+[68]={22,27,-2,-25,18.0000,"f0f0e0025f0e0d0904a0029f0c028002af0e0370024f0c0d4f0d0160023f061001083f0760023f06300a2f0d60023f0630043f0350023f0630013f0650023f06403f0850023f06400e2f0950023f06400e2f0950023f06400e2f0950023f06400e2f0950023f06403f0950023f06403f0850023f0630023f0650023f0630053f0350023f06300b2f0e60023f061001083f0760024f0c0d4f0d016002af0e0370029f0c0280025f0e0d0904f0f0f030"},
+[69]={20,27,-2,-25,16.0000,"f0f0a002bf0d5002bf0d5002bf0d50024f6c0a50023f06d0023f06d0023f06d0023f06d0023f06d0024f5a066002af086002af086002af0860023f06d0023f06d0023f06d0023f06d0023f06d0023f06d0024f6c0a5002bf0d5002bf0d5002bf0df0f0a0"},
+[70]={19,27,-2,-25,15.0000,"f0f08002bf064002bf064002bf0640024f6c0540023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0024f5c065002af085002af085002af0850023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06f0f0f0"},
+[71]={23,27,-2,-25,19.0000,"f0f0f04001070c0e0f0e0c0802c0060e7f07a006af0780020e3f0e0c0d4f0270093f0820053f08700e2f0b400a2f0d60033f0640053f0150053f0340033f0350073f02f000073f01f000083f011004670250083f0110086f0450083f0110086f0450073f0110086f0450073f0240043f0450053f0340043f0450033f0740043f04600e2f0c40043f0460083f0a011001093f0460020e4f1c0e4f047005bf0b0180040e8f08b001060b0d0f0e0d0b0701f0f0f030"},
+[72]={24,27,-2,-25,20.0000,"f0f0f020023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60024f5c3f0c6002ef0c6002ef0c6002ef0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0c60023f06500c2f0cf0f0f030"},
+[73]={13,27,-2,-25,9.0000,"f0d00e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09700e2f09f0d0"},
+[74]={20,27,-2,-25,16.0000,"f0f0f0200a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0de00a2f0d50043f05200b2f0c50023f07200e2f0a600e2f0d0100063f0660093f0e0c3f0e0160010e8f0680030d6f07a001070c0e0f0d0903f0f0e0"},
+[75]={22,27,-2,-25,18.0000,"f0f0e0023f0630024f0640023f06300a3f0b50023f0620043f0e0250023f06200c3f0760023f0610063f0c70023f0600010e3f0370023f0600083f0880023f06023f0d90023f060a3f0490023f0b3f09a0028f06a0028f0da0029f0690029f0d90024f0d093f0780024f123f0e0170023f0b10093f0770023f0610023f0e0160023f06200a3f0860023f0620033f0e0150023f06300b3f0850023f0630043f0e0140023f06400c3f09f0f0d0"},
+[76]={19,27,-2,-25,15.0000,"f0f080023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0023f06c0024f6c054002bf074002bf074002bf07f0f070"},
+[77]={28,27,-2,-25,24.0000,"f0f0f0a0024f0970064f0650024f0e700a4f0650025f03600e4f0650025f0850045f0650025f0c50095f0650026f02400d5f0650026f0630026f0650026f0a30072f0e2f0650023f0e1f0e300b1f0e0c2f0650023f0b2f0410012f090c2f0650023f072f0910052f050d2f0650023f032f0d10092f010d2f0650023f020b2f03000e1f0c000e2f0650023f03072f07032f07000e2f0650023f04022f0b082f03003f0650023f04000d2f0d1f0e103f0650023f0400085f0a103f0650023f0400045f06103f0650023f04100e4f01103f0650023f04100a3f0c203f0650023f0410053f08203f0650023f0410013f04203f0650023f04200b1f0e303f06f0f0f0a0"},
+[78]={24,27,-2,-25,20.0000,"f0f0f020023f0750092f0b60023f0e0140092f0b60024f0740092f0b60024f0e40092f0b60025f0630092f0b60025f0d30092f0b60026f0620092f0b60026f0d20092f0b60023f0e2f0610092f0b60023f082f0d10092f0b60023f030d2f0600092f0b60023f03062f0d00092f0b60023f03000d2f06092f0b60023f0300062f0d092f0b60023f03100d2f0e2f0b60023f0310066f0b60023f03200d5f0b60023f0320065f0b60023f03300d4f0b60023f0330064f0b60023f03400d3f0b60023f0340063f0b60023f03500d2f0bf0f0f030"},
+[79]={23,27,-2,-25,19.0000,"f0f0f04001060b0d0f0e0c0802c0040d6f0e07a004af0880010e3f0e0d0e4f0470083f090110063f0c700e2f0c40083f0350033f0640023f0750063f03500d2f0a50073f01500c2f0b50083f600b2f0c50083f600b2f0c50083f600b2f0c50083f600b2f0c50083f600b2f0c50073f01500b2f0b50063f02500d2f0a50033f0640013f07600e2f0c40073f0460083f090110053f0d70020e3f0e0c0e4f058005af09a0040e7f08c001070b0e0f0e0c0802f0f0f040"},
+[80]={22,27,-2,-25,18.0000,"f0f0e0027f0d0c07018002af0e047002cf0460023f0d2c0e3f0d0150023f0620010b3f0550023f0630013f0a50023f06400c2f0d50023f06400a2f0e50023f06400b2f0d50023f06400e2f0b50023f0630093f0750024f2c0e3f0e015002cf066002af0e0670027f0e0c070280023f06f0023f06f0023f06f0023f06f0023f06f0023f06f0023f06f0023f06f0f0f080"},
+[81]={23,31,-2,-25,19.0000,"f0f0f04001060b0e0f0e0c0802c0040e6f0e07a005af0880010e3f0e0d0e4f0470083f090110063f0c700e2f0c40083f0350033f0640023f0750063f02500e2f0a50073f01500c2f0b50083f600b2f0c50093f600b2f0c50093f600b2f0c50093f600b2f0c50083f600b2f0c50073f01500c2f0b50063f02500e2f0a50033f0640023f07600e2f0c40083f0360083f090110063f0c70010e3f0e0c0e4f048005af08a0040e8f01b001070b0e5f0d02f000093f0d03f000083f09f010081f09f0300708f0f0f020"},
+[82]={22,27,-2,-25,18.0000,"f0f0e0027f0d0b069002af0c037002bf0d0160023f0d1c0d4f0960023f0720030e2f0e60023f0730083f0350023f0730043f0550023f0730033f0550023f0730043f0450023f0730083f0250023f0720040e2f0d60024f1c0d4f056002bf097002af088002af0680023f0700010e2f0d80023f0710093f0470023f0710023f0b70023f07200b3f0360023f0720053f0960023f07300d3f0150023f0730073f0850023f0730010e2f0ef0f0e0"},
+[83]={21,27,-2,-25,17.0000,"f0f0f001060b0e0f0e0c0701a0040d6f0e058004af05700d3f0e0b0d3f0e0150043f0a20083f0650063f03300e2f0a50073f01300b2f0c50053f08e0010e3f0a02d0075f0b04c0076f0c04b0030c6f08c0050c5f09d0040b4f04e0063f0af00b2f0e500c2f0b40093f500a2f0e01300a2f0e50073f090110020e2f0c50010e3f0e1c4f066005af0c80050e7f0b019001060b0d0f0e0d0a04f0f0f0"},
+[84]={21,27,-2,-25,17.0000,"f0f0b003ef083003ef083003ef0830024c4f4c07900a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef00a2f0ef0f0f010"},
+[85]={22,27,-2,-25,18.0000,"f0f0e0053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950053f04400e2f0950043f04403f0850023f0730033f06600d2f0e0210010b3f0360084f0d0c0e3f0c70010c9f0e0380020b7f0d04b005090d0e0f0d0b0601f0f0f010"},
+[86]={23,27,-2,-25,18.0000,"f0f0f0083f05600d3f0130033f0950023f0b500e2f0c50053f07500a3f0140093f0250063f05400d2f0d60013f0830013f09700c2f0c30053f0570083f0120083f0170043f04200c2f0b900e2f0710013f07900a2f0b10043f0290062f0e10082f0da0023f03000b2f09b00c2f07000e2f04b0082f0a033f01b0042f0e072f0bd00e2f0d2f07d00a6f02d0065f0de0025f09f00c4f04f0084f01f0043f0bf0f0f060"},
+[87]={28,27,-2,-25,24.0000,"f0f0f090033f05300e2f30043f03403f0720023f0320063f01400d2f0920053f0620082f0d500a2f0b20083f09200b2f0a50072f0e200b3f0b200d2f0850053f01100e3f0e203f0550023f0300015f0200023f02600e2f0500045f0500053f700c2f0800075f0800072f0c70092f0a000a2f0e1f0a00092f0a70062f0c000d1f0c0b1f0d000b2f0770042f0e002f09082f010e2f0470013f052f06052f053f02800d2f0a2f03022f0a2f0e900b6f100e5f0b90085f0c100c5f0990055f0910095f0690035f0610065f03a05f0310035f01a00c4f01204f0db00a3f0d300c3f0bb0073f0a30093f08b0043f0730063f05f0f0f0d0"},
+[88]={22,27,-2,-25,18.0000,"f0f0d0024f0230010e2f0e0140093f0830063f0850023f0e300c3f01600a3f0510033f0970023f0c10093f02800a3f03010e2f0990023f09063f02a00a3f0d2f0ab0037f03c00a5f0ad0035f03e00e3f0ee0065f05d00d5f0cc0057f04b00d2f0c0e2f0ba0053f05083f04900c2f0e00023f0b80043f08100b3f03700c3f0210053f0a60043f0a300d3f03500b3f0430073f0a40043f0d40014f02f0f0d0"},
+[89]={22,27,-2,-25,17.0000,"f0f0d0083f0640013f0d40023f0b40063f07500b3f01300b3f0150043f0620013f0a700d2f0b20063f0370073f01100b2f0c80010e2f0600013f0690092f0b00052f0e0190033f010a2f08b00c2f073f02b0052f0e2f0bd00e5f04d0084f0de0024f07f00b3f01f0093ff000093ff000093ff000093ff000093ff000093ff000093ff000093ff0f0f040"},
+[90]={21,27,-2,-25,17.0000,"f0f0c00dcf0c500dcf0c500dcf0b500a7c4f05e00c2f0be0063f03d0010e2f0ae0082f0e02d0023f08e00a2f0e01d0043f06e00c2f0ce0063f04d0010e2f0be0083f03d0023f09e00a2f0e01d0033f07e00c2f0d01d0054f7c0b500ccf0e500ccf0e500ccf0ef0f0c0"},
+[91]={12,35,-2,-28,8.0000,"f0a0044f0c40044f0c40044f0c40043f080640043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f0250043f080540044f0c40044f0c40044f0cf090"},
+[92]={17,29,-2,-25,12.0000,"f0f0300a2f0cb0053f02a0013f07b00b2f0bb0063f01a0013f06b00b2f0bb0073f01a0023f05b00c2f0ab0072f0eb0023f05b00d2f09b0082f0eb0033f04b00d2f09b0092f0db0043f03b00e2f08b0092f0db0043f03b00e2f07b00a2f0cb0053f02a0013f07f0f030"},
+[93]={12,35,-2,-28,8.0000,"f090074f0940074f0940074f094003070d2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f09600c2f094003070d2f0940074f0940074f0940074f09f0a0"},
+[94]={17,27,-2,-25,13.0000,"f0f070072f01b00d2f06a0033f0ba0084f02900d1f0b1f0780041f0d041f0c80091f09000e1f03700e1f04000a1f0860051f0e10061f0d600a1f0a10012f0340012f06200c1f09f0f0f0f0f0f0f0f0f0f0f0f0f0f0f000"},
+[95]={17,8,-2,-2,13.0000,"f0f0300aaf07300aaf07300aaf073005a804f0f030"},
+[96]={15,28,-2,-26,11.0000,"f0f0000b2f0e0280010c2f0a90020e2f0490030e1f0d0190052f08f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0e0"},
+[97]={19,21,-2,-19,15.0000,"f0f0b0050a0e0f0e0c070180010a6f0d02700a8f0b60033f0c070c3f0350073f0100013f0650032605200e2f07d00e2f077001070b0e5f0760040e8f0750020e2f0e0b093f0750082f0e02100e2f07500c2f09200e2f07500c2f0a203f07500a3f09080d3f075005af0860094f1e2f0b70050b1e0b02073ff0f080"},
+[98]={20,28,-2,-26,16.0000,"f0f0a0053fe0053fe0053fe0053fe0053fe0053fe0053fe0053f01080d0f0d090170053f0c4f0e026005af0b60054f0c0b0e3f0250053f0510033f0650053f300c2f0950053f300a2f0b50053f30092f0b50053f30092f0c50053f30092f0b50053f300a2f0b50053f300b2f0950053f0410023f0750054f1b0e3f025005af0b60052f0d0c4f0e0260052f0b01080d0f0d0901f0f0c0"},
+[99]={19,21,-2,-19,15.0000,"f0f0b0040a0d0f0e0b06a0096f0b0170088f0960013f0e0a0d3f0250072f0e02100c2f08500a2f0a20072f0a500c2f0820052f0c500d2f08d00d2f07d00d2f07d00c2f08d00a2f0a20052f0c50072f0e01100a2f0a50013f0e0a0c3f0560088f0b80096f0c0190040a0d0f0e0c06f0f0b0"},
+[100]={20,28,-2,-26,16.0000,"f0f0f020033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f037002090d0f0d07033f0360030e4f0c3f03600caf0350043f0e0b0c4f0350093f02100b3f03500c2f0a20033f03500d2f0720033f03500e2f0720033f03500e2f0620033f03500e2f0620033f03500d2f0720033f03500c2f0a20033f0350092f0e02100a3f0350043f0e0b0c4f03600caf0360020e4f090e2f037002090d0f0d07000c2f03f0f0a0"},
+[101]={19,21,-2,-19,15.0000,"f0f0b002090d1e0d080290066f0e0470048f0e02600d3f1b3f0950043f0410052f0e50082f0d303f03400a2f0c310e2f05400bbf06400cbf06400cbf06400b2f0ad0092f0dd0053f0830070c700d3f0d0a0b0e1f0860049f0e70050e6f0d038001080c0e0f0e0b0601f0f090"},
+[102]={15,28,-2,-26,10.0000,"f0f040060c1e0c01700b4f0260085f02600e3f1b0150033f0780053f0180053f0160067f0a40067f0a40067f0a4002040a3f05040360053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f0180053f01f0f020"},
+[103]={20,28,-2,-19,16.0000,"f0f0c001080d1e0a02082f0760010d4f0e0c2f07600baf0750034f0c0b4f0750083f0410033f07500b2f0c303f07500d2f08303f07500d2f07303f07500e2f07303f07500e2f07303f07500d2f08303f07500b2f0b303f0750083f0410023f0750034f0c0b4f07600aaf0760010c4f0d3f077001070d0f0e09010e2f07e00e2f07d0013f0570070630073f0360010e0f0d09080b3f0c70079f0470040e6f0e059001060b0d0f0e0c0702f0f0d0"},
+[104]={20,28,-2,-26,16.0000,"f0f0a0072f0de0072f0de0072f0de0072f0de0072f0de0072f0de0072f0de0072f0d00080d0f0d080170072f0e0c4f0c7007af0760074f0b0c3f0c60073f0310093f60073f20043f0250073f20033f0250073f20033f0350072f0e20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f0350072f0d20033f03f0f0a0"},
+[105]={12,28,-2,-26,8.0000,"f0b003190360010e1f0e0250053f0550033f0360071e07f0e0033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f03f0a0"},
+[106]={13,35,-3,-26,8.0000,"f0e003190270022f0e0160063f0460043f0270081e06f0f010033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0460033f0360073f02400a0b3f0d500d4f07500d3f0c600a1e0c07f0f0"},
+[107]={20,28,-2,-26,15.0000,"f0f0a0063fe0063fe0063fe0063fe0063fe0063fe0063fe0063f200a3f0850063f10043f0c60063f100c3f0260063f00073f0670063f020e2f0b80063f0b2f0e0180067f0590067f0490067f0c90068f0580063f1e2f0d80063f143f0670063f100c2f0d0160063f10053f0760063f200d2f0e0150063f20063f0850063f300d3f02f0f090"},
+[108]={12,28,-2,-26,8.0000,"f0a0033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f0350033f03f0a0"},
+[109]={28,21,-2,-19,24.0000,"f0f0f0a0052f0c00070c1e09020001080d0f0d090170052f0d0b4f0d020d4f0c7005ff2f0660054f0b0c5f0b0c3f0b60053f05100a3f07100a2f0e60053f20063f0110063f60053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f0150053f20053f0110053f01f0f0f0a0"},
+[110]={20,21,-2,-19,16.0000,"f0f0a0072f0a00070c0f0e090270072f0c0b4f0d016007af0860074f0b0c3f0d60073f0410093f0150073f20043f0250073f20033f0350073f20033f0350073f20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f03f0f0a0"},
+[111]={20,21,-2,-19,16.0000,"f0f0d002090d1e0c0802a0066f0e0580059f04700e3f1b3f0d60053f0510073f0450092f0c300e2f08500c2f0a300b2f0a500d2f08300a2f0b500d2f0830092f0c500d2f0830092f0c500c2f09300a2f0a50092f0c300d2f0850053f0510053f04600e3f1b3f0d70059f0480067f05a002090d1e0d0802f0f0d0"},
+[112]={20,28,-2,-19,16.0000,"f0f0a0052f0b01090d0f0d090170052f0d0c4f0d026005af0b60054f0c0b4f0250053f0410043f0750053f300d2f0950053f300a2f0b50053f30092f0b50053f30092f0c50053f30092f0b50053f300a2f0b50053f300d2f0950053f0310043f0650054f1b4f025005af0a60053f0c4f0d0160053f01080d0f0d080170053fe0053fe0053fe0053fe0053fe0053fe0053ff0f0f030"},
+[113]={20,28,-2,-19,16.0000,"f0f0c002090d0f0d08000b2f0360030e4f0b0d2f03600daf0350053f0e0b0c4f0350092f0e0210093f03500c2f0a20033f03500d2f0720033f03500e2f0720033f03500e2f0620033f03500e2f0720033f03500d2f0720033f03500b2f0a20033f0350092f0e0310083f0350043f0e0a0b4f03600caf0360020e4f0d3f037002090d0f0d07033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03d0033f03f0f0a0"},
+[114]={15,21,-2,-19,11.0000,"f0f000062f0c010a0e0d50062f0d0b2f50066f0e50066f0e50064f091750063f0580063f90063f90063f90063f90063f90063f90063f90063f90063f90063f90063ff0f040"},
+[115]={19,21,-2,-19,15.0000,"f0f0a001070c0e0f0d0a0490030d6f0a70010d8f0860063f08060c2f0e0150092f0a10033f0350082f0d0110340150053f0e0801b00c5f0a0390010a6f09a0040b5f09b003094f0250380110043f05500e2f05200e2f0550092f0e08060a3f0250020e8f0a70030d6f0b018001070c0e0f0e0b05f0f0b0"},
+[116]={14,25,-2,-23,10.0000,"f0f00a2f0b800a2f0b800a2f0b800a2f0b60097f40097f40097f4003040e3f14600a2f0b800a2f0b800a2f0b800a2f0b800a2f0b800a2f0b800a2f0b800a2f0b80092f0d80083f0d0b0150045f01600b4f016001080d0f0e0b01f0d0"},
+[117]={20,21,-2,-19,16.0000,"f0f0a0072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350072f0e20033f0350073f20043f0350053f04100c3f0350023f0e0b0d4f03600caf0360030e4f0a3f0370030a0e0f0c06003f03f0f0a0"},
+[118]={18,21,-2,-19,14.0000,"f0f050073f01200c2f0b30033f05200e2f07400d2f0810033f0340092f0b10062f0e50052f0e10092f0a50013f02000c2f06600c2f05000e2f0260082f08032f0d70042f0b062f09800e1f0e092f04800b2f0e2f0180075f0b90035f07a00d4f03a0093f0eb0053f0ab0013f06f0f090"},
+[119]={24,21,-2,-19,20.0000,"f0f0f010052f0c20092f20092f0930023f200c2f01100c2f06400e2f0200013f04100e2f03400b2f0500043f0800012f0e50082f0700083f0b00042f0c50052f0a000b3f0e00062f0850022f0c000e4f03092f05600e1f0e032f0d1f070b2f02600a2f091f0c081f0a0d1f0e70075f08055f0b70045f05015f0870015f01000c4f05800d3f0c10094f02800a3f0910053f0d90073f0510013f0a90043f01200d2f0790012f0d30092f04f0f0f040"},
+[120]={19,21,-2,-19,14.0000,"f0f070023f09200e2f0950093f0200063f0250023f09000c2f0970092f0e042f0e0270023f0e2f0890095f0e0190025f08b0093f0e01b0053f0bc00b4f03a0045f0aa00b6f0380043f0d2f0b800b2f0c043f0460043f05000c2f0c600b2f0d10053f0440043f06200d2f0cf0f080"},
+[121]={18,28,-2,-19,14.0000,"f0f050093f01200b2f0c30043f04200e2f0830013f0810033f04400b2f0b10062f0e50072f0e100a2f0a50033f02000d2f06600d2f05023f0260092f09052f0d70052f0c092f0870013f0d2f04800b5f0e90075f0b90035f06a00e4f02a0093f0db0053f09b0013f04c03f01b0042f0bc00b2f0790010a0d3f0290014f09a0013f0d01a0010d0f0e0901f0f0c0"},
+[122]={18,21,-2,-19,14.0000,"f0f06009af014009af014009af0140064a0b3f08b00a2f0d01a0043f05a0010d2f0ab0082f0e02a0033f07b00c2f0cb0063f03a0010e2f09b00a2f0e01a0044f5a02400baf03400baf03400baf03f0f050"},
+[123]={14,35,-2,-27,10.0000,"f0f030060c0180010b1f05800a2f0770032f0a80092f04800c2f01800e2f900e1f0e900e1f0e900e1f0e900e1f0e80012f0d80052f0970060e2f0360033f0770042f0d80023f0a80020c2f0580032f0a902f0d900e1f0e900e1f0e900e1f0e900e1f0e900d2f900c2f0180082f0480032f0b90092f0780010a1f05a0050c01f0e0"},
+[124]={12,31,-2,-25,8.0000,"f0b0041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f0770041f07f0b0"},
+[125]={14,35,-2,-27,10.0000,"f0e0070a02a00d0f0e0580010e2f0380032f0b900b2f0280082f0580072f0780062f0780062f0880062f0880062f0880052f0980022f0d900a2f0a0370010d2f0e80033f70030e2f0b700c2f070160022f0c80052f0980062f0880062f0880062f0880062f0780072f0780082f05800b2f0170032f0b70010e2f03800c0f0e0590070902f0f030"},
+[126]={22,17,-2,-15,18.0000,"f0f0f000020a1e0a02300e1f0460020e3f0e0410022f03600a5f0e0300072f60012f0e0b3f0b2f0b60042f0300046f0460061f0d20054f0af0040c0e0d07f0f0f0f0f0f0f0f0f0f0f050"},
+[8212]={25,17,-2,-15,21.0000,"f0f0f04001fa1a024001ff1f034001ff1f034001ff1f03f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f040"},
+[183]={13,17,-2,-15,9.0000,"f0d001090c0901700a2f09700d2f0d700b2f0a70020c0e0b02f0f0f0f0f0f0f0f050"},
+},
+[40]={
+[32]={13,4,-2,-2,9.0000,"f0f0f030"},
+[33]={14,32,-2,-30,10.0000,"f0f0084f0460084f0360074f0360074f0260064f0260064f0160054f0160054f70044f70043f0e70033f0e70033f0d70023f0d70023f0c70013f0c803f0b803f0b800e2f0a800e2f0af0f0f020050d0e0b0370043f0d0160094f0460094f0460043f0d0170060d0e0b03f0f0"},
+[34]={17,34,-2,-32,13.0000,"f0f0400b2f0300062f08500b2f0300062f08500b2f0300062f08500b2f0200062f07500b2f0100062f06500b1f0e10062f04500b1f0d10062f03500b1f0b10062f02500b1f0a10062f600b1f0810061f0e600b1f0710061f0cf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f080"},
+[35]={25,32,-2,-30,21.0000,"f0f0f0b02f06102f06d0022f0300022f04d0052f0100042f02d0071f0e10062fe0091f0c10091f0ce00b1f0a100b1f0ae00e1f07100d1f089002362f0b162f0b16046005ff0c6005ff0c6005ff0ca00a1f0b10091f0ce00c1f09100c1f0ae00e1f07100e1f07d0022f0400012f05d0042f0200032f03d0062f10062f019008ff086008ff086008ff086003262f0c162f0c260390022f0400022f04d0042f0100042f02d0071f0e10062fe0091f0c10081f0de00b1f0a100b1f0be00d1f08100d1f08d0012f05102f06f0f0f0a0"},
+[36]={24,40,-2,-34,20.0000,"f0f0f0a00b1f03f0300b1f03f0300b1f03f0300b1f03f00001070b2f0e0701d0050e6f0e04b007af059003bf0e01800a4f0c090d4f08804f0b10010d3f0d70024f0620064f0260044f0420034f0460034f0520024f0560014f0af0100c4f07f000065f0b02f00a6f0a02d0010a7f08e0070e6f0b01d001080e5f0bf001085f07f000044f0df010084f0250024f0530034f0450014f0630024f05600e3f0a30044f04600a4f04200b4f0260055f0a090c4f0c800ccf0580020daf08a0020b7f0e07d003093f0b0702f000021f0cf030021f0cf030021f0cf030021f0cf0f0f090"},
+[37]={30,32,-2,-30,26.0000,"f0f0f0f010040b1e0d0801f050075f0d02f030047f0bf0300b2f07050d2f0220010c05c00e1f0b10052f0620081f0aa0012f0810012f0810022f04a0012f0710012f08100a1f0bb0012f0810012f0800032f03c00e1f0b10052f06000b1f0ad00b2f08050d2f02042f02d0047f0b000d1f08f0075f0d02061f0e01f000040b1e0d08110e1f06f080081f0df080020e1f05f080091f0c00030a0d0f0d0902f000032f03040e4f0e04f00b1f0a010e6f0d01d0042f02072f0a040b2f06d00c1f08000b1f0e0100012f0ac0061f0e01000d1f0b200d1f0bb0010d1f07100d1f0b200c1f0cb0071f0d200d1f0c200d1f0ba0010e1f05200b1f0e0100010e1f0aa001080f0c30072f0b040a2f06c0020330010e6f0d01f030040e4f0e04f050030a0d0f0d0902f0f0f0f010"},
+[38]={27,32,-2,-30,23.0000,"f0f0f0d001070c1e0d0902f010030d6f06f0020e8f05e00b9f0ed0024f0b090e3f05c0063f0c10053f08c0073f07200e2f09c0083f06200e2f08c0063f0910053f04c0033f0e02040e2f0de00c9f04e0048f06f0000a5f0e04f0100a5f03f0100a6f0a200b2f0e800a8f06100c2f0d70079f0e02000e2f0c60010e3f07044f0c033f0a60054f0100089f0760083f0e200c8f0360084f20020e6f0d70074f0320066f0670044f0c20016f900d4f0d090a0e6f038006ff0d01800aff0a90088f090d4f059002080c0e0f0e0b070200020e3f0e02f0f0f070"},
+[39]={10,34,-2,-32,6.0000,"f0600b2f06400b2f06400b2f06400b2f05400b2f04400b2f03400b2f02400b2f01400b2f500b1f0e500b1f0df0f0f0f0f0f0f0f0f0f0f0f0f040"},
+[40]={17,45,-2,-34,13.0000,"f0f0c0020bd0030e0f04b0020e1f09b00c2f07a0082f0aa0022f0e01a00a2f07a0023f01a0082f0ab00e2f05a0033f01a0082f0cb00c2f09b03f06a0023f04a0053f03a0073f01a0083f01a0083fb0093fb00a2f0eb0093fb0083fb0083f01a0073f01a0053f03a0023f04b03f06b00c2f09b0082f0cb0043f01b00e2f05b0082f0ab0022f0e01b00a2f07b0022f0e01b0082f09b0010c2f06b0020e1f0ac0030e0f04d0020bf0f050"},
+[41]={17,45,-2,-34,13.0000,"f0f040010b02d0060f0e02c00b1f0e02b0082f0cc00b2f09b0023f03b0092f0bb0033f03b00c2f0ab0073f01a0033f06b00e2f0ab00b2f0eb0083f03a0063f05a0053f08a0033f0aa0023f0ba0023f0ca0013f0ca0013f0da0013f0ca0023f0ca0023f0ba0033f0aa0043f08a0063f05a0083f03a00b2f0eb00e2f0aa0023f06a0073f01a00b2f0aa0023f03a0082f0ba0023f03a00b2f09a0072f0c01a00b1f0e02b0060f0e03c0010b02f0f0c0"},
+[42]={22,32,-2,-30,18.0000,"f0f0f040092f03f000082f02f000072f01f000062fb004060120051f0e300105500b0f0e090300051f0d10040a1f0130014f0c091f0d070d3f063004ff0b400105090d8f0e0a060180030a3f0e0703c0020e4f04c0010d1f0e0d1f0e02b00b2f05032f0c0190082f0a10092f0a80042f0e0210010d2f0680060e0f0630051f0a01900208500a06f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f030"},
+[43]={23,28,-2,-26,19.0000,"f0f0f050014f01f0014f01f0014f01f0014f01f0014f01f0014f01f0014f01a041024f0341500bef0a500bef0a500bef0a500bef0a500bef0aa0014f01f0014f01f0014f01f0014f01f0014f01f0014f01f0014f01f0014f01f0f0f0f0f0f0f0a0"},
+[44]={14,16,-2,-7,10.0000,"f0f0043f0770043f0770043f0770043f0770043f0770053f0570083f01700d2f0b70043f04700c2f0a70020d1f0e0290060c03f0f020"},
+[45]={18,19,-2,-17,14.0000,"f0f07005780770097f0d70097f0d70097f0d70097f0df0f0f0f0f0f0f0f0f0f0f0f0f0b0"},
+[46]={16,11,-2,-9,12.0000,"f0f0f040040c0f0e0790024f0680074f0b80074f0b80020e3f0690040c0e0d07f0f050"},
+[47]={18,34,-3,-30,13.0000,"f0f0e0082f06c00d2f02b0022f0dc0062f09c00b2f04c00e2f01b0042f0bc0082f07c00d2f02b0022f0dc0062f09c00b2f04c00e2f01b0042f0bc0092f07c00d2f02b0022f0dc0062f09c00b2f04b0013f01b0042f0bc0092f07c00d2f02b0022f0dc0072f09c00b2f04b0013f01b0052f0bc0092f07c00d2f02f0f0d0"},
+[48]={24,32,-2,-30,20.0000,"f0f0f07003080c0e0f0d0a04e0087f0a01b0099f0ca004bf08900d4f1a0e4f0170034f0610034f0770083f0d300a3f0b700b3f0930064f700e3f0730044f02604f0630034f0450014f0530024f0550024f0530024f0550024f0530024f0550024f0530024f0550024f0530024f0550024f0530024f0550024f0530024f0550014f0530024f0450014f0630034f04600e3f0730044f02600c3f0a30063f0e70083f0d300a3f0b70044f0610034f07800c4f0a090e4f018004bf08a0099f0c01b0087f0a01d002090d1e0d0a04f0f0f070"},
+[49]={24,32,-2,-30,20.0000,"f0f0f0c003090ff01001060c2ff003090e4fc001060c7fc00d9fc00e9fc00e2f0e0d4fc00e0f0b0601084fc0070220084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff010084ff0f0f070"},
+[50]={24,32,-2,-30,20.0000,"f0f0f070050a0d0f0e0d0a0501c0020c7f0d03a0030eaf0380010dbf0d0170084f0e090a5f0560010e3f0d0110054f0a60044f05300c3f0c60074f0130093f0e60093f0e40093f0ef0100a3f0cf0100e3f08f000064f03f0010d3f0cf000084f04f0044f09f0020e3f0d01e0010d3f0e02f00a4f05f0084f07f0054f0bf0030e3f0e02e0010d4f05f00c4f09f0095f0978055002ff095002ff095002ff095002ff09f0f0f020"},
+[51]={24,32,-2,-30,20.0000,"f0f0f06001060b0d0f0e0c0904d0040e7f0b02a005af0d0180020ebf0c800b4f0d090a5f0460014f0c0110054f0960044f05300c3f0c60064f0230093f0df010093f0cf0100c3f0af000044f04b00127094f0bc0037f0c01c0076f0b01d0057f0a01c0038f0bf00002094f06f0100b3f0df010064f02f000044f0350093f0d40044f0350084f0130084f0250054f0a20030e3f0d60010e4f0d090a5f087007cf0d01800aaf0e03a0088f0b02c002080c0e0f0e0c0904f0f0f070"},
+[52]={24,32,-2,-30,20.0000,"f0f0f0b0074f06f0000e4f06f0065f06e0010e5f06e0076f06d0010e6f06d0087f06c0010e7f06c0092f0b4f06b0023f044f06b0092f0b014f06a0023f05014f06a00a2f0d00014f0690033f0600014f06900b2f0e10014f0680043f0710014f06800b2f0e0110014f0670043f0d28095f0807500bff0d500aff0d5009ff0d5008ff0de0014f06f000014f06f000014f06f000014f06f000014f06f000014f06f0f0f040"},
+[53]={24,32,-2,-30,20.0000,"f0f0f04003cf098004cf098006cf098007cf0980093f0c7b06800a3f04f0100c3f03f0100e3f01f0104ff010023f0d050b1e0d0903a003bf089005cf088006df0370060e2f0e0604060c4f0a9003070a0320010d3f0ef010064f03f000034f05f000014f06f0104f07f000014f0650014f0630034f05600e3f0a30074f02600b4f0310010e3f0c70055f0a090e4f06800bbf0c90010c9f0e02a0010a7f0c02d003090c0e0f0d0a05f0f0f070"},
+[54]={24,32,-2,-30,20.0000,"f0f0f0a002070b0d0e0ff001095fe0030d6fd0030e7fc0010e5f0e0c0ac00a4f0d05e0044f0bf0000a3f0d01f0014f05f000053f0e01060c1e0c07a0083f1c5f0c02800bcf0c800ddf07700e5f0a090d4f0e705f0410010c4f04605f30044f07604f0b400e3f0a604f08400c3f0b600e3f07400b3f0b600d3f08400c3f0b600a3f0b400e3f0960063f0e0120044f0560014f0910010c4f0170094f0c090d4f0980010eaf0e029004af04b0040d6f0d04d001060b0e0f0e0b0601f0f0f060"},
+[55]={24,32,-2,-30,20.0000,"f0f0f0200aff08500aff08500aff08500aff065006980a3f0e01f000093f0af0100e3f04f000053f0ef0100b3f09f000024f03f000083f0df0100d3f07f000044f02f0000a3f0cf000014f06f000074f01f0000c3f0af000034f05f000093f0ef000010e3f09f000054f04f0000b3f0df000024f08f000084f02f0000d3f0cf000044f06f0000a4f01f0014f0bf0f0f0b0"},
+[56]={24,32,-2,-30,20.0000,"f0f0f07004090c1e0d0a05d0010a7f0c02b00c9f0e029008bf0b80010e4f0a090e4f0370054f0710044f0870074f01200d3f0a70083f0e300b3f0b70074f300b3f0a70054f02200e3f0870010e3f0710044f0380074f0a090e3f0aa00a9f0d01b00b8f01b0089f0a019007bf0a80034f0a0201074f0670093f0d300a3f0c700d3f0830054f01604f0730044f0350014f0730044f04604f0a30074f03600c4f0410010e4f70075f0a090e4f0a70010dcf0380030eaf06a0030c7f0e05d0050a0d1e0d0b0601f0f0f060"},
+[57]={24,32,-2,-30,20.0000,"f0f0f07003080d1e0c0802e0086f0e06c00a9f06a006bf0380010e4f0a0b4f0b80074f0510074f03700c3f0c300d3f0860014f0730093f0b60024f0530063f0e60034f0430054f0150034f0530054f0250024f0630064f02600e3f0a300a4f02600b4f0210015f0260064f0e07060d5f0160010edf8005cf0d90065f0e0b3f0ba002090d0f0e0a020a3f08f000010e3f04f000073f0ef000044f07e002094f0e01b0070c0e6f05c0097f07d0096f07e0094f0b03f0090e0d0b0703f0f0f0a0"},
+[58]={15,27,-2,-25,11.0000,"f0f0f010040c0f0e0780024f0670074f0b70074f0b70020e3f0680040c0e0d07f0f0f0f0f0f0f0f0f0f0040c0f0e0780024f0670074f0b70074f0b70020e3f0680040c0e0d07f0f020"},
+[59]={14,34,-2,-25,10.0000,"f0f0e0040c0f0e0770024f0660074f0b60074f0b60020e3f0670040c0e0d07f0f0f0f0f0f0f0f0f0f010043f0770043f0770043f0770043f0770043f0770053f0570083f01700d2f0b70043f04700c2f0a70020d1f0e0290060c03f0f020"},
+[60]={22,26,-2,-24,18.0000,"f0f0f0a0010805f00001080e0f06e001080e2f06c001080e4f06a001080e6f068001070e7f0d046001070e7f0c05800c7f0b04a06f0902c05f02e05f0e0902c00c7f0a04a001070e7f0c05a001070e7f0d04a001080e6f06c001080e4f06e001080e2f06f00001080e0f06f020010805f0f0f0f0f0f0f010"},
+[61]={24,24,-2,-22,20.0000,"f0f0f03003d9047006df077006df077006df077006df07f0f0f0f0f0f07006df077006df077006df077006df077004d904f0f0f0f0f0f0f0f0f0f0f0f030"},
+[62]={22,26,-2,-24,18.0000,"f0f0f0080701f020090f0e0701f000092f0e0701e0094f0e0701c0096f0e0701a0060e7f0e07019001060d7f0e0701a0040b7f0cc003096fe0035fc0030a6fa0050c7f0c7001060d7f0e070160060e7f0e070180096f0e0701a0094f0e0701c0092f0e0701e0090f0e0701f000080701f0f0f0f0f0f0f0c0"},
+[63]={22,32,-2,-30,18.0000,"f0f0f01001060b0d0f0e0c0904b0040d7f0a018003af0c800dbf0860055f0a0c4f0e600a4f04100a4f03500d3f0b20044f05500e3f0820024f05e0034f04e0093f0e01d0044f08d0020e3f0d01c0010d3f0e03d00b4f04d0044f06e00a3f09f00d3f02f03f0ef0013f0cf0f0f0f0f020040c0e0c03f0023f0e01e0074f05e0074f05e0023f0e01f0040c0e0c03f0f0f040"},
+[64]={35,41,-2,-30,31.0000,"f0f0f0f0f02002070b0d1e0d0c0804f060020a9f0c04f03006df09f010083f0e09051405080c3f0bf0073f080160040c2f09d0042f0e0490010b2f05b0010d2f03b0010c1f0db0082f07d0032f0690010e1f0d4002090d0f0e0b05300a1f0c90072f0530040e5f0a0110052f02800d1f0d30038f0e200e1f0670022f0820010d2f0c070b2f08200b1f0970072f0420082f0a10042f0720081f0b700a1f0e300e2f0110052f0620071f0d700d1f0c20052f0a20062f0520051f0e60012f0920092f0620072f0420052f60032f07200d2f0320092f0320052f60042f0610013f01200a2f0220051f0e60052f0510032f0e300b2f0120071f0d60062f0410042f0d300c2f30081f0b60052f0410052f0d302f0d300a1f0960052f0510042f0e302f0c300e1f0560042f0610033f0110042f0c20042f0160032f07200e2f07100c2f0d200b1f0a70012f0a200b3f090c4f0702092f03800e1f0d20046f0d7f08900a2f0220084f0b000a5f09a0062f0730060d0f0d0720080d0f0e0b05b0022f0df0e00a2f06f0d0042f0e02f0d00a2f0d03f0c0010d2f0e0701600405f020020e3f0e0b0816080a0e0f0bf030020cbf0ef050070e9f0af07005090c0d1f0d0b0702f0f0f0f0f020"},
+[65]={28,32,-2,-30,24.0000,"f0f0f0f0200c3f0af040024f0e01f030075f05f0300c5f0af020016f0ef020067f04f0100b7f09f000018f0ef000053f0a0c3f04f00a3f06083f09e0010e3f02043f0de0053f0d100e3f03d00a3f09100b3f08d00e3f0510073f0dc0044f0110034f03b0093f0c300e3f07b00d3f08300a3f0ca0035f3b5f029008ff07900dff0c8003ff1f027007ff1f06700c3f0e60014f0b60024f0a700c4f0150074f0670084f06500c4f0270044f0a40014f0d900e4f0130064f09900b4f05f0f0f090"},
+[66]={26,32,-2,-30,22.0000,"f0f0f0700b8f0e0c0904b00bcf0d04900bef05800bef0e01700b4f2b0c0e5f08700b4f40084f0d700b4f500d4f700b4f500a4f02600b4f50094f01600b4f500b3f0e700b4f40024f09700b4f34070d3f0e02700bef05800bdf03900bdf0d03800bef0e03700b4f3001074f0c700b4f50084f03600b4f50044f06600b4f50024f08600b4f50034f08600b4f50074f07600b4f40040e4f04600b4f3b0d5f0e700bff06700bef09800bcf0e07900b8f0e0d0b0601f0f0f0a0"},
+[67]={27,32,-2,-30,23.0000,"f0f0f0e002070b0d0f0e0d0b0701e001099f07c0020dbf0bb00ddf0890085f0e1c0e5f0370010e4f052001084f0970064f06500b3f0e700b3f0e0150064f03600e3f0b60044f0550014f0960024f0850024f08f030034f07f030034f07f030034f07f030034f07f030034f07f030034f07f030024f08f030014f0960034f08600e3f0b60044f06600b3f0e60074f0460074f05500c4f0160024f0e0330084f0a80095f0d0b0c0e5f0380010ddf09a0030ebf0bc0020a8f0e07f003080c0e1f0d0b0701f0f0f0d0"},
+[68]={27,32,-2,-30,23.0000,"f0f0f0900b6f0e0d0b0602d00bbf0901b00bcf0d02a00bdf0e02900b4f0c0b0c0e5f0c900b4f30040d4f05800b4f40010e3f0c800b4f50084f02700b4f50044f06700b4f50014f09700b4f604f0a700b4f604f0b700b4f600e3f0b700b4f600e3f0b700b4f600e3f0b700b4f600e3f0b700b4f604f0b700b4f604f0a700b4f50014f09700b4f50044f06700b4f50084f02700b4f40020e3f0c800b4f30040d4f05800b4f1b0c0e5f0c900bdf0e02900bcf0d03a00bbf0901b00b6f0e0d0b0602f0f0f0f0"},
+[69]={24,32,-2,-30,20.0000,"f0f0f0300bef08600bef08600bef08600bef08600b4f0c8b06600b4ff0100b4ff0100b4ff0100b4ff0100b4ff0100b4ff0100b4f7908800bcf0e800bcf0e800bcf0e800bcf0e800b4ff0100b4ff0100b4ff0100b4ff0100b4ff0100b4ff0100b4ff0100b4f9b07600bef09600bef09600bef09600bef09f0f0f020"},
+[70]={23,32,-2,-30,19.0000,"f0f0f0100bef600bef600bef600bef600b4f0c8b600b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4f7b0a700bcf0e700bcf0e700bcf0e700bcf0e700b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0f0f0a0"},
+[71]={27,32,-2,-30,23.0000,"f0f0f0e002070b0d0e0f0e0c0904e001099f0b02b0020dbf0e03a00cdf0d0180085f0e0c0b0e5f0770010e4f0730054f0d70064f0950084f03600a4f0250034f05600d3f0d704f08604f0bf030014f0af030024f09f030024f092001850350024f0920028f0950024f0920028f0950024f0920028f0950024f0920028f0950014f0a60014f09604f0b60014f09600d3f0e60014f09600a4f0350014f0960064f0b50014f0960010e4f0a022001084f0970076f0d0b0c6f09800bff0680010ccf0e06b0080e9f0a02d001060a0d0e0f0e0d0a0702f0f0f0c0"},
+[72]={29,32,-2,-30,25.0000,"f0f0f0d00b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f7b5f03700bff2f03700bff2f03700bff2f03700bff2f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03700b4f70074f03f0f0f0d0"},
+[73]={15,32,-2,-30,11.0000,"f0f010074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f0470074f04f0f010"},
+[74]={24,32,-2,-30,20.0000,"f0f0f0c0054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f05f000054f0550014f0a30064f05604f0b30074f04600d3f0e300b4f02600a4f0810054f0d70045f0d0c5f06800bbf0c90020e9f0e02a0020c7f0c02d004090c0e0f0d0a05f0f0f080"},
+[75]={27,32,-2,-30,22.0000,"f0f0f0900b4f50025f0c600b4f500a5f03600b4f40045f07700b4f400c4f0c800b4f30065f03800b4f20010e4f07900b4f20094f0ca00b4f10035f03a00b4f100b4f08b00b4f00054f0cc00b4f010e4f03c00b4f094f08d00baf02d00baf09d00bbf02c00bbf0ac00bcf03b00b5f0d094f0bb00b5f03010e4f04a00b4f0610084f0ca00b4f20015f05900b4f30094f0c900b4f30025f06800b4f40094f0d800b4f40025f06700b4f500a4f0e01600b4f50035f07600b4f600a4f0e01f0f0f070"},
+[76]={23,32,-2,-30,19.0000,"f0f0f0100b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4ff0000b4f9b01500bef01500bef01500bef01500bef01f0f0f0"},
+[77]={34,32,-2,-30,30.0000,"f0f0f0f0700b5f0890036f700b5f0c90086f700b6f02800c6f700b6f0670027f700b6f0b70067f700b7f01600b7f700b7f0550018f700b7f0950058f700b7f0e50098f700b8f03400e2f0c4f700b3f0e3f0830033f084f700b3f0a3f0d30083f054f700b3f090c3f02200d2f0b054f700b3f09073f0710023f07054f700b3f0a033f0b10073f03064f700b3f0b000d3f01000b2f0d00064f700b3f0b00083f05013f0900074f700b3f0c00043f0a053f0500074f700b3f0c100e2f0e0a3f0100084f700b3f0c10097f0b10084f700b3f0c10057f0710084f700b3f0c10010e6f0210084f700b3f0c200a5f0d20084f700b3f0c20065f0920084f700b3f0c20015f0420084f700b3f0c300b4f0120084f700b3f0c30073f0b30084f700b3f0c30023f0630084ff0f0f0f070"},
+[78]={29,32,-2,-30,25.0000,"f0f0f0d00b3f0e0160044f03700b4f0860044f03700b4f0e0150044f03700b5f0850044f03700b5f0e0140044f03700b6f0840044f03700b6f0e0130044f03700b7f0830044f03700b8f0120044f03700b8f0920044f03700b3f0e4f0210044f03700b3f1b3f0910044f03700b3f0b044f0200044f03700b3f0b000b3f0900044f03700b3f0b00034f02044f03700b3f0b100b3f09044f03700b3f0b10034f064f03700b3f0b200a3f0d4f03700b3f0b20039f03700b3f0b300a8f03700b3f0b30038f03700b3f0b400a7f03700b3f0b40027f03700b3f0b500a6f03700b3f0b50026f03700b3f0b60095f03700b3f0b60025f03700b3f0b70094f03f0f0f0d0"},
+[79]={28,32,-2,-30,24.0000,"f0f0f0f00001060a0d1e0d0b0702f000070e8f0801c0010bbf0c01b00bdf0ca0066f1c0e5f08900e4f09011001084f0e0170054f0a50094f07700a4f0250014f0b700d3f0d700b3f0e704f0a70084f0250014f0970074f0350024f0870064f0450034f0870064f0450034f0870064f0450034f0870064f0450034f0870064f0450024f0870064f0450024f0970074f03604f0a70084f02600e3f0c700b4f700a4f0250010e3f0c70064f0a50084f0870010e4f080120075f0280076f1c0e5f09a00bdf0d01a0010cbf0d02d0080e8f0901f001070b0d0e0f0d0b0702f0f0f0f000"},
+[80]={27,32,-2,-30,23.0000,"f0f0f0900b9f0d0b0701b00bcf0e06a00bef09900bff06800b4f3b0c6f02700b4f40020d4f08700b4f50034f0d700b4f600c4f01600b4f60094f03600b4f60094f03600b4f600b4f02600b4f50010e3f0e700b4f40010b4f0a700b4f0c2b0c6f04700bff09800bef0b900bdf08a00b9f0e0b0702b00b4ff0400b4ff0400b4ff0400b4ff0400b4ff0400b4ff0400b4ff0400b4ff0400b4ff0400b4ff0f0f0f060"},
+[81]={28,37,-2,-30,24.0000,"f0f0f0f00001060b0d1e0d0b0601f000080e7f0e08d0010bbf0c01b00bdf0ca0076f1c6f0880010e4f08011001084f0e0170064f0a50094f06700a4f0250014f0b700d3f0c700c3f0e60014f0a70094f0250024f0870074f0350034f0870074f0450034f0770064f0450034f0770064f0450034f0770064f0450034f0770064f0450034f0870074f0450024f0870074f0350014f0a70094f02600d3f0d700c3f0e700a4f0250014f0b70064f0a50094f07800e4f09011001084f0e0180076f1c0e5f08a00bdf0cb0010bbf0e01d0080e9f0e02e001060b0d0e6f0e03f030010c4f0e04f030010c5f02f030010b3f07f050010b1f06f0800a05f0f0f0d0"},
+[82]={26,32,-2,-30,22.0000,"f0f0f0700a8f0e0c0904b00acf0d03900aef05800aef0e02700a4f2b0c0e5f0a700a4f0130075f01600a4f01400b4f04600a4f0140064f06600a4f0140044f07600a4f0140044f06600a4f0140064f05600a4f01400b4f02600a4f0130084f0c700a4f0c1b0c0e5f05700aef0a800adf0a01800acf0ba00acf0ca00a4f01100c4f04900a4f0110064f0a900a4f0110010e4f02800a4f0120084f09800a4f0120024f0e01700a4f01300a4f07700a4f0130044f0e700a4f01400c4f06600a4f0140064f0c600a4f0140010e4f04f0f0f050"},
+[83]={26,32,-2,-30,22.0000,"f0f0f0b002080b0e0f0e0d0a05e0010a8f0d03b0020daf0e05a00ccf0e0280075f0d0a0b5f0b800c4f0720020d4f03704f0c40054f0860014f0940014f0a704f0b500e3f0c700d4f06f020075f0b03f0100c6f0b05f0010d7f0e0701d001098f0d04e0030a8f07f002080e6f06f00001070e5f02f010010b4f08f020010e3f0c60084f03500b4f60064f05500a4f60044f09500d3f0e700e4f0730074f0b70085f0e0b0a0d5f0670010ddf0c90020dbf0e02a001099f0a01d002070b0d0e0f0e0c0803f0f0f0b0"},
+[84]={26,32,-2,-30,22.0000,"f0f0f060ff2f0a50ff2f0a50ff2f0a50ff2f0a505b0c5f5b08b0014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f020014f09f0f0f0d0"},
+[85]={27,32,-2,-30,23.0000,"f0f0f0900e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700e3f0c600e3f0c700d3f0d604f0b700c3f0e50014f0a700a4f0340054f0870064f0c0220020d4f0470010e5f0c0b0d5f0d9007ef05a00acf08c0070e8f0e05e001050a0c0e0f0e0c090501f0f0f0d0"},
+[86]={27,32,-2,-30,23.0000,"f0f0f070074f0a80094f0930024f0e800c4f04400d4f0260014f0e50084f0660054f0a50044f0a60084f06600e3f0d600c4f02600a4f0240014f0c70064f0640044f0870014f0940084f03800c3f0d400c3f0e90084f0220014f0990034f0520044f05a00e3f0920084f01a00a3f0d200c3f0bb0054f0100014f07b0014f0500044f02c00b3f0900083f0dd0073f0c000b3f09d0034f014f04e00d3f083f0ef0098f0af0048f06f0010e7f02f0000b6f0cf010066f08f010026f03f0200c4f0ef030084f09f0f0f0f0"},
+[87]={34,32,-2,-30,30.0000,"f0f0f0f0604f0940073f0840084f01400d3f0c400a3f0a400b3f0d500a3f0e400d3f0d400d3f0b50074f0120015f01304f0850044f0420035f0420034f0550024f0620065f0720054f02600e3f0820095f0a20073f0e700b3f0b200c5f0d200a3f0c70083f0d200e6f01100c3f0970064f10037f03100e3f0670034f0200057f0600024f04804f0500083f0e2f0900044f01800d3f07000b2f0c0b2f0c00063f0d900a3f09000e2f09083f00083f0b90073f0c023f06053f030b3f0890043f0e053f03023f060d3f0590024f093f100e2f094f02a00e3f0e2f0c100b2f0e4fb00b7f0910087f0cb0087f0610057f09b0067f0310027f07b0037f300e6f04c06f0c300b6f01c00d5f0930085f0dd00a5f0630055f0bd0075f0330025f08d0044f0e500e4f05d0024f0c500b4f03f0f0f0f0a0"},
+[88]={26,32,-2,-30,22.0000,"f0f0f050010e4f08600e4f0540064f0e0140054f0d600d4f06400c4f0560064f0d30034f0d800d4f0420094f0580064f0b10010e3f0da00d4f0200074f06a0064f09000d3f0dc00d3f0e054f06c0064f0e3f0de00d8f06e0067f0df0000d6f06f000065f0df010095f0e01f0027f08f0097f0e01d0029f08d0094f0d3f0e01b0024f0a074f08b0094f04010e3f0e0190024f0c10094f0890094f0610034f0e0170024f0e01200b4f0870094f0830054f0e0150025f02400d4f0750094f0b50074f0e0130025f0450015f07f0f0f050"},
+[89]={26,32,-2,-30,22.0000,"f0f0f050074f0b60015f0330015f0150054f0b50094f06500a4f0550034f0b40014f0d700b4f0130064f0770054f06300b3f0e01800d3f0b20014f0990074f0210064f0390010e3f07100b3f0bb0093f0c00014f05b0034f02063f0dd00b3f070b3f07d0053f0d3f0e01e00d7f09f0077f02f0010e5f0bf010095f05f010034f0df0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0304f0bf0f0f0d0"},
+[90]={25,32,-2,-30,21.0000,"f0f0f04009ff0f0b5009ff0f0b5009ff0f0b5009ff0f095007ab4f0e02f000054f07f0100d3f0df010074f05f000020e3f0bf0100a4f03f000044f09f0100c3f0e01f000064f07f000010e3f0df010094f04f000034f0bf0100b4f02f000054f08f000010d3f0e01f000084f06f000024f0cf0100a4f04f000044f0af0100d4f0dab5006ff0f0e5007ff0f0e5007ff0f0e5007ff0f0ef0f0f040"},
+[91]={15,44,-2,-35,11.0000,"f0f0100c5f0b600c5f0b600c5f0b600c5f0b600c3f0c0504600c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0a800c3f0c0504600c5f0b600c5f0b600c5f0b600c5f0bf0f000"},
+[92]={20,34,-2,-30,15.0000,"f0f090093f0ed0044f04d00e3f09d0093f0ed0044f04d00e3f09d0093f0ed0044f04d00e3f09d0093f0ed0044f04d00e3f09d0093f0ed0044f04d00e3f09d00a3f0ed0044f04d00e3f09d00a3f0ed0054f04d00e3f09d00a3f0ed0054f04d00e3f09d00a3f0ed0054f04d00e3f09d00a3f0ed0054f04d00e3f09f0f090"},
+[93]={15,44,-2,-35,11.0000,"f0f0056f0450056f0450056f0450056f04500205084f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f0470044f04500205074f0450056f0450056f0450056f0450056f04f0f010"},
+[94]={20,32,-2,-30,16.0000,"f0f0e0052f0e01d00a3f05c0010e3f0bc0055f01b00b5f06a0012f0d2f0ba0062f070b2f02900b2f03072f0780022f0d00032f0c80072f09100d2f02700c2f0510092f0760023f0110042f0d60072f0b300e2f03500d2f06300a2f08f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f020"},
+[95]={20,9,-2,-2,16.0000,"f0f09009df083009df083009df083009df083004d603f0f090"},
+[96]={17,34,-2,-32,13.0000,"f0f040084f08a0094f03a00b3f0ca0010c3f07a0010d2f0e02a0020e2f0bf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0d0"},
+[97]={23,25,-2,-23,19.0000,"f0f0f04001070c0e0f0e0c0803c0078f08a008af088004cf02700c4f0705094f0860014f08200d3f0b60024b04200a3f0cf0000a3f0da004090c0e6f0d80020caf0d70020ebf0d700b4f0a06040e3f0d60034f08200a3f0d60064f01200a3f0d60083f0e300b3f0d60074f02204f0d60054f0c160c4f0d60010ecf0d7006df80085f0e084f0380030a0d0f0e0902014f08f0f0f000"},
+[98]={24,34,-2,-32,20.0000,"f0f0f0300e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f0801080d0f0e0c07a00e3f090d5f0c01800ecf0c800edf06700e4f0e0a090d4f0b700e4f01200c4f01600e3f0d30054f03600e3f0930024f05600e3f08404f06600e3f08404f07600e3f08404f07600e3f08404f07600e3f08404f06600e3f0830014f05600e3f0c30044f03600e4f01200b4f01600e4f0e0a090d4f0c700edf06700ecf0c800e3f050d5f0d02800e3f0201080d0f0e0c07f0f0f060"},
+[99]={22,25,-2,-23,18.0000,"f0f0f02001070b0d0f0e0c0802b0060e7f079007af087003cf03600a4f0c090b4f0a50014f0920073f0e50044f0220014f0240074f400e3f0340083f0df0093f0df0093f0df0093f0df0083f0df0073f0e400e3f0440044f0220014f0240014f0820073f0e600a4f0b090b4f096003bf0e027007af0590060e6f0e05b001070b0d0f0e0c0701f0f0f010"},
+[100]={24,34,-2,-32,20.0000,"f0f0f0d00b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0bf0100b3f0b9001070c1e0c06000b3f0b80020d5f1b3f0b70010dcf0b7008df0b700e4f0d090b5f0b60044f0a20034f0b60064f03304f0b60093f0e404f0b600a3f0d400d3f0b600a3f0c400c3f0b600b3f0c400c3f0b600a3f0c400c3f0b600a3f0c400d3f0b60093f0e404f0b60064f02304f0b60034f0a20034f0b700e4f0d090b5f0b7007df0b70010dcf0b80020d5f0a063f0b9001070c1e0c0600043f0bf0f0f030"},
+[101]={23,25,-2,-23,19.0000,"f0f0f050060a0d1e0d0a05c0030d7f0c0290030e9f0d01800dbf0a70064f0d190e4f02600c3f0d0110010d3f0750014f0630083f0a50044f0330063f0d50064f0e3d0e3f0e5007ff5007ff5007ff50064f01f0054f03f0024f086003800d3f0e0330020a0f0370075f0b190b2f0c70010dcf0770030eaf0e0280020b8f0b02b004090c0e0f0e0c0903f0f0f030"},
+[102]={17,34,-2,-32,13.0000,"f0f09002080c0e0f0d0780050e4f0a70046f0a700d6f0a60045f0b090660074f0590093f0ea00a3f0ca00a3f0c7004af023004af023004af023004af0240120c3f0e22700a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0ca00a3f0cf0f070"},
+[103]={24,33,-2,-23,20.0000,"f0f0f060050b0e0f0d0a03000e3f0270010b6f064f02700bdf026006ef02600c4f0e0a090d5f0250024f0d01205f0250054f0530084f0250084f0130064f0250093f0e40064f0250093f0d40064f02500a3f0d40064f0250093f0d40064f0250093f0e40064f0250084f0130064f0250054f0530074f0250024f0c01205f02600c4f0e1a0d5f026005ef02700bdf0270010b5f0e094f0290050b0e0f0d0902064f02f000074f01800160094f900a090130030e3f0c80031f0e0a17090e4f07800abf0d0170010eaf0e0390020b8f0c03c003080c0e0f0e0c0904f0f0f070"},
+[104]={24,34,-2,-32,20.0000,"f0f0f020024f05f000024f05f000024f05f000024f05f000024f05f000024f05f000024f05f000024f05f000024f05f000024f0500070c1e0b0690024f070c5f0b8002df087002df0e0160025f0d090a5f0560025f0110054f0860024f08300e3f0a60024f05300c3f0a60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0b60024f05300c3f0bf0f0f030"},
+[105]={14,34,-2,-32,10.0000,"f0f000061b0780073f08700d3f0d700d3f0e70093f097001091e0901f0f0f0100b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0cf0f0"},
+[106]={16,42,-4,-32,10.0000,"f0f060070c0b06a0093f06900e3f0c904f0d900a3f0890010a1e08f0f0f0a00b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900b3f0c900c3f0b80024f0a50011a0e4f0750017f0250016f0860015f0a800c0e0f0d0b05f0f060"},
+[107]={24,34,-2,-32,19.0000,"f0f0f0304f08f0104f08f0104f08f0104f08f0104f08f0104f08f0104f08f0104f08f0104f08f0104f0820045f04604f08200c4f08704f0810074f0c804f0800020e3f0e02804f08000a4f06904f08044f0aa04f080d3f0d01a0af04b09f0ec09f0e01b0af07b0af0e01a0bf08a05f060a4f02905f00034f0a904f08100b4f03804f0810044f0b804f08200c4f04704f0820044f0c704f08300c4f05604f0830054f0df0f0f020"},
+[108]={14,34,-2,-32,10.0000,"f0f00b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0c700b3f0cf0f0"},
+[109]={34,25,-2,-23,30.0000,"f0f0f0f0700e3f0300060b0e0f0d08011001070c1e0c06a00e3f060b5f0c01030d5f0b900ecf0a0d7f07800eff6f0e800e4f0e090a6f0e1a5f04700e4f0110065f0310064f06700e3f0e20015f20014f08700e3f09300e3f0d300e3f09700e3f08300d3f0b300d3f09700e3f08300d3f09300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09700e3f08300d3f08300d3f09f0f0f0f070"},
+[110]={24,25,-2,-23,20.0000,"f0f0f020014f0100060b1e0c070180014f030b5f0c017001df097001ef0160015f0e090a5f0560015f0110044f0860014f0a300e3f0a60014f06300c3f0a60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0bf0f0f030"},
+[111]={24,25,-2,-23,20.0000,"f0f0f070050a0d1e0d0904d0030d7f0c02a0040e9f0e0280010dbf0c80084f0e090a0e4f06700e3f0d0210030e3f0c60034f0630084f0150064f0230034f0450083f0e40014f0650093f0e504f0750093f0d504f0750093f0e504f0750083f0e40014f0650064f0130034f0550034f0630074f01600e3f0d0110020e3f0c70084f0e190e4f0670010ebf0d90040e9f0e03a0030d7f0c02d0060a0d1e0d0a05f0f0f070"},
+[112]={24,33,-2,-23,20.0000,"f0f0f0300e3f0201080d0f0e0b06a00e3f060d5f0c01800ecf0c800edf05700e4f0e0a090e4f0b700e4f0110010d4f01600e3f0c30064f03600e3f0830024f05600e3f0830014f06600e3f08404f07600e3f08404f07600e3f08404f07600e3f0830014f06600e3f0830034f05600e3f0b30064f03600e4f0110010d3f0e700e4f0d190d4f0a700edf04700ecf0a800e3f090d5f0b01800e3f0801080d0f0e0b06a00e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0100e3f08f0f0f0d0"},
+[113]={24,33,-2,-23,20.0000,"f0f0f05001070c1e0c0700023f0c80030d5f0c053f0c70010dcf0c7008df0c700e4f0d090a0e4f0c60044f0a20024f0c60074f03304f0c60093f0e400e3f0c600a3f0c400c3f0c600a3f0c400c3f0c600b3f0c400c3f0c600a3f0c400c3f0c600a3f0c400c3f0c60093f0e400e3f0c60064f02304f0c60034f0a20024f0c700d4f0c090a0e4f0c7007df0c70010dcf0c80020d5f0b0c3f0c9001070c1e0c07000b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0100b3f0cf0f0f030"},
+[114]={17,25,-2,-23,13.0000,"f0f0504f0301091e06504f050c2f07504f0d3f07509f06509f06506f0a080904505f03905fa04f0ca04f0aa04f08a04f08a04f08a04f08a04f08a04f08a04f08a04f08a04f08a04f08a04f08f0f080"},
+[115]={22,25,-2,-23,18.0000,"f0f0f020050a0d1e0d0a0501a0020c7f0d0480010d9f0e037009bf0d60014f0b140b4f0550034f0110014f0850034f032008390650014f0e06e00b5f0e0802b0020e7f0a03a0020c8f08b0060d7f08c0040b6f03d0030c4f08500b3e06300c3f0a50093f0a300a3f0a50054f090504084f07600ccf0260020eaf0780020c7f0e06b0050a0d1f0e0b0701f0f0f010"},
+[116]={16,30,-2,-28,12.0000,"f0f030014f0680014f0680014f0680014f0680014f0660089f0430089f0430089f0430089f04300102034f081260014f0680014f0680014f0680014f0680014f0680014f0680014f0680014f0680014f0680014f06904f09900e4f0b0a04600a6f0660056f0570095f0580060b0e0f0e0b03f0f010"},
+[117]={24,25,-2,-23,20.0000,"f0f0f020014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300c3f0b60014f06300d3f0b60014f06304f0b60014f06304f0b704f08304f0b700e3f0d0110064f0b700b4f0d0a0c5f0b7006df0b70010dcf0b80030e5f0a083f0b9002090d0f0e0b0500073f0bf0f0f030"},
+[118]={22,25,-2,-23,18.0000,"f0f0d0054f0530074f0430014f08300a3f0e500c3f0b300d3f0a50083f0e20014f0650044f0310044f02600e3f0610073f0d700a3f09100a3f0970063f0c100d3f0470024f00014f01800d3f03043f0b90093f06073f0790053f090a3f0390013f0c0d2f0eb00b7f0ab0077f05b0037f01c00e5f0cd00a5f08d0055f04d0014f0ef00c3f0bf0f0f030"},
+[119]={29,25,-2,-23,25.0000,"f0f0f0b0034f30072f0b300b3f08404f03200a2f0e300e3f05400c3f05200e3f0310014f0140093f0810024f0610033f0d50063f0a10064f0a10063f0a50023f0d10094f0e10083f07600e3f100d5f02000b3f04600b3f126f06000d3f0160083f156f0a013f0d70053f07092f0a2f0d033f0970023f0a0c2f040e2f073f06800e2f0d2f0e000a2f0d3f03800a6f0b00077f90076f0700036f0c90046f04100e5f0990016f200a5f06a00d4f0b20075f02a00a4f0820034f0eb0074f04300e3f0bb0034f01300b3f08c03f0b40073f05f0f0f0f0"},
+[120]={22,25,-2,-23,18.0000,"f0f0e00d3f0e01200a4f0240064f0710014f09600d3f0d10073f0e0160064f06000d3f08800d3f0d053f0e0180064f0e3f07a00d7f0e01a0067f06c00d5f0dd0065f05d0025f02d0095f09c0027f02b0097f0aa0029f0390093f1e3f0a80024f09074f0370094f02010e3f0b60024f0a10074f0450094f0310010e3f0c40024f0b30084f05f0f0d0"},
+[121]={22,33,-2,-23,18.0000,"f0f0d0084f0530064f0530034f0830094f01400e3f0c300d3f0b500a4f20014f0650054f0310054f0250014f0710093f0d700b3f0a100c3f0870073f0d00014f0470034f01053f0e900d3f05083f0a90093f080c3f0690043f0c4f0190010e7f0cb00b7f08b0067f03b0026f0ed00c5f09d0085f05d0045f01e04f0bf04f07f00d3f03e0033f0df00b3f09c0060a0d4f03c0095f0cd0095f04d0094f06e0060e0f0e0a03f0f0f070"},
+[122]={22,25,-2,-23,18.0000,"f0f0e003df055003df055003df055003df035002680b4f09e00c3f0e01d0074f05d0020e3f0be00b3f0e02d0054f07d0010e3f0ce0094f03d0044f09e00d3f0d01d0084f05d0024f0ae00b4f0a68045005df075007df075007df075007df07f0f0e0"},
+[123]={16,42,-2,-33,12.0000,"f0f08001070c01a0030d1f0590020e2f0a900c3f0680053f08900a3f02900e2f0e90013f0c90023f0b90033f0b90033f0b90033f0b90033f0b90043f0a90053f08900a3f047001073f0d800e4f04804f04904f05900d4f048001073f0da00a3f0490053f0890033f0a90033f0b90033f0b90033f0b90033f0b90023f0b90013f0ca00e2f0da00a3f0190053f08a00c3f0690020e2f0aa0030d1f05b001070d01f0f020"},
+[124]={14,37,-2,-30,10.0000,"f0f000091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0c90091f0cf0f000"},
+[125]={16,42,-2,-33,12.0000,"f0f020010c06c0061f0c02a00b2f0e0290073f0ca0093f0490033f0aa00e2f0da00d3fa00c3f01900c3f02900c3f02900c3f02900c3f02900b3f0290093f0490053f0990010e3f060180054f0c90054f90054f80054f0c70010e3f060170053f0990093f04900b3f03900c3f02900c3f02900c3f02900c3f02900c3f01900d3fa00e2f0d90033f0990093f0480073f0c900b2f0e0290061f0c02a0010c06f0f090"},
+[126]={26,20,-2,-18,22.0000,"f0f0f0a0070d0f0d0801f010010c4f0d02300a2f05700a6f0d02200d2f0460038f0c0100053f0160083f0b0c3f0d0a3f0c700c2f0910088f07700e2f03200a6f0d803f01300a4f0e03f020060c0f0e0902f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0"},
+[8212]={30,21,-2,-19,26.0000,"f0f0f0f006f959025009ff5f035009ff5f035009ff5f035009ff5f03f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f050"},
+[183]={15,22,-2,-20,11.0000,"f0f0f010040d0f0d0580010e3f0370054f0870054f0870010e3f0380030c0e0d05f0f0f0f0f0f0f0f0f0f0f0f070"},
+},
+},mono={[20]={
+[32]={9,4,-2,-2,5.0000,"f0f030"},
+[33]={9,18,-2,-16,5.0000,"f040070f0550060f0550060f0550060f0550060f0550050f0550050f0450050f0450050f0450050f04f070040e0450040e04f040"},
+[34]={10,19,-2,-17,6.0000,"f0600a0b000f05400a0b000f05400a09000f04400a08000f03400a07000f02f0f0f0f0f0f0f090"},
+[35]={15,18,-2,-16,11.0000,"f0f030030f02000d0680050e00010f0480080c00030f0160151f050b0f050240017f0760010f04000b0980030f02000d0680060e00010f0480080c00030f01600b6f0c5004050f0c050e0f050460010f04000b0980030f01000e0680060e00010f04f0f020"},
+[36]={14,22,-2,-18,10.0000,"f0f010080cb0080c90010a1f0a02700c0f1b0f0d60040f0910090f0550060f0510030f0850050f0710010f0a50011e04a0051f0b059002090e0f0aa0020b0f06a0020f0b501d300f0b500b0f0310050f0950040f0e0a0b1f0360040b1f0b03900b0ab00b0af0f010"},
+[37]={17,18,-2,-16,13.0000,"f0f040010b0e0b02b0090c030c0a100201700d0600050e100b08700e0500040f00040e01700d0600050f000c0780090c030c0a060d90010b0e0b020d05d0070c030c0e0990010e040d0a040e0680090a020f0200090b70020f02030f0100080b700b0900020f0200090b700701100d09040e06b0030c0e09f0f050"},
+[38]={15,18,-2,-16,11.0000,"f0f01001091e090180090f0a090f09800e0c100b0e800f0b100b0d800c0e01050f0880042f0aa01f0ea00b1f0e0200090e50080f05030f0c000b0d500e0d10070f080e09500e0c200c1f04500c0f0310051f0150040f0e08090e1f0a60040b1e0a020b0f05f0f0"},
+[39]={8,19,-2,-17,4.0000,"f0200f07500f07500f06500f05500f05f0f0f0f0f0f020"},
+[40]={10,25,-2,-18,6.0000,"f090030760020e07600b0c60040f04600a0d60010f0960040f0560070f0360090f01600a0f700b0f700a0f70090f0160070f0360040f0560010f09700a0d70040f04701b70020e06700307f050"},
+[41]={10,25,-2,-18,6.0000,"f050040770030f0570080e0160010e08700a0e70050f0460010f08700e0b700c0e700b0e700b0f700b0e700c0e700e0b60010f0860040f0460090e60010e0860070e0150030e05600407f090"},
+[42]={13,18,-2,-16,9.0000,"f0e0060f0190050f70050803050f00040940070e0f0e0f0d0f0e0350040e0f0b0370080e0a0e0260050f06010d0c60040a10040a01f0f0f0f0f0f0a0"},
+[43]={14,16,-2,-14,10.0000,"f0f0100e0cb00e0cb00e0cb00e0c70022b1f2b40027f800e0cb00e0cb00e0cb00e0cb00e0cf0f0f0"},
+[44]={8,9,-2,-4,4.0000,"f0200b0f500b0f501d40040f0740050bf030"},
+[45]={9,11,-2,-9,5.0000,"f03004270430082f08f0f0f0f000"},
+[46]={9,7,-2,-5,5.0000,"f0500260070f0850050e06f040"},
+[47]={11,19,-2,-16,7.0000,"f0c00d0970030f0470080e800d0970030f0470080e800d0970030f0470080e800d0970030f0470080e800d0970030f0470080ef0c0"},
+[48]={14,18,-2,-16,10.0000,"f0f0020b1e090160010d0e190f0c60060f0610080f04500a0f0110030f08500c0e20010f0a501d300f0b501d300f0b501d300f0b501d300f0b500c0e20010f0a500a0f0110030f0850060f0610080f0450010d0f090a0f0c70020a1e0a01f0f0"},
+[49]={14,18,-2,-16,10.0000,"f0f010050c047001070d1f0470060f0a090f0470030200070f04a0070f04a0070f04a0070f04a0070f04a0070f04a0070f04a0070f04a0070f04a0070f04a0070f04f0f000"},
+[50]={14,18,-2,-16,10.0000,"f0f0040c1e0a0260040f0d08090f0d01500c0e0110080f06500f0b20040f08a0040f07a0080f0290020e0ba00c0e0290080f0690050f0990030e0c90010d0e02900a0f0b4701400d6f01f0d0"},
+[51]={14,18,-2,-16,10.0000,"f0f0040b1e080160030f0d080a0f0b600b0f02100a0f02500e0d20060f05a0060f05a00b0e017005090b0f06803f04a0030c0f02a0040f07500f0c20030f08500c0e0210070f0550040f0d080a0f0c70040c0f0d0901f0f0"},
+[52]={14,18,-2,-16,10.0000,"f0f020060f0ca00e0f0b90071f0b80010e090f0b80080e020f0b70010e08000f0b70090e01000f0b60020f08100f0b600a0e01100f0b50030f0c17081f070230067f04900f0bb00f0bb00f0bf0f0"},
+[53]={14,18,-2,-16,10.0000,"f0f0094f0a600a0f3a07600b0db00d0bb00e0ab00f1c0e0c0560011f1b1f0360050410050f0ab00d0eb00b0f50080f02200c0e50040f0810030f0a600a0f0a080e0f036001080d0f0c03f0f0"},
+[54]={14,18,-2,-16,10.0000,"f0f00001070c0e0270010d0f0c0901700a0f0690020f0aa0060f04a0080f060c0e0c0460091f0a091e02500a0f0910050f08500a0f02200e0c50090f02201d50070f04200e0b50020f0b10040f0860090f0b091e0170081e0b03f0f0"},
+[55]={14,18,-2,-16,10.0000,"f0d0027f4001570e0ca0030f07a0090f0190010e0aa0060f05a00c0ea0030f08a0090f03a00e0ca0050f06a00b0f0190020f0aa0080f04f0f020"},
+[56]={14,18,-2,-16,10.0000,"f0f0030b1e0a0260011e190f0d0150070f0610080f0550080f0310050f0750060f0610080f0450010c0f1b0f0b70043f0360020f0a01020c0e02500a0f0210030f08500c0e300f0a500c0e20020f0a50090f0410060f0750021e08090f0d0160030b1e0a02f0f0"},
+[57]={14,18,-2,-16,10.0000,"f0f0040c0f0d0770021e090c0f0860090f0300010c0e01500d0c20060f05500e0b20040f07500d0c20050f08500a0f03100c0f0850030f0e090c1f0860040d0f0b050f07a0050f04a00a0f0190050f097002090c0f0c0170040e0c0701f0f000"},
+[58]={9,16,-2,-14,5.0000,"f0500260070f0850050e06f0f0f0c00260070f0850050e06f040"},
+[59]={8,19,-2,-14,4.0000,"f0300250070f0840050e06f0f0f0c00b0f500b0f501d40040f0740050bf030"},
+[60]={13,15,-2,-13,9.0000,"f0f010070680050d0f0760030c0f0e0750010a0f0e070160061f0280010a0f0e070180030b0f0e0790050d0f07a00706f0f0f060"},
+[61]={14,14,-2,-12,10.0000,"f0e005580250085f04f0f0f0085f0450055903f0f0f0f080"},
+[62]={13,15,-2,-13,9.0000,"f0c00806a00a0f0c058001070e0f0c048001070e0f0b0280010d0f0a6001070e0f0a024001070e0f0b03600a0f0c04800806f0f0f0b0"},
+[63]={12,18,-2,-16,8.0000,"f0b0070d0e0c0450080f0c0a0f0e02400e0d10060f0730020f0810030f0980040f07800c0e0270090f0670050f09800b0f01800e0df0f0101c901bf0c0"},
+[64]={19,22,-2,-16,15.0000,"f0f0c0060c1e0c080190010b0e0815071d02800b0c0140090d0160060e01600c07600d0710030c0e0b0200050d50040f0200010e0a050f0d00010f0240080c10090d100d08100e04400b0a100e07100e07100d05400c0800020f04100f05100c06400d0700040f0200010f04100d05400d0800050f0200040f03100f03400c0900040f0400090f0300050d50090c100e0c080d0e09040d0750050f0100050e0c03050d0e08700e08f000050f05f000070f0a0504050a06b0040a0e0f0d0a03f0f0b0"},
+[65]={16,18,-2,-16,12.0000,"f0f050020f0dc0071f01b00c0e0f05a0020f070d0aa0070f02090f01900c0d00040f0580020f08100e0a80070f03100a0e01701f280e0f0760026f0e60070f05300c0e600b0f0130070f0540010f0b40030f0a40060f06500d0ef0f020"},
+[66]={15,18,-2,-16,11.0000,"f0f000073f0d0a0260070f0a180a0f0d0150070f0520090f0650070f0520050f0750070f0520090f0450075f0960075f0560070f0510020b0f0350070f0520040f0950070f0520010f0b50070f0520020f0a50070f0520070f0750070f0c180a0f0d0150073f0e0a02f0f010"},
+[67]={15,18,-2,-16,11.0000,"f0f020040b1e0b0470060f0e190e0f0550020f0d0210011e50070f0630090f04400a0f0230060f06400b0f01b00c0fc00c0fc00b0f01b00a0f0230060f0640070f0630090f0340020f0d0110010e0d60070f0d190e0f0570050c1e0b04f0f010"},
+[68]={15,18,-2,-16,11.0000,"f0f000072f0e0c0670070f0d080a0d0f0a60070f0520090f0650070f05300e0c50070f05300b0f0140070f0530090f0240070f0530090f0340070f0530090f0340070f0530090f0240070f05300b0f0140070f0520010e0d50070f05200a0f0650070f0d08090d0f0a60072f0e0c06f0f020"},
+[69]={14,18,-2,-16,10.0000,"f0e0076f0140070f0d480140070f05a0070f05a0070f05a0070f05a0070f0d380350075f0550070f05a0070f05a0070f05a0070f05a0070f0d480140076f03f0d0"},
+[70]={14,18,-2,-16,10.0000,"f0e0075f0e50070f0d4850070f05a0070f05a0070f05a0070f05a0070f0d380150075f0250070f05a0070f05a0070f05a0070f05a0070f05a0070f05f0f030"},
+[71]={16,18,-2,-16,12.0000,"f0f040060c1e0c0680090f0d190d0f0860030f0c20010d0f0250080f0430080f05500b0f01c00c0fd00c0f20072803500c0f200e2f07500b0f40050f07500a0f0230050f0750070f0630050f0750020f0d0220080f0760060f0e0a080b0f0d0170040b0e0f0d0801f0f030"},
+[72]={16,18,-2,-16,12.0000,"f0f020070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0d50070f0c480f0d50077f0d50070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0d50070f05400e0df0f020"},
+[73]={9,18,-2,-16,5.0000,"f040060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f0650060f06f040"},
+[74]={14,18,-2,-16,10.0000,"f0f030080f04a0080f04a0080f04a0080f04a0080f04a0080f04a0080f04a0080f04a0080f04a0080f0340060f06200a0f0240030f0b10011e600b0f0c090d0f076001080d0f0d06f0f000"},
+[75]={15,18,-2,-16,11.0000,"f0f000070f0520021e0240070f05200b0f0550070f0510080f0960070f0500040f0c0160070f05010d0e0270070f050b0f0580070f0c1f0280073f0b80071f010a0f0570070f0700021e0160070f0510070f0960070f05200c0f0450070f0520040f0d50070f0530090f08f0f0"},
+[76]={14,18,-2,-16,10.0000,"f0e0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f05a0070f0d380750075f0ef0e0"},
+[77]={19,18,-2,-16,15.0000,"f0f080071f01500d0f0850071f0540031f0850071f0a40081f0850070f0d0e401d0f0850070f090f0520030f090f0850070f040f0a20080f040f0850070f040a0e200d0c020f0850070f04050f0400030f07030f0850070f05010e0900070f02030f0850070f05000a0e001c00030f0850070f0500050f060f0600030f0850070f0500011e0f0100030f0850070f05100a0f0b10030f0850070f0510050f0610030f08f0f080"},
+[78]={16,18,-2,-16,12.0000,"f0f020070f09400e0c50071f02300e0c50071f0a300e0c50070f0d0f03200e0c50070f060e0b200e0c50070f05070f03100e0c50070f05010d0b100e0c50070f0500060f04000e0c50070f05100d0c000e0c50070f0510050f050e0c50070f05200c0d0e0c50070f0520041f0c50070f05300b0f0c50070f0530040f0cf0f020"},
+[79]={16,18,-2,-16,12.0000,"f0f040050b1e0c0580060f0e1b0e0f0760020f0d0110010d0f0250070f0530050f07500a0f0230020f0a500b0f500f0b500c0f500f0c500c0f500f0c500b0f500f0b500a0f0230010f0a50070f0530050f0750020f0d0110010c0f0260070f0e1a0e0f0780050c1e0c05f0f040"},
+[80]={15,18,-2,-16,11.0000,"f0f000073f0e0c0560070f0a18090e0f0550070f0520021e50070f05300a0f0340070f0530080f0540070f0530090f0340070f0520011e50070f0d18090d0f0750073f0e0c0660070f05b0070f05b0070f05b0070f05b0070f05f0f060"},
+[81]={16,20,-2,-16,12.0000,"f0f040050c1e0b0480080f0e0a0b0e0f0660030f0c0110020d0e0150080f0430060f06500b0f0130030f09500d0e40010f0a500d0e40010f0b500d0e40010f0b500d0e40010f0a500b0f0130030f0950080f0430060f0650030f0c0110010d0f0160080f0e1a1f0680050c0e2f05c0030d0f07c0020b04f0f020"},
+[82]={15,18,-2,-16,11.0000,"f0f000073f0e0a0260070f0b180b0f0e0150070f0520070f0850070f0520020f0a50070f0520020f0b50070f0520080f0750070f0d180b0f0d0150075f0160070f0500011e70070f0510080f0660070f0510020f0c60070f05200a0f0450070f0520040f0a50070f05300d0f02f0f0"},
+[83]={14,18,-2,-16,10.0000,"f0f002090e0f0d0760010e0f0a090c0f0a50090f06200a0f03400b0f0120050f07400a0f03a0040f0d05a0050e0f0d07018001070d0f0e05a0051e02a0060f0630020f0b30040f08400d0e0320090f0540041f0a090c0f0c6002090d0e0d0801f0e0"},
+[84]={14,18,-2,-16,10.0000,"f0d0067f0d3003281f0a1807700a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02a00a0f02f0f000"},
+[85]={15,18,-2,-16,11.0000,"f0f0000b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500b0f01300c0f500a0f02300d0e50070f0720030f0b50010d0f0b090a1e036001090d0f0e0a02f0f010"},
+[86]={15,18,-2,-16,11.0000,"f0f0060f0840040f0a30020f0c40090f05400c0f01300d0f0140070f0620020f0b50020f0a20070f06600d0e200b0f0160080f0300010f0b70030f0800050f07800d0c00090f0280090f010d0c90040f080f07a00e1f03a00a0f0db0050f0af0f030"},
+[87]={19,18,-2,-16,15.0000,"f0f070030f0920020f0c20030f09400f0b20050f0d20050f06400c0e20091f0110080f0340090f02101c0f04100b0f50060f0500010f070e07100d0c50030f0800040f031b00010f09600f0a00080e00070e00040f06600c0d001b00040f03070f0360090f010e07100f06090f70060f070f03100c091c70030f0c0e20080d0e09800e0f0b20051f06800c0f0820011f0380090f04301ff0f0a0"},
+[88]={15,18,-2,-16,11.0000,"f0f0010e0f0220011e0140070f0920080f07600d0f0200011e0160060f0900080f07800c0f030e0d90050f0e0f06a00c0f0db00c0f0da0060f0d0f07900d0e021e0170070f0800070f0860011e0100011e0150080f0820070f0940011e0120010e0f02f0f0"},
+[89]={15,18,-2,-16,11.0000,"f0f0070f0830010f0e40011e30070f0750080f05200d0e0150020f0c10050f0870090f03000b0f0270030f09020f0a900b0e090f0390041f0bb00c0f04b00a0f02b00a0f02b00a0f02b00a0f02b00a0f02f0f030"},
+[90]={14,18,-2,-16,10.0000,"f0d0017f0540581f0490030f0aa00c0f0290060f0890011e0190080f0590020f0ca00b0f0390040f09a00d0e0190070f0790011f580530017f09f0d0"},
+[91]={9,23,-2,-18,5.0000,"f0400a1f09400a0f0804400a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f0804400a1f09f030"},
+[92]={12,19,-2,-16,7.0000,"f090050f0480010e09900a0e90050f0480010e09900a0e90050f0480010e09900a0e90050f0480010e09900a0e90050f0480010f09900a0ef0a0"},
+[93]={9,23,-2,-18,5.0000,"f0300b1f084005090f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f0850030f084005090f08400b1f08f040"},
+[94]={11,18,-2,-16,7.0000,"f090010f0870060f0c700b0e0f0250020f060e0850070f01090d500c0b00050f0330020f0600010e08f0f0f0f0f0f040"},
+[95]={12,6,-2,-2,8.0000,"f0900b5f0d30055706f090"},
+[96]={10,19,-2,-17,6.0000,"f050021e0260030f0a70050f05f0f0f0f0f0f0f0f0e0"},
+[97]={14,15,-2,-13,10.0000,"f0f0030b0f0e0a0260021e080a0f0c60090f03100a0f0250010220080f0360030b0e2f0350020f0d07040b0f03500a0f0210080f03501d200a0f03500c0e0100011f0350070f0d090d1f0460081e08060f07f0e0"},
+[98]={14,19,-2,-17,10.0000,"f0e00b0fb00b0fb00b0fb00b0fb00b0f040c0f0d05600b0f0e1a0e0f03500b0f0610040f09500b0f300e0d500b0f300c0e500b0f300c0e500b0f300c0e500b0f300e0d500b0f0610040f09500b0f0e190e0f03500b0e040c0f0d05f0f0"},
+[99]={13,15,-2,-13,9.0000,"f0d0040b1e0a0150030f0e190f0c500a0f0210070f04400d0c20020f07400f0a90010f0aa00f0aa00d0c20020f07400a0f0210070f0340030f0e08090f0b60040b1e0901f0c0"},
+[100]={14,19,-2,-17,10.0000,"f0f030020f08a0020f08a0020f08a0020f0860050d0f0c050f0850040f0e090a1f08500b0f0310090f08500e0c20020f0840010f0a20020f0840010f0a20020f0840010f0a20020f08500e0c20030f08500b0f0310090f0850040f0e090a1f0860050d0f0c040f08f0e0"},
+[101]={13,15,-2,-13,9.0000,"f0d0030b1e0a0250021e08090f0c50090f0310080f04401d20040f07401f27080f08406f09400f0ba00e0da00a0f04200650030f0e09080c0f0450030b0e0f0c05f0c0"},
+[102]={11,19,-2,-17,6.0000,"f0a0081e0150070f0c0901500d0e01700e0c60053f094002061f0603600e0c800e0c800e0c800e0c800e0c800e0c800e0c800e0c800e0cf0a0"},
+[103]={14,19,-2,-13,10.0000,"f0f0050d0f0c030f0950040f0e090a1f09500b0f0310080f09500e0c20020f09500f0b20020f0940010f0a20020f09500f0b20020f09500e0c20020f09500a0f0310080f0950040f0e090a1f0960050d0f0c050f09a0030f08600420070f0550040f0b080a0f0d70050b1e0a01f0f0"},
+[104]={14,19,-2,-17,10.0000,"f0e00b0fb00b0fb00b0fb00b0fb00b0f040c0e0c04600b1f1a0f0e600b0f0710090f04500b0f0110060f06500c0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06f0e0"},
+[105]={9,20,-2,-18,5.0000,"f0d0070f0250070e02f070080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f02f040"},
+[106]={9,24,-3,-18,4.0000,"f0e0090e60090df0800a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500a0f01500b0f4002090f0c40030e0d04f040"},
+[107]={13,19,-2,-17,9.0000,"f0c00a0fa00a0fa00a0fa00a0fa00a0f10021e02400a0f100b0f05500a0f00060f09600a0f030e0c700a0f0c0f03700a2f09700a0f080b0f03600a0f01030f0b600a0f10090f05500a0f10010e0d01400a0f20070f08f0b0"},
+[108]={9,19,-2,-17,5.0000,"f040080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f0250080f02f040"},
+[109]={19,15,-2,-13,15.0000,"f0f0800a0e050d0e0c03020b0e0d07600a0f0e090b0f1e0c090e0f04500a0f0410091f10030f09500a0f20060f0c200f0b500b0f20050f07200f0b500a0f20050f06200f0b500a0f20050f06200f0b500a0f20050f06200f0b500a0f20050f06200f0b500a0f20050f06200f0b500a0f20050f06200f0bf0f080"},
+[110]={14,15,-2,-13,10.0000,"f0e00b0e030c0e0c04600b0f0e1a0f0e600b0f0710090f04500b0f0110060f06500c0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06f0e0"},
+[111]={14,15,-2,-13,10.0000,"f0f0020a1e0a0260020e0f191e0250090f0510040f0a500e0d300d0e500f0b300a0f0130010f0a30090f02400f0b300a0f01400e0d300c0e50090f0410030f0a50020e0f191e0260020a1e0b03f0f0"},
+[112]={14,19,-2,-13,10.0000,"f0e00b0e040c0f0d05600b0f0e090a1f03500b0f0410060f09500b0f300e0c500b0f300d0e500b0f300c0e500b0f300d0e500b0f300e0c500b0f0410050f09500b0f0e08090e0f03500b0f050d0f0c04600b0fb00b0fb00b0fb00b0ff0f040"},
+[113]={14,19,-2,-13,10.0000,"f0f0060d0f0c040f0850040f0e191f08500b0f0310080f08500e0c20030f0840010f0b20030f0840010f0a20030f0840010f0a20030f08500e0c20030f08500b0f0310080f0850040f0e08091f0860050d0f0c060f08a0030f08a0030f08a0030f08a0030f08f0e0"},
+[114]={10,15,-2,-13,6.0000,"f0600b0f050e09400b1f0c08400b0f07600b0f01600b0f700b0f700b0f700b0f700b0f700b0f700b0ff080"},
+[115]={13,15,-2,-13,9.0000,"f0d0040c0e0d0860040f0d080c0f0850090f02100d0e50090f0310020350040f0e080180030c1f080180040b0f0b500504200c0f01401d200a0f0140060f0c080a0f0a60060c0f0d0901f0c0"},
+[116]={10,17,-2,-15,6.0000,"f060020f0860020f08500c3f023004080f0e060140020f0860020f0860020f0860020f0860020f0860020f0860020f09701e090150060d0e02f050"},
+[117]={14,15,-2,-13,10.0000,"f0e00b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20050f06500b0f20070f06500b0f20090f0650090f04101f0650040f0d090b1f0660060d0e0b070f06f0e0"},
+[118]={13,15,-2,-13,9.0000,"f0b0060f05200c0e40020f0910010f09500c0d10050f0550080f0100080f0150040f05001c700e09010f07700a0d040f0370060f0a0e80011f0a900c0f05900a0f01f0e0"},
+[119]={17,15,-2,-13,13.0000,"f0f030060f0510050f0410050f0530030f0810090f0810080f02400e0b100d0f0c100b0d500b0e00020f0c0f01000e0a50070f02050f040f05020f0650030f06090d000e09050f03600f090d09000a0c080e700b0e0f0500060f0d0b70081f0100021f0770041f201f0470010f0c200c0f01f0f050"},
+[120]={13,15,-2,-13,9.0000,"f0b0020f0c10010f0d50090f0300080f0550020f0a010e0c70080f080f0570010e0f0c900a0f0680021f0d800a0f070f0660030f0a001d600a0f0300060f0740030f0b10011e01f0b0"},
+[121]={12,19,-2,-13,8.0000,"f090080f0510010f0c30030f0910040f08400e0d10080f0340090f02000b0e50050f06000f0a50010f09040f06600b0d070f0260070f0d0c70021f08801f04801f900c0a80030f066001090e0d0160020e0c03f0d0"},
+[122]={13,15,-2,-13,9.0000,"f0b0015f0d50370a0f0a900c0e0280060f0780010e0d90090f0480030f0a900c0e0280060f07901f083740016ff0c0"},
+[123]={10,24,-2,-18,6.0000,"f0900807600a0e0450030f0760070f0360090f0260090f0260090f02600a0f01601d50030c0f0650081f0260040f0a700b0f70090f0260090f0260090f0260080f0360040f07700b0e0460010907f050"},
+[124]={9,21,-2,-16,5.0000,"f040040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f0350040f03f040"},
+[125]={10,24,-2,-18,6.0000,"f05006090160030e0b70070f0560020f09700f0a700f0b700f0b700e0c700c0e0160040f0b0350010c0f0a50090f05600e0c700f0b700f0b700f0b60020f0960060f0550030d0c60060a01f080"},
+[126]={16,12,-2,-10,12.0000,"f0f030051e06200d0850020f1c0f0700020f0550080e100a0f0b0d0e600b0c20080e0d03f0f0f0f0f0f030"},
+[8212]={18,12,-2,-10,14.0000,"f0f06003970450079f08f0f0f0f0f0f0f0f0f020"},
+[183]={9,13,-2,-11,5.0000,"f0500260070f0450060e03f0f0f0f0a0"},
+}}}
+ShiftWebhook.kerning={
+sans={},
+mono={},
+}
 -- Indexed PNG renderer. Stored DEFLATE avoids executor-specific compression APIs.
 function ShiftWebhook.be32(n)
     return string.char(bit32.extract(n,24,8),bit32.extract(n,16,8),bit32.extract(n,8,8),bit32.extract(n,0,8))
@@ -3737,7 +4823,7 @@ function ShiftWebhook.pngChunk(kind, data)
     end
     return ShiftWebhook.be32(#data)..kind..data..ShiftWebhook.be32(bit32.bnot(crc))
 end
-function ShiftWebhook.png(pixels, width, height)
+function ShiftWebhook.png(pixels, width, height, customPalette)
     local raw=buffer.tostring(pixels)
     local blocks={string.char(120,1)}
     local a,b=1,0
@@ -3748,42 +4834,52 @@ function ShiftWebhook.png(pixels, width, height)
         for i=1,n do a=(a+string.byte(data,i))%65521; b=(b+a)%65521 end
     end
     table.insert(blocks,ShiftWebhook.be32(b*65536+a))
-    local bg={23,27,34}
-    local palette={string.char(unpack(bg))}
-    for _,rgb in ipairs({{241,244,248},{156,169,184},{87,214,154},{255,180,92},{93,172,255},{50,58,70}}) do
-        for shade=1,3 do
-            table.insert(palette,string.char(math.floor(bg[1]+(rgb[1]-bg[1])*shade/3+.5),
-                math.floor(bg[2]+(rgb[2]-bg[2])*shade/3+.5),math.floor(bg[3]+(rgb[3]-bg[3])*shade/3+.5)))
-        end
-    end
+    local palette=customPalette or ShiftWebhook.palette()
     return "\137PNG\r\n\26\n"..ShiftWebhook.pngChunk("IHDR",ShiftWebhook.be32(width)..ShiftWebhook.be32(height)..string.char(8,3,0,0,0))
-        ..ShiftWebhook.pngChunk("PLTE",table.concat(palette))..ShiftWebhook.pngChunk("IDAT",table.concat(blocks))..ShiftWebhook.pngChunk("IEND","")
+        ..ShiftWebhook.pngChunk("PLTE",palette)..ShiftWebhook.pngChunk("IDAT",table.concat(blocks))..ShiftWebhook.pngChunk("IEND","")
 end
 function ShiftWebhook.glyph(font, code)
     local g=font[code] or font[63]
     if not g[7] then
         local data=buffer.create(g[1]*g[2]); local at=0
-        for i=1,#g[6] do
-            local v=tonumber(g[6]:sub(i,i),16)
-            local count=math.floor(v/4)+1
-            buffer.fill(data,at,v%4,count); at+=count
+        for i=1,#g[6],2 do
+            local count=tonumber(g[6]:sub(i,i),16)+1
+            local shade=tonumber(g[6]:sub(i+1,i+1),16)
+            buffer.fill(data,at,shade,count); at+=count
         end
         g[7]=data
     end
     return g
 end
-function ShiftWebhook.textWidth(value, font, scale)
-    local w=0
-    for _,code in utf8.codes(tostring(value)) do w+=ShiftWebhook.glyph(font,code)[5]*scale end
+function ShiftWebhook.resolveFont(font,scale)
+    local name=font==ShiftWebhook.fonts.mono and "mono" or "sans"
+    local size=42*scale
+    local rounded=math.floor(size+.5)
+    local bank=math.abs(size-rounded)<.001 and ShiftWebhook.fontSizes[name][rounded]
+    return bank or font,bank and 1 or scale,ShiftWebhook.kerning[name],size/42
+end
+function ShiftWebhook.textWidth(value,font,scale)
+    local kern,kernScale
+    font,scale,kern,kernScale=ShiftWebhook.resolveFont(font,scale)
+    local w,previous=0,nil
+    for _,code in utf8.codes(tostring(value)) do
+        if previous then w+=(kern[previous*256+code] or 0)*kernScale end
+        w+=ShiftWebhook.glyph(font,code)[5]*scale;previous=code
+    end
     return w
 end
 function ShiftWebhook.drawText(canvas, x, baseline, value, size, color, mono, right, maxWidth)
     value=tostring(value or "—")
     local font=mono and ShiftWebhook.fonts.mono or ShiftWebhook.fonts.sans
-    local scale=size/(mono and 28 or 30)
+    local scale=size/42
+    local kern,kernScale
+    font,scale,kern,kernScale=ShiftWebhook.resolveFont(font,scale)
     if maxWidth then scale=math.min(scale,maxWidth/math.max(1,ShiftWebhook.textWidth(value,font,scale))*scale) end
     if right then x-=ShiftWebhook.textWidth(value,font,scale) end
+    local previous
     for _,code in utf8.codes(value) do
+        if previous then x+=(kern[previous*256+code] or 0)*kernScale end
+        previous=code
         local g=ShiftWebhook.glyph(font,code)
         local width,height=math.max(1,math.ceil(g[1]*scale)),math.max(1,math.ceil(g[2]*scale))
         local gx,gy=math.floor(x+g[3]*scale+.5),math.floor(baseline+g[4]*scale+.5)
@@ -3794,7 +4890,7 @@ function ShiftWebhook.drawText(canvas, x, baseline, value, size, color, mono, ri
                 for px=0,width-1 do
                     local shade=buffer.readu8(g[7],sy*g[1]+math.min(g[1]-1,math.floor((px+.5)/scale)))
                     local xx=gx+px
-                    if shade>0 and xx>=0 and xx<canvas.width then buffer.writeu8(canvas.pixels,y*(canvas.width+1)+xx+1,(color-1)*3+shade) end
+                    if shade>0 and xx>=0 and xx<canvas.width then buffer.writeu8(canvas.pixels,y*(canvas.width+1)+xx+1,(color-1)*15+shade) end
                 end
             end
         end
@@ -3805,7 +4901,7 @@ function ShiftWebhook.rect(canvas,x,y,w,h,color)
     x,y,w,h=math.floor(x),math.floor(y),math.floor(w),math.floor(h)
     for yy=math.max(0,y),math.min(canvas.height-1,y+h-1) do
         local left,right=math.max(0,x),math.min(canvas.width,x+w)
-        if right>left then buffer.fill(canvas.pixels,yy*(canvas.width+1)+left+1,color*3,right-left) end
+        if right>left then buffer.fill(canvas.pixels,yy*(canvas.width+1)+left+1,color*15,right-left) end
     end
 end
 function ShiftWebhook.node(canvas,x,y,r,color,hollow)
@@ -3814,53 +4910,167 @@ function ShiftWebhook.node(canvas,x,y,r,color,hollow)
         if distance<=r*r and (not hollow or distance>=(r-3)*(r-3)) then ShiftWebhook.rect(canvas,x+xx,y+yy,1,1,color) end
     end end
 end
-function ShiftWebhook.render(report,first,last,page,pages)
-    local count=last-first+1
-    local footer=155+count*64
-    local c={width=720,height=footer+117}
-    c.pixels=buffer.create((c.width+1)*c.height)
-    local complete=report.phase=="complete"
-    local disconnected=report.phase=="disconnected"
-    local accent=complete and 3 or (disconnected and 4 or 5)
-    local function text(x,y,value,size,color,mono,right,maxWidth)
-        ShiftWebhook.drawText(c,x,y,value,size or 28,color or 1,mono,right,maxWidth)
+ShiftWebhook.arrow="00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000780000000000000000000000000007ff8000000000000000000000000002dff8000000000000000000000000002dff8000000000000000000000000002dff8000000000000000000000000002dff8000000000000000000000000002dff8000000000000000000000000002dff8000000000000444444444444446fff800000000000fffffffffffffffffff80000000000fffffffffffffffffff80000000000444444444444446eff80000000000000000000000002dff80000000000000000000000002dff80000000000000000000000002dff80000000000000000000000002dff80000000000000000000000002dff80000000000000000000000002dff800000000000000000000000007ff80000000000000000000000000007800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+function ShiftWebhook.drawArrow(c,x,y)
+    for i=1,#ShiftWebhook.arrow do
+        local shade=tonumber(ShiftWebhook.arrow:sub(i,i),16)
+        if shade>0 then buffer.writeu8(c.pixels,(y+math.floor((i-1)/30))*(c.width+1)+x+(i-1)%30+1,150+shade) end
     end
-    text(32,60,ShiftWebhook.clean(report.route,12),32,1,false,false,100)
-    local class=tostring(report.class or "Unknown"):gsub("^[Cc][Ll][Aa][Ss][Ss]%s*","")
-    text(141,59,"CLASS "..class,24,2,false,false,240)
-    text(688,59,complete and "SHIFT COMPLETE" or (disconnected and "DISCONNECTED" or report.phase=="stopped" and "INCOMPLETE" or "LIVE SHIFT"),24,accent,false,true,270)
-    ShiftWebhook.rect(c,32,84,656,1,6)
-    text(76,114,"ETD",20,2);text(266,114,"ATD",20,2);text(680,114,"POINTS",20,2,false,true)
-    for index=first,last do
-        local stop=report.stops[index]
-        local y=137+(index-first)*64
-        local active=stop.arrivedAt~=nil or stop.atd~=nil or stop.points~=nil
-        local color=(complete or active) and accent or 6
-        if index<last then
-            local nextStop=report.stops[index+1]
-            local nextServed=complete or nextStop.arrivedAt~=nil or nextStop.atd~=nil or nextStop.points~=nil
-            ShiftWebhook.rect(c,41,y,3,64,nextServed and accent or 6)
-        end
-        ShiftWebhook.node(c,42,y,(index==1 or index==#report.stops) and 8 or 5,color,index==1 or index==#report.stops)
-        if not active and index==report.stopIndex and not complete then ShiftWebhook.node(c,42,y,8,accent,true) end
-        text(76,y+11,ShiftWebhook.clean(stop.name,60),30,active and 1 or 2,false,false,stop.late and stop.late>0 and 465 or 600)
-        if stop.late and stop.late>0 then text(680,y+11,ShiftWebhook.delay(stop.late),24,4,true,true) end
-        text(76,y+42,stop.etd and stop.etd:sub(1,5) or "—",28,2,true)
-        text(266,y+42,stop.atd or "—",28,active and 1 or 2,true)
-        text(680,y+42,stop.points~=nil and ((stop.points>0 and "+" or "")..tostring(stop.points)) or "—",28,active and 1 or 2,true,true)
-    end
-    if count==0 then text(76,158,"Waiting for station data",26,2) end
-    ShiftWebhook.rect(c,32,footer,656,1,6)
-    text(32,footer+37,"Points: "..tostring(report.points or "—"),28,1,false,false,230)
-    text(280,footer+37,"XP: "..tostring(report.xp or "—"),28,1,false,false,170)
-    text(688,footer+37,report.duration or "0m 00s",28,1,false,true,215)
-    text(32,footer+67,"Updated "..os.date("!%Y-%m-%d %H:%M:%S UTC",report.updatedAt or os.time()),18,2,false,false,326)
-    local note=pages>1 and string.format("%d / %d",page,pages) or (report.partial and "RECORDED MID-SHIFT" or "")
-    if disconnected then note="DISCONNECTED · UNFINISHED" end
-    text(688,footer+67,note,18,disconnected and 4 or 2,false,true,310)
-    text(32,footer+94,"ETD = scheduled departure · ATD = actual departure",17,2,false,false,656)
-    return ShiftWebhook.png(c.pixels,c.width,c.height)
 end
+function ShiftWebhook.operatorStyle(value)
+    local key=tostring(value or "Connect"):lower():gsub("[^%a]","")
+    local styles={connect={"STEPFORD CONNECT",{23,120,204}},stepfordconnect={"STEPFORD CONNECT",{23,120,204}},
+        waterline={"WATERLINE",{0,158,166}},airlink={"AIRLINK",{225,139,34}},
+        express={"STEPFORD EXPRESS",{186,46,100}},stepfordexpress={"STEPFORD EXPRESS",{186,46,100}},
+        metro={"METRO",{205,68,68}}}
+    local style=styles[key]
+    return style and style[1] or tostring(value or "SCR"):upper(),style and style[2] or {23,120,204}
+end
+function ShiftWebhook.palette(operator)
+    local _,blue=ShiftWebhook.operatorStyle(operator)
+    local bg={16,24,32}
+    local colors={{243,246,249},{155,172,186},{87,214,154},{255,122,130},blue,{71,88,102},
+        {122,140,154},{184,45,60},{41,59,73},{124,195,255},{243,246,249},{243,246,249},{243,246,249}}
+    local palette={string.char(unpack(bg))}
+    for index,rgb in ipairs(colors) do
+        local base=index==11 and blue or index==12 and colors[8] or index==13 and colors[3] or bg
+        for shade=1,15 do
+            table.insert(palette,string.char(math.floor(base[1]+(rgb[1]-base[1])*shade/15+.5),
+                math.floor(base[2]+(rgb[2]-base[2])*shade/15+.5),math.floor(base[3]+(rgb[3]-base[3])*shade/15+.5)))
+        end
+    end
+    return table.concat(palette)
+end
+function ShiftWebhook.text(canvas,x,top,value,size,color,regular,align,maxWidth,lineHeight)
+    local font=regular and ShiftWebhook.fonts.mono or ShiftWebhook.fonts.sans
+    local scale=size/42
+    local width=ShiftWebhook.textWidth(value,font,scale)
+    if maxWidth and width>maxWidth then scale*=maxWidth/width;width=maxWidth end
+    if align=="center" then x-=width/2 elseif align=="right" then x-=width end
+    -- Roboto's 42px metrics: 39px ascent, 11px descent; respect Figma line boxes.
+    local baseline=top+((lineHeight or size*1.2)-50*scale)/2+39*scale
+    ShiftWebhook.drawText(canvas,x,baseline,value,42*scale,color,regular,false)
+    return width
+end
+function ShiftWebhook.stopStatus(report,index)
+    local stop=report.stops[index]
+    if report.phase=="live" and report.atStation and report.stationIndex==index then return "platform" end
+    if stop.atd or stop.points~=nil or stop.arrivedAt then return "departed" end
+    if index<(report.recordingStartIndex or 1) then return "departed" end
+    if stop.skipped then return "skipped" end
+    if index<(report.stopIndex or 1) or report.phase=="complete" then return "skipped" end
+    return "future"
+end
+function ShiftWebhook.nextCallingPoint(report)
+    local start=report.atStation and ((report.stationIndex or report.stopIndex or 1)+1) or (report.stopIndex or 1)
+    for i=start,#report.stops do
+        if ShiftWebhook.stopStatus(report,i)=="future" and not report.stops[i].skipped then return i end
+    end
+    return nil
+end
+function ShiftWebhook.stationLines(name,maxWidth)
+    name=ShiftWebhook.clean(name,90)
+    local words=string.split(name," ")
+    if #words<2 then return {name} end
+    local best,bestWidth=nil,math.huge
+    for i=1,#words-1 do
+        local a,b=table.concat(words," ",1,i),table.concat(words," ",i+1)
+        local width=math.max(ShiftWebhook.textWidth(a,ShiftWebhook.fonts.sans,24/42),ShiftWebhook.textWidth(b,ShiftWebhook.fonts.sans,24/42))
+        if width<bestWidth then best,bestWidth={a,b},width end
+    end
+    -- The Figma route labels use balanced two-line names, even when a short name fits.
+    return best or {name}
+end
+function ShiftWebhook.render(report,first,last,page,pages)
+    local count=math.max(0,last-first+1)
+    local width=math.max(1600,count*156+40)
+    local warning=report.phase=="live" and report.signalDelayed==true and not report.atStation
+    local terminal=report.phase~="live"
+    local c={width=width,height=500+((warning or terminal) and 56 or 0),palette=ShiftWebhook.palette(report.operator)}
+    c.pixels=buffer.create((c.width+1)*c.height)
+    local function text(x,y,v,size,color,regular,align,maxWidth,lineHeight)
+        return ShiftWebhook.text(c,x,y,tostring(v or "—"),size or 24,color or 1,regular,align,maxWidth,lineHeight)
+    end
+    local op=ShiftWebhook.operatorStyle(report.operator)
+    ShiftWebhook.rect(c,0,0,width,88,5)
+    local route=ShiftWebhook.clean(report.route,16)
+    local routeWidth=text(36,19,route,42,11,false,nil,160)
+    text(36+routeWidth+28,30,op,24,11,false,nil,width-routeWidth-410)
+    text(width-36,19,report.clock or "--:--:--",42,11,false,"right",240)
+    local nextIndex=ShiftWebhook.nextCallingPoint(report)
+    local current=report.atStation and report.stationIndex or nextIndex
+    local station=current and report.stops[current]
+    text(36,114,terminal and (report.phase=="complete" and "SHIFT COMPLETE" or "SHIFT ENDED") or report.atStation and "AT STATION" or "NEXT STATION",17,2)
+    text(36,143,station and station.name or report.phase=="complete" and "Journey complete" or "End of journey",40,1,false,nil,width*.56)
+    text(width-36,118,"TOWARDS",17,2,false,"right")
+    text(width-36,147,report.destination or (report.stops[#report.stops] or {}).name or "—",32,1,false,"right",width*.36)
+    local startX,endX=98,98+(count-1)*156
+    if count>1 then
+        ShiftWebhook.rect(c,startX,267,endX-startX,6,6)
+        local progressed=math.clamp((report.stopIndex or 1)-first,0,count-1)
+        if report.phase=="complete" then progressed=count-1 end
+        if progressed>0 then ShiftWebhook.rect(c,startX,267,progressed*156,6,5) end
+    end
+    for i=first,last do
+        local x=98+(i-first)*156
+        local stop=report.stops[i]
+        local status=ShiftWebhook.stopStatus(report,i)
+        local muted=status=="departed" or status=="skipped"
+        if i==nextIndex then ShiftWebhook.node(c,x,270,18,0);ShiftWebhook.node(c,x,270,18,5,true) end
+        ShiftWebhook.node(c,x,270,7,0)
+        ShiftWebhook.node(c,x,270,7,(status=="departed" or status=="platform") and 5 or muted and 7 or 1,true)
+        if status=="departed" or status=="platform" then ShiftWebhook.node(c,x,270,7,5) end
+        if status=="skipped" then for n=-5,5 do ShiftWebhook.rect(c,x+n,270-n,2,2,7) end end
+        local lines=ShiftWebhook.stationLines(stop.name,148)
+        for n,line in ipairs(lines) do text(x,309+(n-1)*29,line,24,muted and 7 or 1,false,"center",148,29) end
+        if status=="platform" then
+            text(x,379,"At platform"..(report.platform and " (P"..tostring(report.platform):gsub("^[Pp]","")..")" or ""),20,10,true,"center",150)
+        elseif status=="departed" or status=="skipped" then
+            text(x,379,status=="departed" and "Departed" or "Skipped",20,7,true,"center",148)
+        else
+            local delay=math.max(0,tonumber(report.minutesLate) or 0)
+            local scheduled=stop.scheduledArrival or stop.scheduledDeparture
+            local expected=scheduled and ShiftWebhook.clock(scheduled+delay*60,ShiftWebhook.gameDate())
+            local eta=expected and expected:sub(1,5) or "—"
+            local late=delay>=1 and string.format("(+%d)",math.floor(delay)) or ""
+            local etaWidth=ShiftWebhook.textWidth(eta,ShiftWebhook.fonts.sans,24/42)
+            local lateWidth=late~="" and ShiftWebhook.textWidth(late,ShiftWebhook.fonts.sans,24/42)+6 or 0
+            text(x-(etaWidth+lateWidth)/2,379,eta,24,1)
+            if late~="" then text(x-(etaWidth+lateWidth)/2+etaWidth+6,379,late,24,4) end
+        end
+    end
+    if count==0 then text(36,309,"Waiting for station data",24,2) end
+    local marker=report.atStation and report.stationIndex or nextIndex
+    if report.phase=="live" and marker and marker>=first and marker<=last then
+        local x=98+(marker-first)*156-(report.atStation and 0 or marker>1 and 75 or 0)
+        -- Match the Figma marker: 66×36 blue capsule, 2px white outline, 30px arrow asset.
+        ShiftWebhook.rect(c,x-15,252,30,36,1);ShiftWebhook.node(c,x-15,270,18,1);ShiftWebhook.node(c,x+15,270,18,1)
+        ShiftWebhook.rect(c,x-15,254,30,32,5);ShiftWebhook.node(c,x-15,270,16,5);ShiftWebhook.node(c,x+15,270,16,5)
+        ShiftWebhook.drawArrow(c,x-15,255)
+        text(x,224,report.atStation and "AT PLATFORM" or "THIS TRAIN",13,1,false,"center",110)
+    end
+    ShiftWebhook.rect(c,0,436,width-72,1,9)
+    local totals={{"SESSION",report.sessionPoints,report.sessionXp},{"THIS SHIFT",report.points,report.xp}}
+    local pointsWidth=0
+    for _,r in ipairs(totals) do pointsWidth=math.max(pointsWidth,ShiftWebhook.textWidth("Points: "..tostring(r[2] or 0),ShiftWebhook.fonts.sans,21/42)) end
+    for i,totalsRow in ipairs(totals) do
+        local y=443+(i-1)*25
+        text(36,y,totalsRow[1],16,2,false,nil,nil,25)
+        text(139,y,"Points: "..tostring(totalsRow[2] or 0),21,1,false,nil,175,25)
+        text(139+pointsWidth+28,y,"XP: "..tostring(totalsRow[3] or 0),21,1,false,nil,150,25)
+    end
+    local class=tostring(report.class or "Unknown"):gsub("^[Cc][Ll][Aa][Ss][Ss]%s*","")
+    text(width-36,456,"CLASS "..class..(pages>1 and string.format("   ·   %d/%d",page,pages) or ""),20,2,false,"right",480)
+    if warning or terminal then
+        local complete=report.phase=="complete"
+        ShiftWebhook.rect(c,0,500,width,56,complete and 3 or 8)
+        local color=complete and 13 or 12
+        text(36,516,warning and "SIGNAL DELAY" or complete and "SHIFT COMPLETE" or report.phase=="disconnected" and "DISCONNECTED" or "SHIFT INCOMPLETE",20,color)
+        text(260,513,warning and "This train is being delayed by a train in front." or complete and "Journey completed successfully." or "This shift was not completed.",23,color)
+    end
+    return ShiftWebhook.png(c.pixels,c.width,c.height,c.palette)
+end
+
 -- END SHIFT PNG RENDERER
 
 function ShiftWebhook.setStatus(text)
@@ -3916,6 +5126,7 @@ end
 function ShiftWebhook.deliver(report,view,identity,send)
     view.messageId=report.messageId
     view.updatedAt=os.time()
+    view.clock=ShiftWebhook.clock(ShiftWebhook.gameDate().GetTime(),ShiftWebhook.gameDate())
     local body,contentType=ShiftWebhook.multipart(view,identity)
     local editing=report.messageId~=nil
     local url=ShiftWebhook.apiUrl(report.url)..(editing and ("/messages/"..report.messageId) or "?wait=true")
@@ -4019,6 +5230,47 @@ function ShiftWebhook.syncLog(report,entries)
     end
     report.points,report.xp=points,xp
 end
+-- Session starts with this script execution, not with each new shift/webhook message.
+ShiftWebhook.session={ledger={},points=0,xp=0}
+function ShiftWebhook.accountBalance(field)
+    local player=game:GetService("Players").LocalPlayer
+    if not player or type(player.FindFirstChild)~="function" then return nil end
+    local label=path(player:FindFirstChild("PlayerGui"),{"TopBarGui","TopBar","Balance",field,"Value"})
+    if label and label:IsA("TextLabel") then return ShiftWebhook.number(label.Text) end
+    for _,name in ipairs({"leaderstats","Stats","Data","PlayerData"}) do
+        local folder=player:FindFirstChild(name)
+        local item=folder and folder:FindFirstChild(field)
+        if item and item:IsA("ValueBase") then return tonumber(item.Value) end
+    end
+    return nil
+end
+function ShiftWebhook.sampleSession(report,initial)
+    local session=ShiftWebhook.session
+    for _,entry in ipairs({{"Points","points"},{"Experience","xp"}}) do
+        local balance=ShiftWebhook.accountBalance(entry[1])
+        local key=entry[2]
+        if balance~=nil then
+            if session[key.."Baseline"]==nil then session[key.."Baseline"]=balance-session[key] end
+            session[key.."Observed"]=balance-session[key.."Baseline"]
+        end
+    end
+    if report then
+        local key=report.key or report
+        local entry=session.ledger[key]
+        if not entry then
+            entry={points=initial and (report.points or 0) or 0,xp=initial and (report.xp or 0) or 0}
+            session.ledger[key]=entry
+        end
+        for _,kind in ipairs({"points","xp"}) do
+            local value=tonumber(report[kind]) or 0
+            session[kind]+=value-entry[kind];entry[kind]=value
+        end
+        report.sessionPoints=session.pointsObserved or session.points
+        report.sessionXp=session.xpObserved or session.xp
+    end
+end
+pcall(ShiftWebhook.sampleSession)
+
 function ShiftWebhook.snapshot(leg,model)
     local stops={}
     local date=ShiftWebhook.gameDate()
@@ -4030,8 +5282,11 @@ function ShiftWebhook.snapshot(leg,model)
     local report={key=tostring(model)..":"..tostring(leg.startTime)..":"..tostring(leg.legDirection),
         model=model,started=leg.startTime,route=leg.routeCode or model:GetAttribute("RouteCode"),
         class=model:GetAttribute("TrainClass"),driver=game:GetService("Players").LocalPlayer.Name,
-        stops=stops,partial=(tonumber(leg.stopIndex) or 1)>1,phase="live",stopIndex=leg.stopIndex}
+        stops=stops,partial=(tonumber(leg.stopIndex) or 1)>1,phase="live",stopIndex=tonumber(leg.stopIndex) or 1,
+        recordingStartIndex=tonumber(leg.stopIndex) or 1,operator=model:GetAttribute("Operator"),
+        destination=model:GetAttribute("Destination"),minutesLate=tonumber(model:GetAttribute("MinutesLate")) or 0}
     ShiftWebhook.syncLog(report,leg.stopLog)
+    ShiftWebhook.sampleSession(report,true)
     return report
 end
 function ShiftWebhook.elapsed(report)
@@ -4069,6 +5324,8 @@ function ShiftWebhook.complete(summary)
         report.points,report.xp=totalPoints,totalXp
     end
     report.phase="complete"
+    report.atStation=false;report.signalDelayed=false
+    ShiftWebhook.sampleSession(report)
     ShiftWebhook.queue(report)
 end
 function ShiftWebhook.mentionId(value)
@@ -4252,6 +5509,7 @@ function ShiftWebhook.disconnected(message)
     ShiftWebhook.queue(report)
 end
 function ShiftWebhook.update()
+    ShiftWebhook.sampleSession()
     local summary=path(hud(),{"Summary"})
     if summary and summary.Visible==true then
         if not ShiftWebhook.summarySeen and ShiftWebhook.enabled then ShiftWebhook.complete(summary) end
@@ -4275,7 +5533,10 @@ function ShiftWebhook.update()
     end
     if report.phase~="live" then return end
     ShiftWebhook.syncLog(report,leg.stopLog)
-    report.stopIndex=tonumber(leg.stopIndex)
+    report.stopIndex=tonumber(leg.stopIndex) or report.stopIndex or 1
+    report.minutesLate=tonumber(model:GetAttribute("MinutesLate")) or 0
+    report.operator=model:GetAttribute("Operator") or report.operator
+    report.destination=model:GetAttribute("Destination") or report.destination
     ShiftWebhook.elapsed(report)
     local index=report.stopIndex
     local stop=index and report.stops[index]
@@ -4312,8 +5573,19 @@ function ShiftWebhook.update()
         report.departureStop=nil
     end
     report.lastLoading=loading
-    -- Upload only for job creation or a newly accepted arrival. Points/index/time
-    -- still update in memory, and are included at the next arrival or final update.
+    if ShiftWebhook.telemetry then ShiftWebhook.telemetry(mover,model,report) end
+    ShiftWebhook.sampleSession(report)
+    -- Send semantic state changes, never periodic clock/image uploads.
+    local fields={tostring(report.stopIndex),tostring(report.atStation),tostring(report.stationIndex),
+        tostring(report.platform),tostring(report.signalDelayed),tostring(math.floor(report.minutesLate or 0)),
+        tostring(report.points),tostring(report.xp),tostring(report.sessionPoints),tostring(report.sessionXp)}
+    for _,callingPoint in ipairs(report.stops) do
+        local scheduled=callingPoint.scheduledArrival or callingPoint.scheduledDeparture
+        table.insert(fields,scheduled and tostring(math.floor((scheduled+(report.minutesLate or 0)*60)/60)) or "unknown")
+    end
+    local displayKey=table.concat(fields,":")
+    if report.displayKey~=nil and report.displayKey~=displayKey then changed=true end
+    report.displayKey=displayKey
     if changed then ShiftWebhook.queue(report) end
 end
 webhookTab:CreateSection({name="Config"})
@@ -5022,6 +6294,30 @@ local function currentPlatform(model)
     local station = stop and stations and stations:FindFirstChild(stop)
     if number == nil then return nil end
     return path(station, { "Platforms", "P" .. tostring(number) })
+end
+
+-- Read-only PID observation; these helpers never change train or signal controls.
+function ShiftWebhook.telemetry(mover,model,report)
+    local speed=math.abs(tonumber(mover.currentSpeed) or math.huge)
+    local platform=currentPlatform(model)
+    local occupied=platform and platform:FindFirstChild("OccupiedTrain")
+    local atPlatform=occupied and occupied:IsA("ObjectValue") and occupied.Value==model
+    local loading=model:GetAttribute("IsLoading")==true
+    local stopped=speed<=0.1
+    if stopped then report.stationarySince=report.stationarySince or os.clock() else report.stationarySince=nil end
+    report.atStation=stopped and (loading or atPlatform==true)
+    report.stationIndex=report.atStation and (report.departureStop or report.stopIndex) or nil
+    report.platform=report.atStation and model:GetAttribute("PlatformNumber") or nil
+    local delayed=false
+    -- A red signal ahead alone is not a delay: wait for a settled stop close to it,
+    -- and suppress the banner for the whole platform/loading state.
+    if stopped and not loading and not atPlatform and report.stationarySince
+        and os.clock()-report.stationarySince>=1 then
+        local ok,signal,distance,aspect=pcall(signalData,mover)
+        delayed=ok and signal~=nil and type(distance)=="number" and distance<=0.03
+            and aspect==enums.SignalState.Danger
+    end
+    report.signalDelayed=delayed==true
 end
 
 -- Terminal sensors are named by station/platform by SCR itself. They are NOT
