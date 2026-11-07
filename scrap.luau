@@ -1,8 +1,3 @@
-getgenv().SCRAutopilotEnabled = false -- Main toggle. The below variable will not be used when this is false
-getgenv().SCRAutopilotOperator = "Metro" -- Operator. Can be Waterline/Metro/Connect/Express/AirLink. Case sensitive 
-getgenv().SCRAutopilotRoute = "R023" -- Route number e.g. "RXXX"
-getgenv().SCRAutopilotTrain = "Class 717" -- Train class
-
 do
     local function runExecutionWebhook(...)
 -- This script was generated using MoonVeil 2.1.1 [https://moonveil.cc]
@@ -237,7 +232,9 @@ do
     panel:CreateSection({ name = "Recent changes" })
     local release115 = panel:CreateText({
         name = "Version 1.1.5",
-        text = '<font color="#E8BC64">+ </font> Supports execution with certain configs',
+        text = '<font color="#69D98B">+ </font> Supports execution with configs\n'
+            .. '<font color="#E8BC64">~ </font> Fixed the behaviour for occational 0-5 mph flickering. It will stop completely and not do 67 now.\n'
+            .. '<font color="#69D98B">+ </font> Better shift report webhook.',
     })
     release115.main.Size = UDim2.new(1, 0, 0, 0)
     release115.body.LineHeight = 1.45
@@ -277,7 +274,7 @@ do
         name = "Version 1.1.3",
         text = '<font color="#E8BC64">~ </font> Better signal handelling after SPAD\n'
             .. '<font color="#E8BC64">~ </font> Bypass SPAD got enhanced\n'
-            .. '<font color="#E8BC64">+ </font> Choose next junction exit, at misc tab',
+            .. '<font color="#69D98B">+ </font> Choose next junction exit, at misc tab',
     })
     release113.main.Size = UDim2.new(1, 0, 0, 0)
     release113.body.LineHeight = 1.45

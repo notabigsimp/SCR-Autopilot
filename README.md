@@ -31,10 +31,10 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/notabigsimp/SCR-Autop
 For automatic setup on multiple accounts, set these optional variables before the loader:
 
 ```lua
-getgenv().SCRAutopilotEnabled = true -- Sets BOTH Autopilot and the Auto Farm master switch.
-getgenv().SCRAutopilotOperator = "Connect" -- Operator name or slug; case-insensitive.
-getgenv().SCRAutopilotRoute = "R012" -- Requested route number.
-getgenv().SCRAutopilotTrain = "Class 357" -- Optional name, class number ("357"), or train slug.
+getgenv().SCRAutopilotEnabled = false -- Main toggle. The below variable will not be used when this is false
+getgenv().SCRAutopilotOperator = "Metro" -- Operator. Can be Waterline/Metro/Connect/Express/AirLink. Case sensitive 
+getgenv().SCRAutopilotRoute = "R023" -- Route number e.g. "RXXX"
+getgenv().SCRAutopilotTrain = "Class 717" -- Train class
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/notabigsimp/SCR-Autopilot/main/scrap.luau"))()
 ```
