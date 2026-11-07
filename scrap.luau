@@ -5001,7 +5001,9 @@ function ShiftWebhook.render(report,first,last,page,pages)
     text(36,143,station and station.name or report.phase=="complete" and "Journey complete" or "End of journey",40,1,false,nil,width*.56)
     text(width-36,118,"TOWARDS",17,2,false,"right")
     text(width-36,147,report.destination or (report.stops[#report.stops] or {}).name or "—",32,1,false,"right",width*.36)
-    local startX,endX=98,98+(count-1)*156
+    local diagramWidth=math.max(0,count-1)*156
+    local startX=(width-diagramWidth)/2
+    local endX=startX+diagramWidth
     if count>1 then
         ShiftWebhook.rect(c,startX,267,endX-startX,6,6)
         local progressed=math.clamp((report.stopIndex or 1)-first,0,count-1)
@@ -5009,7 +5011,7 @@ function ShiftWebhook.render(report,first,last,page,pages)
         if progressed>0 then ShiftWebhook.rect(c,startX,267,progressed*156,6,5) end
     end
     for i=first,last do
-        local x=98+(i-first)*156
+        local x=startX+(i-first)*156
         local stop=report.stops[i]
         local status=ShiftWebhook.stopStatus(report,i)
         local muted=status=="departed" or status=="skipped"
@@ -5039,7 +5041,7 @@ function ShiftWebhook.render(report,first,last,page,pages)
     if count==0 then text(36,309,"Waiting for station data",24,2) end
     local marker=report.atStation and report.stationIndex or nextIndex
     if report.phase=="live" and marker and marker>=first and marker<=last then
-        local x=98+(marker-first)*156-(report.atStation and 0 or marker>1 and 75 or 0)
+        local x=startX+(marker-first)*156-(report.atStation and 0 or marker>1 and 75 or 0)
         -- Match the Figma marker: 66×36 blue capsule, 2px white outline, 30px arrow asset.
         ShiftWebhook.rect(c,x-15,252,30,36,1);ShiftWebhook.node(c,x-15,270,18,1);ShiftWebhook.node(c,x+15,270,18,1)
         ShiftWebhook.rect(c,x-15,254,30,32,5);ShiftWebhook.node(c,x-15,270,16,5);ShiftWebhook.node(c,x+15,270,16,5)
