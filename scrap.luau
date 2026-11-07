@@ -3438,7 +3438,7 @@ local function resetTrain(mover)
     state.estimate = INITIAL_BRAKING; state.lastDesired = nil
     state.stopSignal = nil
     state.approach = nil
-    state.stopTarget = nil; state.bufferCache = nil; state.noseCache = nil
+    state.stopTarget = nil; state.bufferCache = nil; state.noseCache = nil; state.stopRest = nil
     state.stopOffset = DEFAULT_STOP_OFFSET; state.undershoot = nil; state.loadingAttempt = nil
     state.responseScale = 0.6
     brakeCurve, zeroBrakeCurve = nil, nil
@@ -5127,6 +5127,9 @@ function ShiftWebhook.deliver(report,view,identity,send)
     view.messageId=report.messageId
     view.updatedAt=os.time()
     view.clock=ShiftWebhook.clock(ShiftWebhook.gameDate().GetTime(),ShiftWebhook.gameDate())
+    -- The queue can wait before rendering. Sample the live delay at this status
+    -- update, not just when the snapshot was first queued.
+    if view.phase=="live" then ShiftWebhook.refreshDelay(view) end
     local body,contentType=ShiftWebhook.multipart(view,identity)
     local editing=report.messageId~=nil
     local url=ShiftWebhook.apiUrl(report.url)..(editing and ("/messages/"..report.messageId) or "?wait=true")
@@ -5271,6 +5274,17 @@ function ShiftWebhook.sampleSession(report,initial)
 end
 pcall(ShiftWebhook.sampleSession)
 
+function ShiftWebhook.refreshDelay(report)
+    local model=report.model
+    local entry=model and board.cache and board.cache[model.Name]
+    -- Use the same live departure-board data as SCR's train board. The model's
+    -- replicated MinutesLate can lag that cache, so it is only a fallback.
+    local value=type(entry)=="table" and not entry.cancelledTime and tonumber(entry.minutesLate) or nil
+    if value==nil and model then value=tonumber(model:GetAttribute("MinutesLate")) end
+    if value~=nil and value==value and math.abs(value)<math.huge then
+        report.minutesLate=math.max(0,value)
+    end
+end
 function ShiftWebhook.snapshot(leg,model)
     local stops={}
     local date=ShiftWebhook.gameDate()
@@ -5286,6 +5300,7 @@ function ShiftWebhook.snapshot(leg,model)
         recordingStartIndex=tonumber(leg.stopIndex) or 1,operator=model:GetAttribute("Operator"),
         destination=model:GetAttribute("Destination"),minutesLate=tonumber(model:GetAttribute("MinutesLate")) or 0}
     ShiftWebhook.syncLog(report,leg.stopLog)
+    ShiftWebhook.refreshDelay(report)
     ShiftWebhook.sampleSession(report,true)
     return report
 end
@@ -5534,7 +5549,7 @@ function ShiftWebhook.update()
     if report.phase~="live" then return end
     ShiftWebhook.syncLog(report,leg.stopLog)
     report.stopIndex=tonumber(leg.stopIndex) or report.stopIndex or 1
-    report.minutesLate=tonumber(model:GetAttribute("MinutesLate")) or 0
+    ShiftWebhook.refreshDelay(report)
     report.operator=model:GetAttribute("Operator") or report.operator
     report.destination=model:GetAttribute("Destination") or report.destination
     ShiftWebhook.elapsed(report)
@@ -5577,12 +5592,8 @@ function ShiftWebhook.update()
     ShiftWebhook.sampleSession(report)
     -- Send semantic state changes, never periodic clock/image uploads.
     local fields={tostring(report.stopIndex),tostring(report.atStation),tostring(report.stationIndex),
-        tostring(report.platform),tostring(report.signalDelayed),tostring(math.floor(report.minutesLate or 0)),
+        tostring(report.platform),tostring(report.signalDelayed),
         tostring(report.points),tostring(report.xp),tostring(report.sessionPoints),tostring(report.sessionXp)}
-    for _,callingPoint in ipairs(report.stops) do
-        local scheduled=callingPoint.scheduledArrival or callingPoint.scheduledDeparture
-        table.insert(fields,scheduled and tostring(math.floor((scheduled+(report.minutesLate or 0)*60)/60)) or "unknown")
-    end
     local displayKey=table.concat(fields,":")
     if report.displayKey~=nil and report.displayKey~=displayKey then changed=true end
     report.displayKey=displayKey
@@ -5974,6 +5985,16 @@ function StopPlanner.predict(snapshot, firstTarget, commandSeconds)
     end
     return math.huge, time -- No invented endpoint when a train cannot stop.
 end
+-- Immediate physical-stop checks shared by final braking and station doors.
+function StopPlanner.confirmRest(mover, model, now)
+    local front = mover:GetFrontBogie()
+    if not model or mover.currentSpeed ~= 0 or model:GetAttribute("CurrentSpeed") ~= 0
+        or mover.targetSpeed ~= 0 or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0
+        or not front or typeof(front.position) ~= "Vector3" then
+        state.stopRest = nil; return false
+    end
+    return true -- No timed delay once actual and replicated motion/control state is stopped.
+end
 -- END STOP PLANNER
 
 local function legacySignalApproach(mover, signal, distance, now, offset)
@@ -6026,17 +6047,8 @@ local function legacySignalApproach(mover, signal, distance, now, offset)
     -- A zero request while moving is a braking command, not a permanent hold.
     -- Confirm physical rest before either latching or making a bounded correction.
     if control.zeroCommand and speed == 0 then
-        local front = mover:GetFrontBogie()
-        local resting = control.resting
-        if not front or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0 then
-            control.resting = nil
-            return 0, true
-        end
-        if not resting or (front.position - resting.position).Magnitude > 0.001 then
-            control.resting = { position = front.position, time = now }
-            return 0, true
-        end
-        if now - resting.time < 0.5 then return 0, true end
+        local model = mover.skeletonModel and mover.skeletonModel.Parent
+        if not StopPlanner.confirmRest(mover, model, now) then return 0, true end
         if remaining <= 0.002 or control.degraded then control.holding = true; return 0, true end
         local attempts = control.correctionAttempts or 0
         if remaining > 0.02 or attempts >= 3 then
@@ -6168,7 +6180,7 @@ local function signalApproach(mover, signal, distance, now, offset)
     local remaining = distance - offset
     if remaining <= 0 or control.holding then control.holding = true; return 0, true end
     if control.correctionBlocked then return 0, true end
-    if control.correcting then
+    if control.correcting and not control.finalBraking then
         if remaining < (control.correctionProgress or remaining) - 0.0002 then
             control.correctionProgress = remaining; control.correctionProgressTime = now
         end
@@ -6178,14 +6190,8 @@ local function signalApproach(mover, signal, distance, now, offset)
         end
     end
     if control.zeroCommand and speed == 0 then
-        local front = mover:GetFrontBogie()
-        if not front or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0 then
-            control.resting = nil; return 0, true
-        end
-        if not control.resting or (front.position - control.resting.position).Magnitude > 0.001 then
-            control.resting = {position = front.position, time = now}; return 0, true
-        end
-        if now - control.resting.time < 0.5 then return 0, true end
+        local model = mover.skeletonModel and mover.skeletonModel.Parent
+        if not StopPlanner.confirmRest(mover, model, now) then return 0, true end
         if remaining <= 0.00075 then
             control.holding = true
             if not control.logged then
@@ -6198,11 +6204,15 @@ local function signalApproach(mover, signal, distance, now, offset)
         if remaining > 0.02 or control.correctionAttempts >= 3 then
             control.correctionBlocked = true; control.cap = 0; return 0, true
         end
-        control.correcting = true; control.zeroCommand = false; control.resting = nil
+        control.correcting = true; control.finalBraking = false; control.zeroCommand = false
+        state.stopRest = nil
         control.correctionAttempts += 1; control.correctionStarted = control.correctionStarted or now
         control.correctionProgress, control.correctionProgressTime = remaining, now
         control.nextPrediction = 0
     elseif speed > 0 then control.resting = nil end
+    -- Once final braking begins, never reapply power until physical rest proves
+    -- that a separate undershoot correction is actually needed.
+    if control.finalBraking then control.cap=0; control.zeroCommand=true; return 0, true end
     if now >= control.nextPrediction then
         local commandSeconds = math.max(0.05, tickDt, math.ceil((0.05 - 1e-9) / dt) * dt)
         local zeroMiles = StopPlanner.predict(snapshot, 0, 0)
@@ -6230,7 +6240,13 @@ local function signalApproach(mover, signal, distance, now, offset)
             control.braking = true; control.nextPrediction = now + 0.05
             control.cap = 0
             local chosenMiles = zeroMiles
-            if zeroMiles < available then
+            if control.correcting then
+                if zeroMiles + speed * commandSeconds / 3600 < available then
+                    control.cap = 5 -- One continuous correction, then one committed stop.
+                    chosenMiles = StopPlanner.predict(snapshot, 5, commandSeconds)
+                    if not StopPlanner.finite(chosenMiles) then return fallback() end
+                end
+            elseif zeroMiles < available then
                 local upper = math.max(5, speed)
                 local coastMiles = StopPlanner.predict(snapshot, upper, commandSeconds)
                 if not StopPlanner.finite(coastMiles) then return fallback() end
@@ -6255,7 +6271,10 @@ local function signalApproach(mover, signal, distance, now, offset)
     if control.zeroMiles and control.zeroMiles >= remaining - control.uncertaintyMiles then
         control.cap = 0; control.zeroCommand = true
     end
-    if control.cap == 0 then return 0, true end
+    if control.cap == 0 then
+        if speed <= 6 then control.finalBraking = true end
+        return 0, true
+    end
     return control.cap, false
 end
 
@@ -6513,20 +6532,7 @@ local function terminalBuffer(mover, model, now)
 end
 
 local function fullyStopped(mover, model)
-    -- A single zero speed reading can precede the final physical movement.
-    local front = mover:GetFrontBogie()
-    if mover.currentSpeed ~= 0 or model:GetAttribute("CurrentSpeed") ~= 0
-        or (mover.throttle or 0) > 0 or (mover.acceleration or 0) > 0
-        or not front or typeof(front.position) ~= "Vector3" then
-        state.stationary = nil
-        return false
-    end
-    local sample = state.stationary
-    if not sample or sample.model ~= model or (front.position - sample.position).Magnitude > 0.01 then
-        state.stationary = { model = model, position = front.position, since = os.clock() }
-        return false
-    end
-    return os.clock() - sample.since >= 1
+    return StopPlanner.confirmRest(mover, model, os.clock())
 end
 
 -- Read only SCR's transient DriveMessages, never chat or our own GUI/log.
