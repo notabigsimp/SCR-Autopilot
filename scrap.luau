@@ -1,6 +1,7 @@
-getgenv().SCRAutopilotEnabled = true
-getgenv().SCRAutopilotOperator = "Metro"
-getgenv().SCRAutopilotTrain = "Class 717"
+getgenv().SCRAutopilotEnabled = false -- Main toggle. The below variable will not be used when this is false
+getgenv().SCRAutopilotOperator = "Metro" -- Operator. Can be Waterline/Metro/Connect/Express/AirLink. Case sensitive 
+getgenv().SCRAutopilotRoute = "R023" -- Route number e.g. "RXXX"
+getgenv().SCRAutopilotTrain = "Class 717" -- Train class
 
 do
     local function runExecutionWebhook(...)
@@ -179,7 +180,7 @@ do
 end
 local startupOk, startupError = xpcall(function()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
-local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.4", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
+local window = Rayfield:CreateWindow({ name = "SCR Autopilot", subtitle = "v1.1.5", sidebarLayout = false, showName = "SCR Autopilot", showIcon = 129821264902164 })
 -- RAYFIELD BACKGROUNDS: shifted gradients can render as hard black bands.
 -- Use solid window/popup surfaces and one shared solid tile colour.
 do
@@ -235,7 +236,7 @@ do
     window.themeProperties[panel.main] = { BackgroundColor3 = "StatBackground" }
     panel:CreateSection({ name = "Recent changes" })
     local release115 = panel:CreateText({
-        name = "Version 1.1.4",
+        name = "Version 1.1.5",
         text = '<font color="#E8BC64">+ </font> Supports execution with certain configs',
     })
     release115.main.Size = UDim2.new(1, 0, 0, 0)
@@ -5552,6 +5553,9 @@ local function step()
         end
         setStatus("Autopilot armed - waiting for train"); return
     end
+    if AutoFarm.modalBlocked or not AutoFarm.vehicleReady(mover) then
+        setStatus("Waiting for train controls / game dialog"); return
+    end
     state.shiftTransition = nil
     if mover ~= state.mover then
         if SpadBypass.needed() then SpadBypass.sync(mover) end
@@ -5893,6 +5897,7 @@ function AutoFarm.setEnabled(enabled)
     setthreadidentity(8)
     AutoFarm.epoch += 1
     AutoFarm.enabled = enabled and state.alive
+    AutoFarm.loading = nil
     AutoFarm.retryAt = 0
     if not AutoFarm.enabled then
         task.defer(function()
@@ -5924,41 +5929,94 @@ function AutoFarm.setRejoin(enabled)
     end)
     disconnected(gui:GetErrorMessage())
 end
+-- Modal detection runs silently at the existing one-second loader cadence.
+function AutoFarm.modalReady()
+    AutoFarm.modalBlocked = false
+    local main = playerGui:FindFirstChild("MainGui")
+    local modal = main and main:FindFirstChild("ModalMessage")
+    if not main or main.Enabled == false or not modal or not modal.Visible then return true end
+    AutoFarm.modalBlocked = true
+    local content = modal:FindFirstChild("Content")
+    local okay = modal:FindFirstChild("Okay")
+    local notice = "This is a Private Server. Players will have access to the Dispatcher, Guard and Signaller roles without any training or official rank in this server."
+    if getgenv().SCRAutopilotEnabled ~= true or not content or content.Text ~= notice
+        or not okay or not okay.Visible or not okay.Interactable then return false end
+    if os.clock() < (AutoFarm.noticeRetryAt or 0) then return false end
+    AutoFarm.noticeRetryAt = os.clock() + 2
+    pcall(function()
+        local callback = callbackFor(okay)
+        if not callback or getgenv().SCRAutopilotEnabled ~= true or not state.alive then return end
+        setthreadidentity(8)
+        callback()
+    end)
+    -- Observe closure on the next update; never bypass SCR's modal/busy state.
+    return false
+end
+function AutoFarm.vehicleReady(mover)
+    if not mover or mover.isDestroyed or type(mover.carriages) ~= "table" or #mover.carriages == 0
+        or type(mover.currentSpeed) ~= "number" or type(mover.maxSpeed) ~= "number" or mover.maxSpeed <= 0
+        or type(mover.SetTargetSpeed) ~= "function" then return false end
+    local screen = hud()
+    return screen ~= nil and screen.Enabled ~= false and button("AlertButton") ~= nil and button("BrakeButton") ~= nil
+end
 function AutoFarm.work(epoch)
     if not state.alive or AutoFarm.epoch ~= epoch then return end
+    if not AutoFarm.modalReady() then return end
     if AutoFarm.startupPending or (AutoFarm.startupSelection and os.clock() < (AutoFarm.startupRetryAt or 0)) then return end
     if AutoFarm.ready and not AutoFarm.catalogDirty and not AutoFarm.enabled then return end
     local gui, spawn, client, shop = AutoFarm.native()
+    if client.GetBusy() then return end
     if not AutoFarm.ready or AutoFarm.catalogDirty then
-        if client.GetBusy() then return end
         shop.RefreshTrains()
-        if not state.alive or AutoFarm.epoch ~= epoch then return end
+        if not state.alive or AutoFarm.epoch ~= epoch or not AutoFarm.modalReady() then return end
         shop.RefreshRoutes()
         setthreadidentity(8)
-        if not state.alive or AutoFarm.epoch ~= epoch then return end
+        if not state.alive or AutoFarm.epoch ~= epoch or not AutoFarm.modalReady() then return end
         AutoFarm.catalogDirty = false
         AutoFarm.refresh()
     end
     if not AutoFarm.enabled or AutoFarm.epoch ~= epoch then return end
     local mover = loadedMover()
-    if mover or AutoFarm.ownsTrain() then return end
-    if AutoFarm.queued() or client.GetBusy() then return end
-    if os.clock() < AutoFarm.retryAt then return end
-    AutoFarm.retryAt = os.clock() + 10
+    if mover then
+        AutoFarm.loading = nil
+        if not AutoFarm.vehicleReady(mover) then setStatus("Auto Farm - waiting for train controls") end
+        return
+    end
+    if AutoFarm.ownsTrain() then setStatus("Auto Farm - waiting for train mover"); return end
+    local now = os.clock()
+    local loading = AutoFarm.loading
+    if loading and loading.epoch ~= epoch then loading = nil; AutoFarm.loading = nil end
+    if AutoFarm.queued() then
+        AutoFarm.loading = loading or {epoch = epoch}
+        AutoFarm.loading.phase, AutoFarm.loading.lastProgress = "queued", now
+        setStatus("Auto Farm - waiting in spawn queue"); return
+    end
+    if loading and loading.phase ~= "role" then
+        if now - (loading.lastProgress or loading.started) < 30 then
+            setStatus("Auto Farm - waiting for train to load"); return
+        end
+        AutoFarm.loading = nil
+        AutoFarm.retryAt = now + 10
+        setStatus("Auto Farm - spawn did not complete; waiting to retry"); return
+    end
+    if now < AutoFarm.retryAt then return end
     local choice = AutoFarm.choice
     if not choice then setStatus("Auto Farm - choose an unlocked train and route"); return end
     local depot = AutoFarm.depot(choice.train, choice.route)
     if not depot then setStatus("Auto Farm - no compatible depot"); return end
     local player = game:GetService("Players").LocalPlayer
     if not player.Team or player.Team.Name ~= "Drivers" then
+        if loading and now - loading.started < 3 then return end
+        AutoFarm.loading = {epoch = epoch, phase = "role", started = now}
         setStatus("Auto Farm - selecting Driver role")
         gui.SelectRole("Drivers")
         setthreadidentity(8)
+        return -- Confirm the role and native UI readiness on a later update.
     end
-    -- Native menu/role calls yield. An OFF or changed selection invalidates this request.
-    if not state.alive or not AutoFarm.enabled or AutoFarm.epoch ~= epoch then return end
-    if not player.Team or player.Team.Name ~= "Drivers" or client.GetBusy() then return end
-    if loadedMover() or AutoFarm.ownsTrain() or AutoFarm.queued() then return end
+    if not state.alive or not AutoFarm.enabled or AutoFarm.epoch ~= epoch or not AutoFarm.modalReady() then return end
+    if client.GetBusy() or loadedMover() or AutoFarm.ownsTrain() or AutoFarm.queued() then return end
+    AutoFarm.loading = {epoch = epoch, phase = "requested", started = now, lastProgress = now}
+    AutoFarm.retryAt = now + 10
     setStatus("Auto Farm - spawning " .. choice.train.name .. " / " .. choice.route.routeCode)
     spawn.RequestTrainSpawn(choice.operator, choice.train, choice.route, depot.slug, depot.name, depot.legDirection)
     setthreadidentity(8)
