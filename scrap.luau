@@ -524,12 +524,13 @@ end
 function ConfigStore.oneOf(options)
     return function(value) return type(value) == "string" and table.find(options, value) ~= nil end
 end
-function ConfigStore.apply(values)
+function ConfigStore.apply(values, overrides)
     if ConfigStore.beforeApply then ConfigStore.beforeApply() end
     local failed, invalid = {}, 0
     for _, key in ipairs(ConfigStore.order) do
         local binding = ConfigStore.bindings[key]
         local value = values[key]
+        if overrides and overrides[key] ~= nil then value = overrides[key] end
         if value == nil then value = binding.default
         elseif not binding.valid(value) then value = binding.default; invalid += 1 end
         setthreadidentity(8)
@@ -538,8 +539,15 @@ function ConfigStore.apply(values)
     end
     return failed, invalid
 end
-function ConfigStore.load()
-    if type(isfile) ~= "function" or type(readfile) ~= "function" then return false, "Local file API unavailable." end
+function ConfigStore.load(overrides)
+    local function defaults(ok, message)
+        if overrides and next(overrides) then
+            local failed = ConfigStore.apply({}, overrides)
+            if #failed > 0 then return false, "Some startup settings could not be applied: " .. table.concat(failed, ", ") end
+        end
+        return ok, message
+    end
+    if type(isfile) ~= "function" or type(readfile) ~= "function" then return defaults(false, "Local file API unavailable.") end
     local ok, result = pcall(function()
         if not isfile(ConfigStore.path) then return nil end
         local text = readfile(ConfigStore.path)
@@ -550,9 +558,9 @@ function ConfigStore.load()
         end
         return decoded.values
     end)
-    if not ok then return false, "Could not read config. Defaults kept; save or reset to replace it." end
-    if not result then return true, "No saved config." end
-    local failed, invalid = ConfigStore.apply(result)
+    if not ok then return defaults(false, "Could not read config. Defaults kept; save or reset to replace it.") end
+    if not result then return defaults(true, "No saved config.") end
+    local failed, invalid = ConfigStore.apply(result, overrides)
     if #failed > 0 then return false, "Some settings could not be loaded: " .. table.concat(failed, ", ") end
     if invalid > 0 then return true, "Loaded config; invalid settings were reset to defaults." end
     return true, "Config loaded."
@@ -5373,6 +5381,56 @@ function ShiftWebhook.pingId(kind)
     end
     return nil
 end
+function ShiftWebhook.startupOverrides(options)
+    local active = options.active
+    if active == false then return {} end
+    if active ~= nil and active ~= true then return nil, "SCRAutopilotEnabledWH must be true or false." end
+    local values = {}
+    if options.link ~= nil then
+        local link = type(options.link) == "string" and options.link:match("^%s*(.-)%s*$")
+        if not link or #link > 2048 or (link ~= "" and not ShiftWebhook.validUrl(link)) then
+            return nil, "SCRAutopilotLinkWH must be a valid Discord webhook URL or an empty string."
+        end
+        values.webhookUrl = link
+    end
+    if options.user ~= nil then
+        local user = type(options.user) == "string" and options.user:match("^%s*(.-)%s*$")
+        if not user or #user > 80 or (user ~= "" and not ShiftWebhook.mentionId(user)) then
+            return nil, "SCRAutopilotUserWH must be a quoted Discord user ID or an empty string."
+        end
+        values.disconnectPing = user == "" and "" or ShiftWebhook.mentionId(user)
+    end
+    local labels = {
+        live = "Live webhook", ["live webhook"] = "Live webhook",
+        disconnect = "Disconnect webhook", ["disconnect webhook"] = "Disconnect webhook",
+        despawn = "Accidental despawn webhook", ["accidental despawn webhook"] = "Accidental despawn webhook",
+    }
+    local function selection(list)
+        if type(list) ~= "table" then return nil end
+        local normalized, count = {}, 0
+        for key, option in pairs(list) do
+            if type(key) ~= "number" or key % 1 ~= 0 or key < 1 or key > #list or type(option) ~= "string" then return nil end
+            local label = labels[option:match("^%s*(.-)%s*$"):lower()]
+            if not label then return nil end
+            normalized[key] = label
+            count += 1
+        end
+        if count ~= #list then return nil end
+        return ShiftWebhook.pingSelection(normalized)
+    end
+    if options.send ~= nil then
+        local send = selection(options.send)
+        if not send then return nil, "SCRAutopilotSendWH must be a list of live, disconnect, or despawn." end
+        values.shiftReports = table.find(send, "Live webhook") ~= nil
+        values.disconnectNotification = table.find(send, "Disconnect webhook") ~= nil
+        values.accidentalDespawnNotification = table.find(send, "Accidental despawn webhook") ~= nil
+    end
+    if options.ping ~= nil then
+        values.webhookPingMode = selection(options.ping)
+        if not values.webhookPingMode then return nil, "SCRAutopilotPingWH must be a list of live, disconnect, or despawn." end
+    end
+    return values
+end
 function ShiftWebhook.disconnectPayload(identity)
     local id=ShiftWebhook.pingId("disconnect")
     local name=ShiftWebhook.clean(game:GetService("Players").LocalPlayer.Name,80)
@@ -7909,8 +7967,6 @@ end, function(value) return type(value) == "string" and #value <= 128 end)
 ConfigStore.control("webhookUrl", "", webhookInput, function() return ShiftWebhook.url end,
     function(value) webhookInput.callback(value) end,
     function(value) return type(value) == "string" and #value <= 2048 and (value == "" or ShiftWebhook.validUrl(value)) end)
-ConfigStore.control("shiftReports", false, reportToggle, function() return ShiftWebhook.enabled end,
-    function(value) reportToggle.callback(value) end, ConfigStore.boolean)
 ConfigStore.control("disconnectPing", "", discordPingInput, function() return ShiftWebhook.pingTarget end,
     function(value) discordPingInput.callback(value) end,
     function(value) return type(value)=="string" and #value<=80 and (value=="" or ShiftWebhook.mentionId(value)~=nil) end)
@@ -7920,6 +7976,8 @@ ConfigStore.bind("webhookPingMode", {"Disconnect webhook"}, function() return ta
         webhookPingMode:Set(selected,true)
         webhookPingMode.callback(selected)
     end, function(value) return ShiftWebhook.pingSelection(value)~=nil end)
+ConfigStore.control("shiftReports", false, reportToggle, function() return ShiftWebhook.enabled end,
+    function(value) reportToggle.callback(value) end, ConfigStore.boolean)
 ConfigStore.control("disconnectNotification", false, disconnectToggle, function() return ShiftWebhook.disconnectEnabled end,
     function(value) disconnectToggle.callback(value) end, ConfigStore.boolean)
 ConfigStore.control("accidentalDespawnNotification", false, despawnToggle, function() return ShiftWebhook.despawnEnabled end,
@@ -7950,13 +8008,21 @@ startup:stage("Restoring settings")
 pcall(updateTrainBoard)
 local resumeValues = env.SCRAutopilotResumeConfig
 env.SCRAutopilotResumeConfig = nil
+local webhookOverrides, webhookError = ShiftWebhook.startupOverrides({
+    active = env.SCRAutopilotEnabledWH, link = env.SCRAutopilotLinkWH, send = env.SCRAutopilotSendWH,
+    user = env.SCRAutopilotUserWH, ping = env.SCRAutopilotPingWH,
+})
+if not webhookOverrides then
+    notify("Webhook startup config rejected: " .. webhookError)
+    log("Webhook startup config rejected: " .. webhookError)
+end
 local configLoaded, configMessage
 if type(resumeValues) == "table" then
-    local failed, invalid = ConfigStore.apply(resumeValues)
+    local failed, invalid = ConfigStore.apply(resumeValues, webhookOverrides)
     configLoaded = #failed == 0 and invalid == 0
     configMessage = configLoaded and "Rejoin session restored." or "Some rejoin settings could not be restored."
 else
-    configLoaded, configMessage = ConfigStore.load()
+    configLoaded, configMessage = ConfigStore.load(webhookOverrides)
 end
 if not configLoaded or configMessage == "Loaded config; invalid settings were reset to defaults." then
     setthreadidentity(8)

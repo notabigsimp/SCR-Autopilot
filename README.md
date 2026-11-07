@@ -43,9 +43,21 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/notabigsimp/SCR-Autop
 
 When `SCRAutopilotTrain` is supplied, only that class or slug is used (case-insensitive); a locked or incompatible train stays pending. If omitted, the script prefers your saved train class when compatible with the requested route and depot; otherwise it chooses the first unlocked compatible train. If the operator, route, or suitable train is unavailable, it reports the problem and waits instead of spawning on another route. It retries the selection every 10 seconds; choosing an operator, train, or route manually cancels the pending request. Auto Rejoin retains the effective settings, including a still-pending selection.
 
+To configure the Webhook tab at startup, add these before the same loader:
+
+```lua
+getgenv().SCRAutopilotEnabledWH = true
+getgenv().SCRAutopilotLinkWH = "https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN"
+getgenv().SCRAutopilotSendWH = {"live", "disconnect", "despawn"}
+getgenv().SCRAutopilotUserWH = "123456789012345678"
+getgenv().SCRAutopilotPingWH = {"disconnect", "despawn"}
+```
+
+The webhook settings are independent of Auto Farm. `false` follows saved settings and ignores the other webhook variables. With `true` or `nil`, supplied values override saved settings for that run. Use a quoted Discord ID to preserve every digit. The lists also accept the full Webhook tab labels. An empty send list disables all automatic reports; an empty ping list disables all mentions. Omitted values keep the restored settings.
+
 Once loaded, open the **Autopilot** tab to configure speeds and enable the controller. The **Misc** tab contains the departure board, and **Diagnostics** exposes runtime information and script controls.
 
-The **Webhook** tab sits immediately after Autopilot. Paste your Discord webhook link, enable **Send shift reports**, and use **Test webhook** to check delivery. Each completed shift sends the compact journey report, with Class/driver/duration beside Points and XP. The link is kept only for the current script session. Arrival times are recorded when SCR confirms passenger loading; enable reporting before the shift starts for full coverage. Earlier or unavailable arrivals show `—`. Delays use SCR's reported minutes late at that stop, and rewards come from the shift summary. Long journeys continue across additional fields or messages.
+The **Webhook** tab sits immediately after Autopilot. Paste your Discord webhook link, enable **Send shift reports**, and use **Test webhook** to check delivery. Each completed shift sends the compact journey report, with Class/driver/duration beside Points and XP. Arrival times are recorded when SCR confirms passenger loading; enable reporting before the shift starts for full coverage. Earlier or unavailable arrivals show `—`. Delays use SCR's reported minutes late at that stop, and rewards come from the shift summary. Long journeys continue across additional fields or messages.
 
 ## Notes
 
